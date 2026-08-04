@@ -65,8 +65,12 @@ The UI, the database, Resources browsing, Read (text only), Words, Chat history,
   - Kokoro: `82m-v1.0-quantized` (≈80 MB) or `82m-v1.0-fp32`.
 - ⚠️ The **first** model download needs internet access to `huggingface.co`. Some networks/sandboxes block HuggingFace — if so, the app shows a friendly error instead of failing silently.
 
-### Dictionary lexicons (not in the repo)
-The 564 MB `data/models/Library` folder in the dev environment is the **MDict dictionary lexicons** (the offline word database) — *not* an ML model, and **intentionally excluded from the repo** as runtime user data. Without it, the right-panel Dictionary still works by falling back to the configured LLM. The app runs fine either way.
+### Dictionary lexicons (optional, bring your own)
+The right-panel Dictionary uses **offline MDict lexicons** (`.mdx` files). The app ships with **none bundled** — dictionary files are user-supplied runtime data and are excluded from the repo (see `.gitignore`).
+- **Where to put them:** drop your `.mdx` (plus the companion `.mdd` if any) into the `dictionaries` folder inside your library path — default `~/Documents/LingoLibrary/dictionaries`, or `data/models/Library/dictionaries` in a local dev checkout. The app re-scans that folder on each lookup, so a newly added file is picked up without a restart.
+- **No lexicon yet?** The Dictionary panel still works — any word not found locally falls back to the configured LLM (Settings → Engines → LLM). The app is fully usable with zero dictionary setup.
+- **Licensing note:** high-quality commercial dictionaries (Oxford / Longman / Collins / Merriam-Webster) are copyrighted, so their `.mdx` conversions may **not** be redistributed. Use a lexicon you legally own, or a free/open one (e.g. a Wiktionary-based MDict build). The LLM fallback covers everything else.
+- **What the 564 MB folder actually is:** `data/models/Library` in the dev environment is the **echogarden model cache** (Whisper + Kokoro), *not* dictionary data.
 
 ### Cloud engines (need your own key/endpoint)
 Fish Audio TTS, OpenAI TTS, and any OpenAI/Ollama LLM require your own API key or endpoint URL in Settings. They download nothing locally but need network + credentials.
