@@ -4,7 +4,11 @@ import path from "path";
 import os from "os";
 
 // --- Library path (configurable, defaults to ~/Documents/LingoLibrary) ---
-const DEFAULT_LIBRARY = path.join(os.homedir(), "Documents", "LingoLibrary");
+// In a packaged app, main.cjs sets LINGO_LIBRARY_DIR to a writable location
+// (userData) so we never write into the read-only app bundle.
+const DEFAULT_LIBRARY = process.env.LINGO_LIBRARY_DIR
+  ? path.resolve(process.env.LINGO_LIBRARY_DIR)
+  : path.join(os.homedir(), "Documents", "LingoLibrary");
 
 let libraryPath = DEFAULT_LIBRARY;
 let db: Database.Database | null = null;

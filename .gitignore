@@ -6,6 +6,9 @@ node_modules/
 
 # ── Build output ───────────────────────────────
 dist/
+dist-server/
+dist-electron/
+build/
 
 # ── Runtime / generated library data (models ~564MB + COCA PDFs) ──
 # Not source code; regenerated / downloaded at runtime.
@@ -16,3 +19,6 @@ data/
 
 # ── Logs ───────────────────────────────────────
 *.log
+
+# ── Local-only dev docs (not for the public repo) ──
+DEV-SUMMARY.md

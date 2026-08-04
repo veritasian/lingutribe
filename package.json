@@ -10,8 +10,11 @@
     "dev:server": "tsx watch src/server/index.ts",
     "dev:web": "vite",
     "build": "vite build",
+    "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.mjs --packages=external --external:better-sqlite3 --external:onnxruntime-node --external:onnxruntime-common --external:fsevents --log-level=warning",
+    "rebuild": "electron-rebuild -f -w better-sqlite3,onnxruntime-node",
     "start": "tsx src/server/index.ts",
     "app": "electron .",
+    "dist:mac": "npm run build && npm run build:server && npm run rebuild && electron-builder --mac",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -42,10 +45,39 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
     "electron": "^33.2.0",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "esbuild": "^0.24.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.2.2"
+  },
+  "build": {
+    "appId": "com.lingutribe.app",
+    "productName": "Lingutribe",
+    "directories": {
+      "output": "dist-electron",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "dist-server/**",
+      "electron/**",
+      "package.json",
+      "node_modules/**"
+    ],
+    "extraResources": [
+      {
+        "from": "data/coca-bands.json",
+        "to": "app/data/coca-bands.json"
+      }
+    ],
+    "asar": false,
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.education"
+    }
   }
 }

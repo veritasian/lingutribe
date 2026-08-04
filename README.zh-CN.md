@@ -181,6 +181,7 @@ Electron 会拉起同一个本地服务并打开原生窗口。若要制作可�
 - **放哪**：把你的 `.mdx`（以及配套的 `.mdd`，如果有）放进资料库目录下的 `dictionaries` 文件夹 —— 默认 `~/Documents/LingoLibrary/dictionaries`（本地开发版为 `data/models/Library/dictionaries`）。应用每次查词都会重新扫描该目录，放入新文件**无需重启**。
 - **没有词库也能用**：查不到的词会自动回退到已配置的 LLM（设置 → 引擎 → LLM），所以不装词库也完全可用。
 - **版权提示**：牛津 / 朗文 / 柯林斯 / 韦氏等高质量商业词典均为版权作品，其 `.mdx` 转换物**不得再分发**。请使用你合法拥有的词库，或免费开源词库（如基于 Wiktionary 的 MDict 版本）。
+- **推荐词典下载**：社区维护的 MDict 词典汇总站 [`https://mdx.mdict.org/`](https://mdx.mdict.org/)，可自行挑选你合法拥有或免费开源的词库下载（请遵守上面的版权提示）。
 - 那 564 MB 的 `data/models/Library` 文件夹其实是 **echogarden 的模型缓存（Whisper + Kokoro）**，不是词典数据。
 
 ---

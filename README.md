@@ -72,6 +72,7 @@ The right-panel Dictionary uses **offline MDict lexicons** (`.mdx` files). The a
 - **Where to put them:** drop your `.mdx` (plus the companion `.mdd` if any) into the `dictionaries` folder inside your library path — default `~/Documents/LingoLibrary/dictionaries`, or `data/models/Library/dictionaries` in a local dev checkout. The app re-scans that folder on each lookup, so a newly added file is picked up without a restart.
 - **No lexicon yet?** The Dictionary panel still works — any word not found locally falls back to the configured LLM (Settings → Engines → LLM). The app is fully usable with zero dictionary setup.
 - **Licensing note:** high-quality commercial dictionaries (Oxford / Longman / Collins / Merriam-Webster) are copyrighted, so their `.mdx` conversions may **not** be redistributed. Use a lexicon you legally own, or a free/open one (e.g. a Wiktionary-based MDict build). The LLM fallback covers everything else.
+- **Where to find lexicons:** a large community index of MDict `.mdx` files lives at `https://mdx.mdict.org/`. Only add dictionaries you are licensed to use.
 - **What the 564 MB folder actually is:** `data/models/Library` in the dev environment is the **echogarden model cache** (Whisper + Kokoro), *not* dictionary data.
 
 ### Cloud engines (need your own key/endpoint)

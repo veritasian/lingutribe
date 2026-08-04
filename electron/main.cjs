@@ -1,14 +1,18 @@
-// Minimal desktop shell for lingo.
-// It does NOT embed the server code — it simply spawns the existing
-// `npm run start` (the same Node/Express backend) as a child process and opens
-// a Chromium window pointed at it. This keeps lingo's source untouched and
-// means the native modules (better-sqlite3, onnxruntime) run under the normal
-// Node runtime, so no electron-rebuild is required for local testing.
+// Desktop shell for lingutribe.
+//
+// Two modes:
+//  - Dev (`electron .`): spawn the existing `npm run start` (tsx/Express) as a
+//    child process, exactly like the old behavior.
+//  - Packaged (distributed .app/.dmg): the server is pre-compiled to
+//    dist-server/index.mjs. We `import()` it directly into the Electron main
+//    process so it runs under Electron's Node ABI (native modules already
+//    rebuilt by electron-rebuild). No npm/tsx required at runtime.
 
 const { app, BrowserWindow, shell } = require("electron");
 const { spawn } = require("child_process");
-const path = require("path");
 const http = require("http");
+const path = require("path");
+const fs = require("fs");
 
 const ROOT = path.resolve(__dirname, "..");
 const PORT = process.env.LINGO_PORT || 8787;
@@ -35,7 +39,7 @@ function serverUp() {
   });
 }
 
-function startServer() {
+function startDevServer() {
   // Inherit the current environment (FFMPEG_BIN / LINGO_MODELS_DIR / proxy vars
   // are forwarded automatically when set by a packaged launcher).
   serverProcess = spawn("npm", ["run", "start"], {
@@ -44,7 +48,32 @@ function startServer() {
     stdio: "inherit",
     shell: true,
   });
-  serverProcess.on("error", (e) => console.error("[lingo] server spawn error:", e));
+  serverProcess.on("error", (e) => console.error("[lingutribe] server spawn error:", e));
+}
+
+async function startPackagedServer() {
+  // In packaged mode, node_modules + dist-server live under resources/app.
+  const appDir = path.join(process.resourcesPath, "app");
+  const serverEntry = path.join(appDir, "dist-server", "index.mjs");
+
+  // The app bundle is read-only, so redirect model + library storage to a
+  // writable location (~/Library/Application Support/Lingutribe on macOS).
+  const userData = app.getPath("userData");
+  process.env.LINGO_MODELS_DIR = path.join(userData, "models");
+  process.env.LINGO_LIBRARY_DIR = path.join(userData, "library");
+
+  // Point the server at the bundled ffmpeg (extraResource) when present.
+  const bundledFfmpeg = path.join(process.resourcesPath, "ffmpeg", "ffmpeg");
+  if (fs.existsSync(bundledFfmpeg)) {
+    process.env.FFMPEG_BIN = bundledFfmpeg;
+  }
+
+  if (!fs.existsSync(serverEntry)) {
+    console.error("[lingutribe] packaged server missing:", serverEntry);
+    return;
+  }
+  // Importing starts listening on PORT (see src/server/index.ts -> app.listen).
+  await import(serverEntry);
 }
 
 function waitForServer(timeoutMs = 30000) {
@@ -81,7 +110,11 @@ app.whenReady().then(async () => {
   // If a server is already running on the port (e.g. started manually), just
   // open the window instead of spawning a second one.
   if (!(await serverUp())) {
-    startServer();
+    if (app.isPackaged) {
+      await startPackagedServer();
+    } else {
+      startDevServer();
+    }
     await waitForServer();
   }
   createWindow();
