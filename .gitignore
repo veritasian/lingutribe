@@ -1,0 +1,18 @@
+# ── Dependencies ──────────────────────────────
+node_modules/
+
+# ── Python virtual env (only used by data/coca-build/extract.py) ──
+.venv/
+
+# ── Build output ───────────────────────────────
+dist/
+
+# ── Runtime / generated library data (models ~564MB + COCA PDFs) ──
+# Not source code; regenerated / downloaded at runtime.
+data/
+
+# ── macOS junk ─────────────────────────────────
+.DS_Store
+
+# ── Logs ───────────────────────────────────────
+*.log

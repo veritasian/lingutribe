@@ -1,0 +1,679 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 220 9% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 9% 12%;
+  --popover: 0 0% 100%;
+  --primary: 211 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 14% 94%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 211 100% 50%;
+  --sidebar: 220 15% 97%;
+  --radius: 0.625rem;
+}
+
+/* Use the theme border token for ALL borders (including Tailwind's
+   border-r / border-b utilities that otherwise default to a light gray
+   that looks white on the dark theme). */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: hsl(var(--border));
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    "Segoe UI", system-ui, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+.note-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.sidebar-item:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+.sidebar-item.active {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: filter 0.12s ease, background 0.12s ease;
+}
+.btn-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+.btn-secondary {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+.btn-secondary:hover {
+  background: hsl(var(--accent));
+}
+.btn-ghost {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+.btn-ghost:hover {
+  background: hsl(var(--accent));
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  font-size: 13px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  outline: none;
+}
+.textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.45;
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: hsl(var(--accent));
+  overflow: hidden;
+}
+.progress > div {
+  height: 100%;
+  background: hsl(var(--primary));
+  transition: width 0.2s ease;
+}
+
+.scroll {
+  overflow-y: auto;
+}
+.scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ---- Dark theme (Apple-inspired near-black paper) ---- */
+.dark {
+  --background: 240 6% 10%;
+  --foreground: 0 0% 96%;
+  --card: 240 6% 13%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 6% 14%;
+  --primary: 211 100% 56%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 18%;
+  --muted: 240 5% 17%;
+  --muted-foreground: 240 5% 64%;
+  --accent: 240 5% 21%;
+  --border: 240 5% 22%;
+  --input: 240 5% 22%;
+  --ring: 211 100% 56%;
+  --sidebar: 240 6% 11%;
+}
+.dark body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* ---- Transcript / clickable words ---- */
+.word {
+  display: inline-block;
+  padding: 0 1px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.word:hover {
+  background: hsl(var(--primary) / 0.16);
+  color: hsl(var(--primary));
+}
+.word.active {
+  background: hsl(var(--primary) / 0.28);
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+.word.added {
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.5);
+  text-underline-offset: 3px;
+}
+
+/* ---- Waveform container ---- */
+.waveform {
+  width: 100%;
+  border-radius: 10px;
+  background: hsl(var(--secondary));
+  padding: 6px 4px;
+}
+.waveform wave {
+  border-radius: 8px;
+}
+.dark .waveform wave {
+  filter: brightness(0.95);
+}
+
+/* ---- Reader toolbar ---- */
+.reader-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.reader-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.reader-frame {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  width: 100%;
+  background: hsl(var(--card));
+}
+
+/* ---- Player view (audio/video detail) ---- */
+.resize-handle {
+  height: 6px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  background: hsl(var(--card));
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+}
+.resize-handle::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 3px;
+  border-radius: 999px;
+  background: hsl(var(--border));
+  transition: background 0.15s;
+}
+.resize-handle:hover::after {
+  background: hsl(var(--primary) / 0.6);
+}
+
+/* When the user is dragging the waveform, prevent text selection on the page. */
+.waveform-dragging,
+.waveform-dragging * {
+  user-select: none !important;
+  cursor: ew-resize !important;
+}
+
+/* ---- MDict dictionary entry (rendered HTML from .mdx) ---- */
+.mdict-entry {
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  line-height: 1.55;
+}
+.mdict-entry h1,
+.mdict-entry h2,
+.mdict-entry h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  color: hsl(var(--foreground));
+}
+.mdict-entry .headword,
+.mdict-entry .hw,
+.mdict-entry .title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.mdict-entry .pos,
+.mdict-entry .gram,
+.mdict-entry .p {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  font-size: 12px;
+}
+.mdict-entry .phonetic,
+.mdict-entry .pron,
+.mdict-entry .h {
+  color: hsl(var(--primary));
+  font-size: 12px;
+}
+.mdict-entry .def,
+.mdict-entry .d {
+  margin: 4px 0;
+}
+.mdict-entry .ex,
+.mdict-entry .example,
+.mdict-entry .x {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 8px;
+  margin: 4px 0;
+}
+.mdict-entry ol,
+.mdict-entry ul {
+  margin: 4px 0 4px 18px;
+  padding: 0;
+}
+.mdict-entry li {
+  margin: 2px 0;
+}
+.mdict-entry a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+.mdict-entry a:hover {
+  text-decoration: underline;
+}
+.mdict-entry img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+.mdict-entry table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+}
+.mdict-entry th,
+.mdict-entry td {
+  border: 1px solid hsl(var(--border));
+  padding: 4px 6px;
+  text-align: left;
+}
+.mdict-entry hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 8px 0;
+}
+
+/* Oxford / generic MDict custom tag names (rendered as unknown elements) */
+.mdict-entry def,
+.mdict-entry ex,
+.mdict-entry chn,
+.mdict-entry top-g,
+.mdict-entry cixing_part,
+.mdict-entry pos-g {
+  display: block;
+}
+.mdict-entry def {
+  margin: 6px 0;
+}
+.mdict-entry ex {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 8px;
+  margin: 5px 0;
+}
+.mdict-entry chn {
+  color: hsl(var(--primary));
+}
+.mdict-entry cixing_part {
+  margin-bottom: 14px;
+}
+.mdict-entry pos-g {
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+.mdict-entry symbol {
+  opacity: 0.5;
+}
+/* OALD8-style classes (span-based def/ex/chn instead of custom tags) */
+.mdict-entry .chn {
+  color: hsl(var(--primary));
+}
+.mdict-entry .def-g {
+  display: block;
+  margin: 5px 0;
+}
+.mdict-entry .x-g {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 8px;
+  margin: 5px 0;
+}
+.mdict-entry .sense-g {
+  display: block;
+  margin: 3px 0;
+}
+.mdict-entry .id {
+  opacity: 0.5;
+  font-size: 11px;
+}
+/* xhtml:a / a cross-refs (href stripped server-side) render as plain text */
+.mdict-entry xhtml\:a,
+.mdict-entry a {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+}
+
+/* Word-panel dictionary card pieces */
+.mdict-section {
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 10px;
+}
+.mdict-pos {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: hsl(var(--primary));
+  margin-bottom: 2px;
+}
+.mdict-audio {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  color: hsl(var(--primary));
+  border-radius: 4px;
+}
+.mdict-audio:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.12);
+}
+.mdict-audio:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.mdict-def {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.mdict-def-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+}
+.mdict-num {
+  font-weight: 600;
+  color: hsl(var(--primary));
+  min-width: 14px;
+}
+.mdict-en {
+  color: hsl(var(--foreground));
+}
+.mdict-cn {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.mdict-ex {
+  margin-top: 2px;
+  padding-left: 20px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.45;
+}
+
+/* ---- Subtitle (one sentence per line) transcript view ---- */
+.subtitle-line {
+  display: block;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  line-height: 1.6;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.subtitle-line:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+.subtitle-line.active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.07);
+}
+.subtitle-line .word {
+  padding: 0 1px;
+}
+
+/* ---------------------------------------------------------------------------
+   Words page — card grid + COCA filter chips
+   ------------------------------------------------------------------------- */
+.word-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.word-card {
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--card));
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+.word-card:hover {
+  border-color: hsl(var(--primary) / 0.55);
+  box-shadow: 0 2px 10px hsl(var(--primary) / 0.12);
+}
+.word-card:active {
+  transform: translateY(1px);
+}
+.word-card-term {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+}
+.word-card-meaning {
+  margin-top: 4px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.word-card-band {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.word-card-del {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.word-card:hover .word-card-del {
+  opacity: 0.8;
+}
+.word-card-del:hover {
+  color: hsl(var(--destructive, #dc2626));
+  opacity: 1 !important;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.filter-chip:hover {
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+/* ---------------------------------------------------------------------------
+   Chat page — ChatGPT-style bubbles
+   ------------------------------------------------------------------------- */
+.chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.chat-row-user {
+  flex-direction: row-reverse;
+}
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  color: #fff;
+}
+.chat-avatar-bot {
+  background: hsl(var(--primary));
+}
+.chat-avatar-user {
+  background: hsl(var(--muted-foreground));
+}
+.chat-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-bubble-user {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground, #fff));
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-assistant {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-bottom-left-radius: 4px;
+}
+.chat-input {
+  resize: none;
+  max-height: 160px;
+  border-radius: 12px;
+}
+/* typing indicator */
+.chat-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.chat-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground));
+  animation: chat-blink 1.2s infinite ease-in-out;
+}
+.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chat-blink {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Read page — sentence highlight during TTS playback */
+.sentence-hi {
+  background: rgba(59, 130, 246, 0.18);
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+/* CSS Custom Highlight API — used by the Read page during read-aloud */
+::highlight(lingo-sentence) {
+  background-color: rgba(59, 130, 246, 0.25);
+}
+
+

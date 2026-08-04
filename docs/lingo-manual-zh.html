@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lingo 使用说明书 · 本地语言工作室</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#f7f8fa; --panel-2:#eef1f5; --border:#e3e7ee;
+    --text:#1f2733; --muted:#6b7686; --brand:#2563eb; --brand-soft:#e8f0fe;
+    --code-bg:#f3f4f6; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+    --sidebar-w:268px;
+  }
+  html[data-theme="dark"]{
+    --bg:#0f141b; --panel:#161c25; --panel-2:#1d2530; --border:#28323f;
+    --text:#e6edf5; --muted:#93a1b3; --brand:#5b9cff; --brand-soft:#15233c;
+    --code-bg:#1b2230; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.7; font-size:15px;
+  }
+  a{color:var(--brand); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  /* Layout */
+  .layout{display:flex; min-height:100vh;}
+  nav.side{
+    width:var(--sidebar-w); flex:0 0 var(--sidebar-w);
+    position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto;
+    background:var(--panel); border-right:1px solid var(--border); padding:18px 14px 40px;
+  }
+  nav.side .brand{font-size:18px; font-weight:700; margin:0 0 4px;}
+  nav.side .brand small{display:block; font-weight:400; font-size:12px; color:var(--muted); margin-top:2px;}
+  nav.side .search{width:100%; margin:14px 0 10px; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:13px;}
+  nav.side .group{margin-bottom:6px;}
+  nav.side .group > .gt{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:10px 8px 4px;}
+  nav.side .group a{display:block; padding:6px 10px; border-radius:7px; color:var(--text); font-size:14px;}
+  nav.side .group a:hover{background:var(--panel-2); text-decoration:none;}
+  nav.side .group a.active{background:var(--brand-soft); color:var(--brand); font-weight:600;}
+
+  main{flex:1; min-width:0; padding:38px 56px 90px; max-width:980px;}
+  main h1{font-size:30px; margin:0 0 6px; line-height:1.25;}
+  main .sub{color:var(--muted); margin:0 0 26px;}
+  main h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--border); scroll-margin-top:18px;}
+  main h3{font-size:17px; margin:26px 0 8px; scroll-margin-top:18px;}
+  main p{margin:10px 0;}
+  main ul,main ol{margin:10px 0; padding-left:22px;}
+  main li{margin:5px 0;}
+  main code{background:var(--code-bg); padding:1.5px 6px; border-radius:5px; font-size:13px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  main pre{background:var(--code-bg); padding:14px 16px; border-radius:10px; overflow:auto; font-size:13px; line-height:1.55;}
+  main pre code{padding:0; background:none;}
+  main table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px;}
+  main th,main td{border:1px solid var(--border); padding:8px 11px; text-align:left; vertical-align:top;}
+  main th{background:var(--panel); font-weight:600;}
+  .note,.tip,.warn,.danger{border-left:4px solid var(--brand); background:var(--panel); padding:11px 15px; border-radius:0 8px 8px 0; margin:16px 0;}
+  .tip{border-color:var(--ok);} .warn{border-color:var(--warn);} .danger{border-color:var(--err);}
+  .note b,.tip b,.warn b,.danger b{font-weight:700;}
+  .tag{display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px; background:var(--brand-soft); color:var(--brand); margin-right:4px;}
+  .tag.gray{background:var(--panel-2); color:var(--muted);}
+  kbd{background:var(--panel-2); border:1px solid var(--border); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:12px; font-family:inherit;}
+  .topbar{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px; padding:10px 0; background:linear-gradient(var(--bg),var(--bg)); border-bottom:1px solid var(--border); margin-bottom:6px;}
+  .topbar .spacer{flex:1;}
+  .topbar button{cursor:pointer; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:8px; padding:6px 12px; font-size:13px;}
+  .topbar button:hover{background:var(--panel-2);}
+  .menu-toggle{display:none;}
+  @media (max-width:900px){
+    nav.side{position:fixed; left:0; top:0; z-index:50; transform:translateX(-100%); transition:transform .2s; box-shadow:0 0 40px rgba(0,0,0,.25);}
+    nav.side.open{transform:translateX(0);}
+    main{padding:20px 18px 70px;}
+    .menu-toggle{display:inline-block;}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- ============ LEFT SIDEBAR ============ -->
+  <nav class="side" id="sidebar">
+    <div class="brand">Lingo 使用说明书<small>本地语言工作室 · Local Language Studio</small></div>
+    <input class="search" id="navSearch" placeholder="搜索章节…" />
+    <div class="group">
+      <div class="gt">入门</div>
+      <a href="#overview">产品定位与理念</a>
+      <a href="#start">快速开始</a>
+      <a href="#ui">界面总览</a>
+      <a href="#library">资料库结构</a>
+    </div>
+    <div class="group">
+      <div class="gt">核心功能</div>
+      <a href="#resources">资源页（音频 / 视频）</a>
+      <a href="#read">阅读页（Read）</a>
+      <a href="#dictionary">离线词典</a>
+      <a href="#askai">Ask AI 与对话</a>
+      <a href="#grammar">语法分析</a>
+      <a href="#coca">COCA 词频</a>
+      <a href="#words">生词本</a>
+    </div>
+    <div class="group">
+      <div class="gt">设置与引擎</div>
+      <a href="#settings">设置总览</a>
+      <a href="#stt">语音识别 STT</a>
+      <a href="#tts">语音合成 TTS</a>
+      <a href="#llm">大语言模型 LLM</a>
+      <a href="#engines-rule">引擎分离与默认规则</a>
+    </div>
+    <div class="group">
+      <div class="gt">运维与排查</div>
+      <a href="#run">启动 / 停止 / 部署</a>
+      <a href="#faq">常见问题排查</a>
+      <a href="#notimpl">未实现功能说明</a>
+    </div>
+  </nav>
+
+  <!-- ============ RIGHT CONTENT ============ -->
+  <main>
+    <div class="topbar">
+      <button class="menu-toggle" id="menuToggle">☰ 目录</button>
+      <span class="spacer"></span>
+      <button id="themeBtn">🌗 切换主题</button>
+    </div>
+
+    <h1>Lingo 使用说明书</h1>
+    <p class="sub">版本对应代码库 <code>/lingo</code> · 前端 React+TypeScript(Vite) · 后端 Node/Express（默认端口 8787）· 本地优先、可离线运行</p>
+
+    <div class="note"><b>阅读提示：</b>本说明覆盖 Lingo 的全部已实现功能与操作细节。左侧为分类目录，点击章节可跳转；右侧正文随滚动自动高亮当前章节。文档中的端点路径、配置名、默认值均取自当前代码，可直接对照使用。</div>
+
+    <!-- ============ 概述 ============ -->
+    <h2 id="overview">一、产品定位与理念</h2>
+    <p>Lingo 是一款<strong>本地优先（local-first）</strong>的语言学习工具，定位为"本地语言工作室"。它把<strong>听（音频/视频）、读（文章）、查（词典）、练（AI 对话与语法）、记（生词本与词频）</strong>整合在一个桌面/网页应用里，目标是让你在<strong>不依赖云端账号、数据留在自己机器</strong>的前提下完成外语沉浸学习。</p>
+    <ul>
+      <li><span class="tag">隐私</span> 词典查询、本地 TTS（Kokoro）、本地 STT（Whisper）全部在本地运行，不联网。</li>
+      <li><span class="tag">可选云端</span> 仅当你主动配置 Fish Audio（云端 TTS）或 DeepSeek / OpenAI 等云端 LLM 时，才会向对应服务商发起请求。</li>
+      <li><span class="tag">本地存储</span> 所有资料、设置、对话记录都保存在你本机的"资料库"目录（默认 <code>~/Documents/LingoLibrary</code>）下的 SQLite 数据库与子文件夹中。</li>
+      <li><span class="tag">可选桌面壳</span> 提供 Electron 外壳，但本质仍是启动本地后端 + 打开浏览器窗口，端口固定 8787。</li>
+    </ul>
+
+    <h3>技术架构速览</h3>
+    <table>
+      <tr><th>层</th><th>技术</th><th>说明</th></tr>
+      <tr><td>前端</td><td>React 18 + TypeScript + Vite</td><td>单页应用（SPA），构建产物在 <code>dist/</code>，由后端直接托管</td></tr>
+      <tr><td>后端</td><td>Node + Express（tsx 运行 <code>src/server/index.ts</code>）</td><td>REST API + 静态托管，默认端口 <code>8787</code>（可用 <code>PORT</code> 环境变量覆盖）</td></tr>
+      <tr><td>数据库</td><td>better-sqlite3（WAL）</td><td>资源、生词、笔记/对话、设置、聊天消息均存于资料库目录</td></tr>
+      <tr><td>语音</td><td>echogarden（Whisper / Kokoro）</td><td>本地语音识别与合成，模型首次使用从 HuggingFace 下载</td></tr>
+      <tr><td>桌面壳</td><td>Electron</td><td>可选；子进程启动后端并打开窗口，不打包后端逻辑</td></tr>
+    </table>
+
+    <!-- ============ 快速开始 ============ -->
+    <h2 id="start">二、快速开始</h2>
+    <h3>1. 环境要求</h3>
+    <ul>
+      <li><strong>Node.js</strong>：建议 18+（项目已用 22.x 验证）。</li>
+      <li><strong>ffmpeg</strong>：用于导入/转码与字幕处理。应用会自动在 <code>/opt/homebrew/bin</code>、<code>/usr/local/bin</code>、<code>/usr/bin</code> 或 <code>PATH</code> 中查找；缺失时 URL 导入与部分转写会失败。</li>
+      <li><strong>yt-dlp</strong>（可选）：用于从 URL 导入视频/播客音频。未安装时仍可导入 RSS/文本类资源。</li>
+    </ul>
+    <h3>2. 安装与启动</h3>
+    <pre><code># 进入项目目录
+cd /Users/andy/Workbuddy/2026-07-29-09-42-38/lingo
+
+# 安装依赖（仅首次）
+npm install
+
+# 生产模式：构建前端 + 启动后端（端口 8787）
+npm run build
+npm run start
+
+# 或开发模式（热更新，同时跑 server + web）
+npm run dev
+
+# 桌面壳（可选）
+npm run app</code></pre>
+    <p>启动后浏览器打开 <code>http://localhost:8787/</code> 即可使用。Electron 模式会自动等待后端健康检查（最多 30 秒）后打开窗口。</p>
+
+    <div class="tip"><b>首次运行建议：</b>进入"设置 → STT"与"设置 → TTS"，分别点击<strong>「Deploy locally / 部署本地」</strong>，下载 Whisper 与 Kokoro 模型（约 80MB 起）。之后语音识别与语音合成可完全离线，无需任何 API Key 或费用。</div>
+
+    <h3>3. 默认引擎一览</h3>
+    <table>
+      <tr><th>能力</th><th>默认引擎</th><th>默认地址 / 模型</th><th>是否需联网</th></tr>
+      <tr><td>STT 语音识别</td><td>本地 Whisper</td><td><code>tiny/base/small/medium/large</code></td><td>否（模型本地）</td></tr>
+      <tr><td>TTS 语音合成</td><td>本地 Kokoro</td><td><code>82m-v1.0-quantized</code></td><td>否</td></tr>
+      <tr><td>LLM 大模型</td><td>Ollama（本地）</td><td><code>http://localhost:11434/v1</code> · 模型 <code>qwen3:0.6b</code></td><td>否（若用本地 Ollama）</td></tr>
+    </table>
+
+    <!-- ============ 界面 ============ -->
+    <h2 id="ui">三、界面总览</h2>
+    <p>左侧为可折叠的导航栏（220px ↔ 64px 图标），状态保存在 <code>localStorage["lingo-sidebar"]</code>。页面入口：</p>
+    <table>
+      <tr><th>入口</th><th>路由</th><th>用途</th></tr>
+      <tr><td>资源（音频 / 视频）</td><td><code>/resources/audio</code> · <code>/resources/video</code></td><td>导入/播放/转写音视频</td></tr>
+      <tr><td>阅读</td><td><code>/read</code></td><td>导入/编辑/朗读文章</td></tr>
+      <tr><td>生词</td><td><code>/words</code></td><td>生词本管理</td></tr>
+      <tr><td>对话</td><td><code>/chat</code></td><td>自由 AI 对话（<code>/notes</code> 已重定向至此）</td></tr>
+      <tr><td>设置</td><td><code>/settings</code></td><td>引擎 / 外观 / 存储配置</td></tr>
+    </table>
+    <h3>外观与语言</h3>
+    <ul>
+      <li><strong>主题</strong>：设置 → 系统 → 外观，可选<code>浅色 / 深色 / 跟随系统</code>，存于 <code>lingo-theme</code>。</li>
+      <li><strong>界面语言</strong>：设置中可切换 <code>中文 / English</code>（存于 <code>lingo-ui-lang</code>），切换后应用会重新加载。</li>
+      <li><strong>学习语言 / 母语</strong>：设置中可填（默认学习语言 <code>en</code>、母语 <code>zh</code>）。这两个值会替换语法/词典提示词模板里的 <code>{L}</code>（学习语言）与 <code>{N}</code>（母语）占位符。</li>
+    </ul>
+
+    <!-- ============ 资料库 ============ -->
+    <h2 id="library">四、资料库（Library）结构</h2>
+    <p>所有用户数据保存在"资料库"根目录，默认 <code>~/Documents/LingoLibrary</code>，可在<strong>设置 → 系统 → 存储</strong>中修改 <code>libraryPath</code>。结构如下：</p>
+    <pre><code>~/Documents/LingoLibrary/
+├── audio/            # 导入的音频资源文件
+├── video/            # 导入的视频资源文件
+├── read/             # 导入的文本/文章资源
+├── tts/              # 保存的 TTS 音频（开启"保存到磁盘"时）
+├── dictionaries/     # 用户放入的离线词典 .mdx（及发音包 .mdd）
+├── data/
+│   └── models/       # Whisper / Kokoro 模型缓存（重定向至此，不落系统默认目录）
+└── (SQLite 库)       # resources / words / notes / settings / chat_messages 等表</code></pre>
+    <ul>
+      <li><strong>磁盘用量</strong>：设置 → 系统 → 存储 会显示总空间、已用、剩余，以及各资源类型占用字节（来自 <code>GET /api/disk</code>）。</li>
+      <li><strong>改库路径</strong>：修改 <code>libraryPath</code> 并保存；新路径若不存在会自动创建所需子目录。已有数据不会自动迁移，需自行移动文件。</li>
+    </ul>
+
+    <!-- ============ 资源页 ============ -->
+    <h2 id="resources">五、资源页（音频 / 视频）</h2>
+    <p>路径 <code>/resources/audio</code> 与 <code>/resources/video</code>，用于导入并学习音视频材料。</p>
+
+    <h3>5.1 导入材料</h3>
+    <ul>
+      <li><strong>本地文件</strong>：点击上传，单个文件上限 500MB（<code>express.json</code> 上限 50MB，媒体走 <code>multer</code> 大文件通道）。</li>
+      <li><strong>URL 导入</strong>：粘贴视频/播客链接，后端用 <code>yt-dlp</code> 下载；可用时自动抓取字幕。失败回退到 RSS/直链。</li>
+      <li>导入后在左侧列表中显示，点击进入播放/学习视图。</li>
+    </ul>
+
+    <h3>5.2 转写（Transcribe）</h3>
+    <ul>
+      <li>资源头部有 <strong>Transcribe / Re-transcribe</strong> 按钮：调用本地 Whisper 生成逐字稿，结果含<strong>时间轴</strong>（每个词有起止时间）。</li>
+      <li>转写结果保存在资源的 <code>transcript</code> 字段（可编辑后 PUT 回 <code>/api/resources/:id</code>）。</li>
+      <li>若未安装 ffmpeg 或 Whisper 模型未部署，转写会失败——请先完成"部署本地"步骤。</li>
+    </ul>
+
+    <h3>5.3 播放器与波形</h3>
+    <ul>
+      <li><strong>播放 / 暂停</strong>：按 <kbd>空格</kbd> 切换（在输入框/可编辑区时不触发）。</li>
+      <li><strong>语速</strong>：0.5×–2× 调节。</li>
+      <li><strong>波形面板</strong>：可缩放（20–600 像素/秒）、<strong>自动滚动</strong>开关、<strong>音高</strong>显示（用 Pitchfinder YIN 估算基频 F0 画在波形上）、<strong>区域（Regions）</strong>：拖拽创建、编辑模式下双击删除；高度可调并记忆。</li>
+      <li><strong>视频分屏</strong>：视频资源支持拖拽分隔条调整画面/字幕比例，比例记忆。</li>
+      <li><strong>自动滚动</strong>与<strong>波形显隐</strong>状态均会本地记忆。</li>
+    </ul>
+
+    <h3>5.4 逐字稿（Transcript）</h3>
+    <ul>
+      <li><strong>布局切换</strong>：<code>Flow</code>（段落流式）与 <code>Subtitle</code>（一句一行），状态存于 <code>lingo-transcript-view</code>。</li>
+      <li><strong>点击单词</strong>：在右侧面板打开词典；若该词有时间戳，点击会<strong>跳转到对应播放位置</strong>。</li>
+      <li><strong>划词 Ask AI</strong>：选中任意文本，浮出"Ask AI"按钮，点击后右侧切到 Ask AI 标签并带入选中内容（见第七章）。</li>
+      <li><strong>COCA 词频着色</strong>：单词按词频带染色（见第九章），高频/低频一目了然。</li>
+    </ul>
+
+    <h3>5.5 词汇档案（Layout 标签）</h3>
+    <ul>
+      <li>资源视图的 <strong>Layout</strong> 标签展示<strong>词汇难度档案（VocabProfile）</strong>：总词数、去重词数、停用词占比、以及<strong>难度评分</strong>（高频前 3k 词 + 停用词占比越高越简单）。</li>
+      <li>下方按 COCA 词频带列出单词，点击单词可查词典。</li>
+      <li>该标签内还有 <strong>COCA 词频带过滤</strong>开关，可显示/隐藏指定词频带。</li>
+    </ul>
+
+    <!-- ============ 阅读页 ============ -->
+    <h2 id="read">六、阅读页（Read）</h2>
+    <p>路径 <code>/read</code>，用于导入并精读文章。</p>
+    <ul>
+      <li><strong>导入</strong>：支持导入本地文本文件或粘贴网页 URL（会自动去除 HTML，生成 <code>read</code> 类型资源）。</li>
+      <li><strong>编辑与自动保存</strong>：正文可编辑（contentEditable），停止输入约 800ms 后<strong>自动保存</strong>到资源的 <code>transcript</code> 字段，未保存时有脏标记提示。</li>
+      <li><strong>朗读（Read aloud）</strong>：调用默认 TTS 引擎逐句朗读，播放时用浏览器高亮 API 对当前句子<strong>逐句高亮</strong>。</li>
+      <li><strong>划词查词典 / Ask AI</strong>：与资源页一致——点击单词查词典，选中文本后可"Ask AI"。</li>
+      <li><strong>Layout 标签</strong>：同资源页，展示词汇难度档案与词频过滤。</li>
+    </ul>
+
+    <!-- ============ 词典 ============ -->
+    <h2 id="dictionary">七、离线词典（Dictionary）</h2>
+    <p>Lingo 的词典查询<strong>100% 离线</strong>，基于 MDict 格式。</p>
+    <h3>7.1 放入词典</h3>
+    <ul>
+      <li>将 <code>.mdx</code> 词典文件（可选配套发音包 <code>.mdd</code>）放入资料库的 <code>dictionaries/</code> 目录：<code>~/Documents/LingoLibrary/dictionaries</code>。</li>
+      <li>后端每次查询会扫描该目录，新增/删除词典立即生效，无需重启。</li>
+      <li>若查不到词，词典面板会提示：<code>No local dictionary entry. Drop a .mdx file into …/dictionaries</code>。</li>
+    </ul>
+    <h3>7.2 查询与展示</h3>
+    <ul>
+      <li>在逐字稿/文章中<strong>点击任意单词</strong>即打开词典面板（右侧）。</li>
+      <li>结果以<strong>牛津式卡片</strong>呈现：单词、音标、按词性（POS）分组，每组最多 2 条释义（英+中）+ 最多 2 个例句。已清理 <code>★</code> 与冗余 HTML。</li>
+      <li><strong>发音音频</strong>：若 <code>.mdx</code> 配有 <code>.mdd</code> 发音包，词典面板可播放发音；无发音包则返回 404（不影响文字查询）。</li>
+      <li><strong>词形还原</strong>：查不到原词时，会尝试还原词形（含不规则动词表）再查，例如 <code>running → run</code>。</li>
+    </ul>
+    <h3>7.3 LLM 兜底</h3>
+    <div class="tip"><b>查不到时自动用大模型：</b>当本地词典返回 <code>found:false</code>，词典面板会<strong>自动调用大模型</strong>生成简洁双语释义（2 个解读 + 词性 + 2 个例句，控制在 150 词内，词典风格）。提示词默认模板支持 <code>{WORD}</code>/<code>{L}</code>/<code>{N}</code> 占位符，可在设置中覆盖。</div>
+    <h3>7.4 加入生词本</h3>
+    <ul>
+      <li>词典面板有 <strong>"+ Add to Words"</strong> 按钮，一键把当前词加入生词本（见第十章）。</li>
+    </ul>
+
+    <!-- ============ Ask AI ============ -->
+    <h2 id="askai">八、Ask AI 与对话</h2>
+    <p>Lingo 提供两种与本地大模型对话的入口，二者都依赖你在"设置 → LLM"中配置并默认的模型。</p>
+    <h3>8.1 右侧 Ask AI 标签（划词提问）</h3>
+    <ul>
+      <li>入口为右侧面板的第三个标签（位于 Dictionary、Grammar 之后）。</li>
+      <li>在资源页（音频/视频）或阅读页<strong>选中文本</strong> → 浮出 <strong>"Ask AI"</strong> 按钮 → 点击后右侧切到 Ask AI，并自动带入选中文本与所在文章上下文。</li>
+      <li>系统提示词会包含<strong>文章上下文</strong>（最多约 4000 字符）+ 你的选中内容，使回答贴合材料。</li>
+      <li><strong>对话持久化</strong>：每个材料/文章的对话按 <code>thread</code> 隔离，存于 <code>chat_messages</code> 表。音视频按资源 id 为 thread，阅读按文章 id 为 thread。下次打开同一材料，历史仍在。</li>
+    </ul>
+    <h3>8.2 独立对话页（Chat）</h3>
+    <ul>
+      <li>路径 <code>/chat</code>，自由聊天，不绑定具体材料。</li>
+      <li>每条对话以 <code>notes</code> 行存储，<code>body</code> 为消息数组（<code>{role, content}</code>）。</li>
+      <li><kbd>Enter</kbd> 发送，<kbd>Shift</kbd>+<kbd>Enter</kbd> 换行。</li>
+      <li>系统上下文由"学习语言/母语"设置构建。</li>
+    </ul>
+
+    <!-- ============ 语法 ============ -->
+    <h2 id="grammar">九、语法分析（Grammar）</h2>
+    <ul>
+      <li>右侧面板的 <strong>Grammar 标签</strong> 提供 <strong>"Analyze with AI"</strong> 按钮。</li>
+      <li>对<strong>单个词</strong>：分析其所在上下文句子；对<strong>划选文本</strong>：分析整段选区。</li>
+      <li>后端 <code>POST /api/llm/analyze</code> 使用默认语法提示词，分三部分输出：<strong>句子结构 / 语法 / 词汇短语</strong>；提示词中的 <code>{L}</code>/<code>{N}</code> 由语言设置替换。</li>
+      <li><strong>自定义提示词</strong>：设置 → LLM → 语法提示词文本框，可编辑并"保存提示词"。</li>
+    </ul>
+
+    <!-- ============ COCA ============ -->
+    <h2 id="coca">十、COCA 词频</h2>
+    <p>COCA（Corpus of Contemporary American English）词频数据用于评估文章难度与重点词汇。</p>
+    <ul>
+      <li>数据来自 <code>data/coca-bands.json</code>（Nation &amp; Crabbe BNC/COCA 约 25k 词表），含每个词的<strong>排名</strong>与<strong>词频带阈值</strong>。</li>
+      <li>词频带划分与配色：
+        <table>
+          <tr><th>词频带</th><th>含义</th><th>颜色</th></tr>
+          <tr><td>1k</td><td>最高频前 1000</td><td style="color:var(--ok)">绿</td></tr>
+          <tr><td>3k</td><td>前 3000</td><td style="color:#65a30d">黄绿</td></tr>
+          <tr><td>5k</td><td>前 5000</td><td style="color:var(--brand)">蓝</td></tr>
+          <tr><td>6k</td><td>前 6000</td><td style="color:#eab308">黄</td></tr>
+          <tr><td>6k+</td><td>6000 以外（低频/生词）</td><td style="color:var(--err)">红</td></tr>
+        </table>
+      </li>
+      <li><strong>词形还原</strong>：查询排名时按"缩写→前缀→后缀→剥离"逐级尝试（有深度限制），并内置<strong>不规则动词表</strong>。</li>
+      <li><strong>显示位置</strong>：逐字稿单词染色、词汇档案难度评分、词典面板头部"COCA {band}（真实排名）"徽标、生词本过滤。</li>
+      <li><strong>过滤</strong>：逐字稿/词汇档案中的<strong>词频带过滤开关</strong>可控制显示哪些带，偏好存于 <code>localStorage["lingo-coca-bands"]</code>。</li>
+    </ul>
+
+    <!-- ============ 生词本 ============ -->
+    <h2 id="words">十一、生词本（Words）</h2>
+    <ul>
+      <li>路径 <code>/words</code>，网格展示生词卡片，按 COCA 词频带染色。</li>
+      <li><strong>增删</strong>：词典面板"+ Add to Words"加入；页面内可手动添加/删除。</li>
+      <li><strong>搜索与过滤</strong>：搜索框 + 按词频带（band）过滤的筛选条。</li>
+      <li><strong>点击卡片</strong>：打开仅词典视图查词。</li>
+      <li><strong>复习字段</strong>：生词表含 <code>level</code>（0=新词，越高越熟）与 <code>reviewedAt</code>，即<strong>间隔重复（spaced repetition）的数据库骨架已存在</strong>，但目前<strong>尚未构建复习/训练界面与逻辑</strong>（见"未实现功能"）。</li>
+    </ul>
+
+    <!-- ============ 设置 ============ -->
+    <h2 id="settings">十二、设置总览</h2>
+    <p>路径 <code>/settings</code>，左侧分类：<strong>系统 / STT / TTS / LLM</strong>。界面语言可在此切换中/英，切换后重载应用。</p>
+    <table>
+      <tr><th>分类</th><th>可配置项</th></tr>
+      <tr><td>系统</td><td>外观（浅/深/跟随）、界面语言、学习语言、母语、资料库路径、磁盘用量</td></tr>
+      <tr><td>STT</td><td>Whisper 模型、部署本地、保存、测试、历史</td></tr>
+      <tr><td>TTS</td><td>引擎（Kokoro/Fish/OpenAI）、各引擎参数字段、保存TTS音频、保存/测试、配置列表</td></tr>
+      <tr><td>LLM</td><td>引擎（Ollama/OpenAI）、地址/模型/Key、确认、测试、语法提示词、配置列表</td></tr>
+    </table>
+
+    <!-- ============ STT ============ -->
+    <h2 id="stt">十三、语音识别 STT</h2>
+    <ul>
+      <li><strong>引擎</strong>：本地 Whisper（通过 echogarden），<strong>无需任何 API Key</strong>，与 LLM/TTS 完全隔离。</li>
+      <li><strong>模型</strong>：<code>tiny / base / small / medium / large</code>。选 <code>large</code> 实际映射到 <code>large-v3-turbo</code>。模型越大越准但越慢。</li>
+      <li><strong>部署本地</strong>：点击"Deploy locally"触发 <code>/api/models/ensure</code> 下载对应 Whisper 包（首次从 HuggingFace 下载）。</li>
+      <li><strong>保存 / 测试</strong>：保存把配置追加进 <code>sttHistory</code>；测试调用 <code>/api/engines/stt/test</code> 校验模型是否已就位。</li>
+      <li><strong>历史配置</strong>：点击加载、✕ 删除。<strong>STT 无拖拽排序</strong>（单一本地引擎，通常无需多配置）。</li>
+    </ul>
+
+    <!-- ============ TTS ============ -->
+    <h2 id="tts">十四、语音合成 TTS</h2>
+    <p>TTS 提供三种引擎，可在设置中切换：</p>
+    <h3>14.1 Kokoro（本地，推荐，免费离线）</h3>
+    <ul>
+      <li>神经网络 onnx 模型，<strong>完全本地</strong>，输出 WAV，<strong>不消耗任何费用或账号</strong>。</li>
+      <li>模型：<code>82m-v1.0-quantized</code>（约 80MB，默认）/ <code>82m-v1.0-fp32</code>（约 330MB，更高质量）。</li>
+      <li>男声/女声：从 <code>GET /api/tts/voices</code> 按性别+英语筛选（声音需用完整 id，如 <code>en-US-Heart</code>）。</li>
+      <li><strong>部署本地</strong>："Deploy locally" 下载 Kokoro 模型+声音，并<strong>自动将其注册为默认 TTS 配置</strong>。</li>
+    </ul>
+    <h3>14.2 Fish Audio（云端）</h3>
+    <ul>
+      <li>需 API Key 与 <strong>男声/女声的 reference_id</strong>（Fish 声音用 reference 而非名字）。</li>
+      <li>模型：<code>s2.1-pro-free</code>（免费开发模型，免按字符计费）/ <code>s2.1-pro</code> / <code>s2-pro</code> / <code>s1</code>。</li>
+      <li>Base URL 默认 <code>https://api.fish.audio/v1/tts</code>。</li>
+      <li><span class="tag gray">注意</span> Fish 的 <strong>API credit 余额需大于 0</strong> 才能调用 API（免费模型只免除"按字符计费"，不免除账户余额门控）。余额不足会返回 <code>402 Insufficient API credit</code>——这是 Fish 账户的计费问题，不是应用 bug。此外 Fish 还要求配置有效的 voice reference 才能出声。</li>
+    </ul>
+    <h3>14.3 OpenAI 兼容（通用）</h3>
+    <ul>
+      <li>填写 <strong>Base URL + API Key + 模型 + 男声/女声名字</strong>，适配 OpenAI 及多数自托管/开源 TTS（CosyVoice、GPT-SoVITS、XTTS、F5-TTS、Bark 等，均暴露 <code>/v1/audio/speech</code>）。</li>
+      <li>输出 WAV。</li>
+    </ul>
+    <h3>14.4 TTS 配置列表与默认规则</h3>
+    <ul>
+      <li>每个引擎可"保存"为一个<strong>配置项</strong>，带自己的 <strong>Base URL / API Key / 模型 / 男声 / 女声</strong>。</li>
+      <li><strong>拖拽排序</strong>：列表项可拖动；<strong>排在第一位 = 默认</strong>（带"Default"徽标）。</li>
+      <li><strong>点击配置</strong>：会把该配置的全部字段（含 URL/Key）载入表单——切换引擎配置时表单不再串用别的配置的值。</li>
+      <li><strong>保存到磁盘</strong>：勾选后 TTS 音频写入资料库 <code>tts/</code> 目录（否则仅实时返回，不落盘）。</li>
+      <li><strong>测试</strong>：点击 Test 用<strong>当前表单配置</strong>（所见即所测）调用 <code>/api/engines/tts/test</code>（实时合成、不保存）。</li>
+    </ul>
+
+    <!-- ============ LLM ============ -->
+    <h2 id="llm">十五、大语言模型 LLM</h2>
+    <p>LLM 驱动 Ask AI、语法分析、词典兜底与对话页。提供两种引擎：</p>
+    <h3>15.1 Ollama（本地）</h3>
+    <ul>
+      <li>默认 <code>baseUrl = http://localhost:11434/v1</code>，模型如 <code>qwen3:0.6b</code>。<strong>需你本地启动 Ollama 且监听该地址</strong>（注意默认端口是 11434，不是 8080）。</li>
+      <li>本地运行无需 API Key。</li>
+    </ul>
+    <h3>15.2 OpenAI 兼容（云端，如 DeepSeek）</h3>
+    <ul>
+      <li>填写 <strong>Base URL + 模型 + API Key</strong>，适配 OpenAI、DeepSeek 等。</li>
+      <li>例如 DeepSeek：Base URL <code>https://api.deepseek.com/v1</code>，模型 <code>deepseek-chat</code>（或你账号支持的模型名）。</li>
+    </ul>
+    <h3>15.3 LLM 配置列表与默认规则</h3>
+    <ul>
+      <li>"<strong>Confirm</strong>" 把当前表单保存为一个配置项，并置为默认（<strong>最新保存的 = 默认</strong>）。</li>
+      <li><strong>拖拽排序</strong>：列表项可拖动，<strong>第一位 = 默认</strong>；点击加载，✕ 删除。</li>
+      <li><strong>每配置自带 Key</strong>：保存时会把当前 API Key 一起存入该配置。点击某配置时，<strong>Base URL、模型、API Key 都会一起载入表单</strong>——切换 gemma/deepseek 等不同模型，Key 不再串用。</li>
+      <li>列表项显示 <code>🔑 API key saved</code>（该配置自带 Key）或 <code>🔓 no API key</code>（无自带 Key，使用表单里的 Key）。</li>
+      <li><strong>测试</strong>：Test 用<strong>当前表单配置</strong>发送 "hi" 调用 <code>/api/engines/llm/test</code>，返回预览文本。</li>
+    </ul>
+
+    <!-- ============ 引擎分离规则 ============ -->
+    <h2 id="engines-rule">十六、引擎分离与默认规则（重要）</h2>
+    <ul>
+      <li><strong>三类引擎严格分离</strong>：STT（<code>engines.stt</code>，本地 Whisper，无 Key、无列表）、TTS（<code>ttsHistory</code> + <code>defaultTtsId</code>）、LLM（<code>llmHistory</code> + <code>defaultLlmId</code>）各自独立，互不影响。</li>
+      <li><strong>默认 = 列表第一项</strong>：TTS/LLM 的默认配置由列表"第一位"决定（<code>defaultTtsId</code>/<code>defaultLlmId</code> 标记激活项），真实调用经 <code>resolveTts</code>/<code>resolveLlm</code> 取值。</li>
+      <li><strong>凭证不串用</strong>：<code>resolveLlm</code> 仅使用<strong>该配置自己存的 Key</strong>（<code>h.apiKey ?? undefined</code>），<strong>绝不回退到共享的 live 字段</strong>。因此默认模型只会用自己配置的 Key，不会被上一个模型的 Key 污染。</li>
+      <li><strong>所见即所测</strong>：设置页的 Test 按钮发送<strong>当前表单里的配置</strong>，服务端测试端点接受可选 <code>config</code> 体——你屏幕上看到什么，就测什么。</li>
+      <li><strong>词典离线</strong>：本地词典查询（MDict）完全不联网，不涉及任何 Key。</li>
+    </ul>
+
+    <!-- ============ 启动停止 ============ -->
+    <h2 id="run">十七、启动 / 停止 / 部署</h2>
+    <h3>常用命令</h3>
+    <pre><code>npm run build     # 构建前端到 dist/
+npm run start     # 启动后端（端口 8787，可用 PORT 覆盖）
+npm run dev       # 开发模式：后端 + 前端热更新
+npm run app       # Electron 桌面壳
+npm run typecheck # 类型检查（tsc --noEmit）</code></pre>
+    <h3>停止与重启</h3>
+    <pre><code># 停止（释放 8787 端口）
+pkill -9 -f "tsx src/server/index.ts"
+lsof -ti tcp:8787 | xargs -r kill -9
+
+# 重启
+nohup npm run start >/tmp/lingo-server.log 2>&1 &</code></pre>
+    <h3>健康检查</h3>
+    <pre><code>curl http://localhost:8787/api/health   # 返回 {"ok":true}</code></pre>
+    <div class="tip"><b>Electron 说明：</b>桌面壳不打包后端，而是把 <code>npm run start</code> 作为子进程拉起，再打开指向 <code>http://localhost:8787/</code> 的窗口。若后端已在运行，壳仅打开窗口。退出时壳会结束后端子进程。</div>
+
+    <!-- ============ FAQ ============ -->
+    <h2 id="faq">十八、常见问题排查</h2>
+    <h3>TTS Test 失败</h3>
+    <ul>
+      <li><code>402 Insufficient API credit</code>（Fish）：你的 Fish <strong>API credit 余额为 0</strong>。免费模型（<code>s2.1-pro-free</code>）只免按字符费，不免除余额门控；需到 fish.audio 充值。或改用本地 Kokoro（默认、免费、离线）。</li>
+      <li><code>400 Reference not found</code>（Fish）：未配置有效的男声/女声 <code>reference_id</code>。Fish 声音用 reference 而非名字，请填写正确的 reference_id。</li>
+      <li><code>No matching voice found</code>（Kokoro）：声音字段需用完整 id（如 <code>en-US-Heart</code>），且模型需已部署（先点"Deploy locally"）。</li>
+      <li>其他连接错误：检查该配置的 Base URL 是否正确、模型是否已部署。</li>
+    </ul>
+    <h3>LLM Test 失败</h3>
+    <ul>
+      <li><strong>连接不上（empty response / cannot connect）</strong>：本地 Ollama 未启动，或监听地址与配置不一致（默认 <code>11434</code>，不是 <code>8080</code>）。启动 Ollama 后把对应配置拖到第一位（默认）。</li>
+      <li><code>401 invalid key</code>：API Key 错误或未填。确认该配置自带正确的 Key（点击配置，Key 字段应已载入）。</li>
+      <li><strong>切换模型 Key 不跟随</strong>：旧版本有此 bug（点击 gemma 仍用 deepseek 的 Key）。当前版本已修复——每个配置自带 Key，切换时表单的 URL/模型/Key 一起更新；保存（Confirm）会把 Key 绑定进该配置。</li>
+    </ul>
+    <h3>转写/导入失败</h3>
+    <ul>
+      <li>确认已安装 <strong>ffmpeg</strong>（且被应用找到）；URL 导入还需 <strong>yt-dlp</strong>。</li>
+      <li>Whisper 模型未部署：到设置 → STT 点"Deploy locally"。</li>
+    </ul>
+    <h3>词典不显示</h3>
+    <ul>
+      <li>确认 <code>.mdx</code> 放在资料库的 <code>dictionaries/</code> 目录；新增后无需重启，下次查询即生效。</li>
+      <li>若查不到，面板会提示放入 .mdx 的路径，并可自动走 LLM 兜底。</li>
+    </ul>
+
+    <!-- ============ 未实现 ============ -->
+    <h2 id="notimpl">十九、未实现功能说明</h2>
+    <div class="warn"><b>单词训练（托福 / 雅思 / 考研词表导入与刷题）</b>：经代码核查，<strong>此功能在当前代码库中尚未实现</strong>。不存在词表导入、单词标注切换、AI 文章/对话生成训练等逻辑。</div>
+    <ul>
+      <li>目前仅有<strong>手动生词本</strong>（第十章）：可手动添加/删除、COCA 词频标记、从词典一键加入。</li>
+      <li>数据库中存在间隔重复的<strong>骨架字段</strong>（<code>level</code>、<code>reviewedAt</code>），但<strong>尚未构建复习/训练界面与算法</strong>。</li>
+      <li>如需该能力，需在现有生词本基础上扩展：词表导入、按词频/考试标注、基于 LLM 的文章与对话生成、以及复习调度 UI。</li>
+    </ul>
+
+    <h2 style="border:none;margin-top:50px;"></h2>
+    <p class="sub">— 文档结束 —<br/>本说明书依据 <code>/lingo</code> 代码库当前实现生成，覆盖音视频学习、阅读、离线词典、Ask AI、语法分析、COCA 词频、生词本，以及 STT/TTS/LLM 三类引擎的配置与分离规则。</p>
+  </main>
+</div>
+
+<script>
+  // theme toggle
+  (function(){
+    var saved = localStorage.getItem('lingo-doc-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light');
+    document.documentElement.setAttribute('data-theme', saved);
+    document.getElementById('themeBtn').addEventListener('click', function(){
+      var cur = document.documentElement.getAttribute('data-theme');
+      var nxt = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', nxt);
+      localStorage.setItem('lingo-doc-theme', nxt);
+    });
+  })();
+
+  // mobile menu
+  document.getElementById('menuToggle').addEventListener('click', function(){
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+  document.querySelectorAll('nav.side a').forEach(function(a){
+    a.addEventListener('click', function(){ document.getElementById('sidebar').classList.remove('open'); });
+  });
+
+  // active section highlight
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav.side a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        links.forEach(function(l){ l.classList.remove('active'); });
+        var id = en.target.id;
+        if(map[id]) map[id].classList.add('active');
+      }
+    });
+  }, { rootMargin:'-10% 0px -75% 0px', threshold:0 });
+  document.querySelectorAll('main h2').forEach(function(h){ observer.observe(h); });
+
+  // nav search filter
+  var search = document.getElementById('navSearch');
+  search.addEventListener('input', function(){
+    var q = this.value.trim().toLowerCase();
+    document.querySelectorAll('nav.side .group').forEach(function(g){
+      var any = false;
+      g.querySelectorAll('a').forEach(function(a){
+        var hit = a.textContent.toLowerCase().indexOf(q) !== -1;
+        a.style.display = hit ? '' : 'none';
+        if(hit) any = true;
+      });
+      g.style.display = (q === '' || any) ? '' : 'none';
+    });
+  });
+</script>
+</body>
+</html>
