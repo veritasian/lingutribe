@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Lingo 使用说明书 · 本地语言工作室</title>
+<title>Lingutribe 使用说明书 · 本地语言工作室</title>
 <style>
   :root{
     --bg:#ffffff; --panel:#f7f8fa; --panel-2:#eef1f5; --border:#e3e7ee;
@@ -78,7 +78,7 @@
 <div class="layout">
   <!-- ============ LEFT SIDEBAR ============ -->
   <nav class="side" id="sidebar">
-    <div class="brand">Lingo 使用说明书<small>本地语言工作室 · Local Language Studio</small></div>
+    <div class="brand">Lingutribe 使用说明书<small>本地语言工作室 · Local Language Studio</small></div>
     <input class="search" id="navSearch" placeholder="搜索章节…" />
     <div class="group">
       <div class="gt">入门</div>
@@ -121,14 +121,14 @@
       <button id="themeBtn">🌗 切换主题</button>
     </div>
 
-    <h1>Lingo 使用说明书</h1>
+    <h1>Lingutribe 使用说明书</h1>
     <p class="sub">版本对应代码库 <code>/lingo</code> · 前端 React+TypeScript(Vite) · 后端 Node/Express（默认端口 8787）· 本地优先、可离线运行</p>
 
-    <div class="note"><b>阅读提示：</b>本说明覆盖 Lingo 的全部已实现功能与操作细节。左侧为分类目录，点击章节可跳转；右侧正文随滚动自动高亮当前章节。文档中的端点路径、配置名、默认值均取自当前代码，可直接对照使用。</div>
+    <div class="note"><b>阅读提示：</b>本说明覆盖 Lingutribe 的全部已实现功能与操作细节。左侧为分类目录，点击章节可跳转；右侧正文随滚动自动高亮当前章节。文档中的端点路径、配置名、默认值均取自当前代码，可直接对照使用。</div>
 
     <!-- ============ 概述 ============ -->
     <h2 id="overview">一、产品定位与理念</h2>
-    <p>Lingo 是一款<strong>本地优先（local-first）</strong>的语言学习工具，定位为"本地语言工作室"。它把<strong>听（音频/视频）、读（文章）、查（词典）、练（AI 对话与语法）、记（生词本与词频）</strong>整合在一个桌面/网页应用里，目标是让你在<strong>不依赖云端账号、数据留在自己机器</strong>的前提下完成外语沉浸学习。</p>
+    <p>Lingutribe 是一款<strong>本地优先（local-first）</strong>的语言学习工具，定位为"本地语言工作室"。它把<strong>听（音频/视频）、读（文章）、查（词典）、练（AI 对话与语法）、记（生词本与词频）</strong>整合在一个桌面/网页应用里，目标是让你在<strong>不依赖云端账号、数据留在自己机器</strong>的前提下完成外语沉浸学习。</p>
     <ul>
       <li><span class="tag">隐私</span> 词典查询、本地 TTS（Kokoro）、本地 STT（Whisper）全部在本地运行，不联网。</li>
       <li><span class="tag">可选云端</span> 仅当你主动配置 Fish Audio（云端 TTS）或 DeepSeek / OpenAI 等云端 LLM 时，才会向对应服务商发起请求。</li>
@@ -272,7 +272,7 @@ npm run app</code></pre>
 
     <!-- ============ 词典 ============ -->
     <h2 id="dictionary">七、离线词典（Dictionary）</h2>
-    <p>Lingo 的词典查询<strong>100% 离线</strong>，基于 MDict 格式。</p>
+    <p>Lingutribe 的词典查询<strong>100% 离线</strong>，基于 MDict 格式。</p>
     <h3>7.1 放入词典</h3>
     <ul>
       <li>将 <code>.mdx</code> 词典文件（可选配套发音包 <code>.mdd</code>）放入资料库的 <code>dictionaries/</code> 目录：<code>~/Documents/LingoLibrary/dictionaries</code>。</li>
@@ -295,7 +295,7 @@ npm run app</code></pre>
 
     <!-- ============ Ask AI ============ -->
     <h2 id="askai">八、Ask AI 与对话</h2>
-    <p>Lingo 提供两种与本地大模型对话的入口，二者都依赖你在"设置 → LLM"中配置并默认的模型。</p>
+    <p>Lingutribe 提供两种与本地大模型对话的入口，二者都依赖你在"设置 → LLM"中配置并默认的模型。</p>
     <h3>8.1 右侧 Ask AI 标签（划词提问）</h3>
     <ul>
       <li>入口为右侧面板的第三个标签（位于 Dictionary、Grammar 之后）。</li>

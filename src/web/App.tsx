@@ -75,8 +75,8 @@ export default function App() {
         <div className="flex items-center justify-between px-4 py-4">
           {sidebarOpen && (
             <div className="text-[15px] font-semibold tracking-tight">
-              Lingo
-              <div className="text-[11px] font-normal text-muted-foreground">
+            Lingutribe
+            <div className="text-[11px] font-normal text-muted-foreground">
                 Local Language Studio
               </div>
             </div>

@@ -1619,6 +1619,6 @@ if (fs.existsSync(distDir)) {
 }
 
 app.listen(PORT, () => {
-  console.log(`[lingo] server on http://localhost:${PORT}`);
-  console.log(`[lingo] library: ${getLibraryPath()}`);
+  console.log(`[lingutribe] server on http://localhost:${PORT}`);
+  console.log(`[lingutribe] library: ${getLibraryPath()}`);
 });

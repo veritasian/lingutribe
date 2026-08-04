@@ -65,7 +65,7 @@ function createWindow() {
     height: 850,
     minWidth: 900,
     minHeight: 600,
-    title: "lingo",
+    title: "lingutribe",
     backgroundColor: "#0b0f17",
     webPreferences: { nodeIntegration: false, contextIsolation: true },
   });

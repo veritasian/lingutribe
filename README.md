@@ -1,8 +1,8 @@
-# Lingo
+# Lingutribe
 
 > **Local-first language-learning tool.** Offline speech-to-text, text-to-speech, and dictionary by default; optional LLM for deeper explanation, grammar, and chat.
 
-Lingo is a lightweight, self-hosted study companion. You drop in audio/video/text, and it helps you learn: transcribe speech, read with sentence-level audio, look up words offline, and talk to an AI tutor. Everything that can run locally does — only the optional LLM features need an external endpoint.
+Lingutribe is a lightweight, self-hosted study companion. You drop in audio/video/text, and it helps you learn: transcribe speech, read with sentence-level audio, look up words offline, and talk to an AI tutor. Everything that can run locally does — only the optional LLM features need an external endpoint.
 
 ---
 
