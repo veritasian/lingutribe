@@ -4,6 +4,8 @@
 
 Lingutribe is a lightweight, self-hosted study companion. You drop in audio/video/text, and it helps you learn: transcribe speech, read with sentence-level audio, look up words offline, and talk to an AI tutor. Everything that can run locally does — only the optional LLM features need an external endpoint.
 
+🇨🇳 **中文说明：[README.zh-CN.md](./README.zh-CN.md)** — 安装方式、模型手动下载链接与离线安装步骤见该文档。
+
 ---
 
 ## ✨ Features
