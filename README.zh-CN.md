@@ -4,6 +4,15 @@
 
 Lingutribe 是一个轻量、可自托管的英语学习助手。你把音频 / 视频 / 文本丢进去，它就帮你学：自动转写语音、逐句朗读、离线查词、和 AI 老师对话。凡是能本地跑的都本地跑，只有可选的 LLM 功能才需要联网。
 
+## 最近更新
+
+- **播放器界面重构** — Transcript 与 Statistics 现在作为标签置于 Delete 之前；音频改用原生风格传输条（暗色轨道、绿色进度）；视频布局在播放器下方显示字幕，并带显隐开关。
+- **字幕体验** — 每行字幕改为 YouTube 风格的时间区间（`MM:SS – MM:SS`），不再用 `#N` 编号；字号 13px；采用固定行高 + 局部平滑滚动（按时间轴同步），消除上下跳动。
+- **Statistics 重做** — 每个 COCA 词频段（`0–1000`、`1000–3000` … `6000+`）以居中标题 + 分割线呈现，单词直接列出，无需点击展开。
+- **COCA 词形还原增强** — 缩略词（`I'm`、`it'll`、`don't`、`gonna` 等）纳入 1K 区段；新增不规则变化（`went→go`、`children→child`、`men→man`）与更多派生规则（复数、`-ies/-ied→y`、`-es`）。
+- **后端整理** — 将 `analysis`、`segments`、`ffmpeg` 辅助逻辑从 Express 入口拆分到独立模块，便于维护。
+- **布局留白** — Transcript / Statistics 主内容现在与侧边栏保持清晰左右间距，并加大上下留白。
+
 ---
 
 ## 一、这个项目是什么
@@ -203,10 +212,15 @@ AI 导师、语法检查、以及"查不到词时的词典兜底"都依赖 LLM�
 lingutribe/
 ├── src/
 │   ├── server/        # Express API + better-sqlite3 + echogarden 引擎
-│   │   ├── index.ts   # 服务入口
-│   │   ├── db.ts      # SQLite + 资料库路径
-│   │   └── engines.ts # STT / TTS / LLM + 模型下载
+│   │   ├── index.ts      # 服务入口
+│   │   ├── db.ts         # SQLite + 资料库路径
+│   │   ├── engines.ts    # STT / TTS / LLM + 模型下载
+│   │   ├── analysis.ts   # 媒体分析（时长、波形、分段）
+│   │   ├── segments.ts   # 词/段计时类型与辅助
+│   │   └── util-ffmpeg.ts# ffmpeg 探测/工具
 │   ├── web/           # React 前端（页面 + 组件）
+│   │   ├── components/ # PlayerView、Transcript、Caption、AudioBar、VocabProfile…
+│   │   └── lib/       # coca.ts（词频段）、segments.ts（计时）
 │   ├── shared/        # 共享 TypeScript 类型
 │   └── electron/      # 桌面端外壳（main.cjs）
 ├── docs/              # 用户手册（中文 HTML）

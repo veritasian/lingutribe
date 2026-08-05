@@ -230,7 +230,42 @@ body {
   filter: brightness(0.95);
 }
 
-/* ---- Reader toolbar ---- */
+/* ---------------------------------------------------------------------------
+   Waveform panel — enjoy-style balance (toolbar fused into the panel)
+   ------------------------------------------------------------------------- */
+.wp-panel {
+  position: relative;
+  background: hsl(var(--card));
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+.wp-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.wp-scroll::-webkit-scrollbar { height: 8px; }
+.wp-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+.wp-content {
+  position: relative;
+  padding: 4px 0;
+}
+.wp-wave {
+  background: transparent;
+  position: relative;
+}
+.wp-times-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 6px 0;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
 .reader-shell {
   height: 100%;
   display: flex;
@@ -512,6 +547,231 @@ body {
 }
 .subtitle-line .word {
   padding: 0 1px;
+}
+
+/* ---- Subtitle (one sentence per line) — enjoy-style numbered rows ---- */
+.subtitle-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  min-height: 44px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  line-height: 1.55;
+  font-size: 14.5px;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.subtitle-caption {
+  text-align: left;
+}
+.subtitle-row:hover {
+  background: hsl(var(--muted) / 0.6);
+}
+.subtitle-row.active {
+  background: hsl(var(--primary) / 0.10);
+  border-left-color: hsl(var(--primary));
+}
+.subtitle-row.active .subtitle-text {
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+.subtitle-time {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+}
+.subtitle-row.active .subtitle-time {
+  color: hsl(var(--primary));
+}
+.subtitle-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 13px;
+}
+
+/* Fixed-window subtitle scroll container — shows ~10–20 rows and scrolls as
+   the active line moves, so the list never re-lays-out (no jump). */
+.subtitle-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  scrollbar-width: thin;
+}
+
+/* Header menu tabs (page categories) — unified bottom-border style. */
+.hdr-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.hdr-tab:hover {
+  color: hsl(var(--foreground));
+}
+.hdr-tab.active {
+  color: hsl(var(--primary));
+  border-bottom-color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+/* Divider between the video and the subtitle list. */
+.subtitle-divider {
+  height: 1px;
+  background: hsl(var(--border));
+  flex: 0 0 auto;
+}
+
+/* Statistics — per-band word groups (no expand/collapse).
+   Title centred with a neutral divider; words always visible. */
+.stat-band {
+  margin-bottom: 22px;
+}
+.stat-band-head {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.stat-band-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+.stat-divider {
+  height: 1px;
+  width: 100%;
+  background: hsl(var(--border));
+}
+.stat-band-meta {
+  text-align: center;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 10px;
+}
+.stat-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.stat-word {
+  font-size: 12px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  padding: 2px 10px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.stat-word:hover {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Audio transport bar — dark bg, white track, green progress. */
+.audio-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.audio-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  cursor: pointer;
+}
+.audio-play:hover {
+  filter: brightness(1.08);
+}
+.audio-time {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.audio-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.audio-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #22c55e;
+  border-radius: 999px;
+}
+.audio-thumb {
+  position: absolute;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.45);
+}
+
+/* Live caption (MDN <track> model): a fixed box that shows only the current
+   cue and switches text in real time — no list scrolling / jumping. */
+.caption-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  text-align: left;
+}
+.caption-text {
+  font-size: 19px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+.caption-idle {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
 }
 
 /* ---------------------------------------------------------------------------

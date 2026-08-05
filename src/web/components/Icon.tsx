@@ -92,6 +92,17 @@ export function IconPitch(p: P) {
   );
 }
 
+// Three bars, middle tallest — reads as a stressed/accented syllable.
+export function IconStress(p: P) {
+  return (
+    <Svg {...p}>
+      <line x1="7" y1="19" x2="7" y2="10" />
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <line x1="17" y1="19" x2="17" y2="13" />
+    </Svg>
+  );
+}
+
 export function IconRegions(p: P) {
   return (
     <Svg {...p}>
@@ -181,6 +192,44 @@ export function IconVolume(p: P) {
   );
 }
 
+/* ---- Segment / play-mode controls ---- */
+export function IconSkipPrev(p: P) {
+  return (
+    <Svg {...p}>
+      <polygon points="19 20 9 12 19 4 19 20" fill="currentColor" stroke="currentColor" />
+      <line x1="5" y1="19" x2="5" y2="5" />
+    </Svg>
+  );
+}
+export function IconSkipNext(p: P) {
+  return (
+    <Svg {...p}>
+      <polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="currentColor" />
+      <line x1="19" y1="5" x2="19" y2="19" />
+    </Svg>
+  );
+}
+export function IconReplay(p: P) {
+  return (
+    <Svg {...p}>
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </Svg>
+  );
+}
+export function IconList(p: P) {
+  return (
+    <Svg {...p}>
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </Svg>
+  );
+}
+
 export function IconRobot(p: P) {
   return (
     <Svg {...p}>
@@ -224,6 +273,14 @@ export function IconPause(p: P) {
     <Svg {...p}>
       <rect x="6" y="4" width="4" height="16" />
       <rect x="14" y="4" width="4" height="16" />
+    </Svg>
+  );
+}
+
+export function IconPlay(p: P) {
+  return (
+    <Svg {...p}>
+      <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none" />
     </Svg>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type WordHit } from "../api";
 import { BAND_META, rankOf, useCoca, useVisibleBands, type Band } from "../lib/coca";
-import { segmentText } from "../lib/segment";
+import { buildSegments, formatSrtTime, type Segment } from "../lib/segments";
 
 interface Token {
   text: string;
@@ -9,13 +9,30 @@ interface Token {
   end?: number;
 }
 
+const SENT_END_RE = /[.!?。！？…]+\s*$/;
+
+// Contained, no-jump subtitle scrolling (YouTube/Netflix model): the list is
+// its own fixed-height scroll window; we move ONLY that window and only when
+// the active SEGMENT changes (never on every spoken word). Each row has a
+// fixed height and the active state changes only font-weight/colour, so
+// toggling it never shifts layout. We centre the active row via offsetTop +
+// scrollTo({behavior:"smooth"}), which is interruptible and never drags the
+// page.
+function scrollRowToCenter(scroller: HTMLElement, row: HTMLElement) {
+  const target = row.offsetTop - (scroller.clientHeight - row.offsetHeight) / 2;
+  scroller.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+}
+
 export default function Transcript({
   words,
   transcript,
   onSeek,
   activeIdx = -1,
-  scrollIntoView = true,
+  activeSegIdx: activeSegIdxProp,
+  segments: segmentsProp,
+  onSeekSegment,
   onWordClick,
+  onAskAi,
   visBands: visBandsProp,
   onToggleBand: onToggleBandProp,
 }: {
@@ -23,7 +40,12 @@ export default function Transcript({
   transcript: string;
   onSeek?: (t: number) => void;
   activeIdx?: number;
-  scrollIntoView?: boolean;
+  /** 0-based index of the active segment (the playing subtitle row). */
+  activeSegIdx?: number;
+  /** Pre-built segments; if omitted we derive from `words` via punctuation+pause. */
+  segments?: Segment[];
+  /** Click on a subtitle row. */
+  onSeekSegment?: (s: Segment) => void;
   onWordClick?: (data: { text: string; context: string; isWord: boolean; band: Band }) => void;
   // Feature: floating "Ask AI" button on selection.
   onAskAi?: (text: string) => void;
@@ -38,14 +60,6 @@ export default function Transcript({
   // Floating "Ask AI" popover anchor (Feature 2).
   const [askRect, setAskRect] = useState<{ x: number; y: number; text: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Transcript layout: "flow" (inline paragraph) or "subtitle" (one sentence per line).
-  const [view, setView] = useState<"flow" | "subtitle">(() => {
-    const v = localStorage.getItem("lingo-transcript-view");
-    return v === "subtitle" ? "subtitle" : "flow";
-  });
-  useEffect(() => {
-    localStorage.setItem("lingo-transcript-view", view);
-  }, [view]);
 
   // Tokens (with word-timings when available).
   const tokens: Token[] = useMemo(() => {
@@ -77,13 +91,51 @@ export default function Transcript({
     return visBands.has(b);
   }
 
-  // Keep the active word in view (auto-scroll) — matches the A✓ toggle in screenshots.
+  // ── subtitle-mode: build the Segment[] (numbered rows). ──
+  // Always derive on the client so changes to segmentation logic don't
+  // require the server cache to be invalidated.
+  const deriveSegments: Segment[] = useMemo(() => {
+    if (segmentsProp && segmentsProp.length) return segmentsProp;
+    if (!words || !words.length) return [];
+    return buildSegments(words);
+  }, [words, segmentsProp]);
+
+  // Auto-derive activeSegIdx if the caller passes only word-level activeIdx.
+  const computedSegIdx = useMemo(() => {
+    if (activeSegIdxProp != null && activeSegIdxProp >= 0) return activeSegIdxProp;
+    if (activeIdx < 0 || !deriveSegments.length) return -1;
+    return deriveSegments.findIndex(
+      (s) => activeIdx >= s.wordStartIdx && activeIdx <= s.wordEndIdx
+    );
+  }, [activeSegIdxProp, activeIdx, deriveSegments]);
+
+  // Keep the active subtitle row centred in the transcript's own scroll
+  // window as playback advances. This re-runs ONLY when the active SEGMENT
+  // changes (computedSegIdx), never on every spoken word — so the window moves
+  // just enough to bring the current line to centre, smoothly, instead of
+  // jittering. The list itself is the scroll container, so nothing else (the
+  // page) moves.
   useEffect(() => {
-    if (!scrollIntoView) return;
-    if (activeIdx < 0) return;
-    const el = containerRef.current?.querySelector<HTMLElement>(`[data-i="${activeIdx}"]`);
-    if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [activeIdx, scrollIntoView]);
+    const scroller = containerRef.current;
+    if (!scroller || computedSegIdx < 0) return;
+    const row = scroller.querySelector<HTMLElement>(
+      deriveSegments.length > 0
+        ? `[data-seg-i="${computedSegIdx}"]`
+        : ".subtitle-row.active"
+    );
+    if (!row) return;
+    scrollRowToCenter(scroller, row);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [computedSegIdx, deriveSegments.length]);
+
+  // Scroll the given row into the centre of the window immediately (used on
+  // click-to-seek so the jump is instant, not waiting for playback to arrive).
+  function scrollToRow(idx: number) {
+    const scroller = containerRef.current;
+    if (!scroller) return;
+    const row = scroller.querySelector<HTMLElement>(`[data-seg-i="${idx}"]`);
+    if (row) scrollRowToCenter(scroller, row);
+  }
 
   // Capture user text selection (for sentence-level analysis).
   function onMouseUp() {
@@ -169,97 +221,104 @@ export default function Transcript({
     );
   }
 
-  // Group tokens into sentences by sentence-ending punctuation. Returns arrays
-  // of { token, index } so we can keep global indices (for active highlighting / scroll).
+  // Group tokens into sentences by sentence-ending punctuation, OR by
+  // pitch/silence gaps (≥PAUSE_THRESHOLD_S seconds between word[i].end and
+  // word[i+1].start) so a speaker's natural breath-pauses also become
+  // subtitle breaks — same model enjoy uses for its #1 / #2 / … list.
   function groupSentences(): { t: Token; i: number }[][] {
+    if (!tokens.length) return [];
     const sents: { t: Token; i: number }[][] = [];
     let cur: { t: Token; i: number }[] = [];
     tokens.forEach((t, i) => {
       cur.push({ t, i });
-      if (/[.!?。！？…]\s*$/.test(t.text) && t.text.trim().length) {
+      const isLast = i === tokens.length - 1;
+      let breakHere = isLast;
+      if (!isLast && t.end != null && tokens[i + 1].start != null) {
+        if (tokens[i + 1].start! - t.end > 0.7) breakHere = true;
+      }
+      if (SENT_END_RE.test(t.text) && t.text.trim().length) breakHere = true;
+      if (breakHere) {
         sents.push(cur);
         cur = [];
       }
     });
-    if (cur.length) sents.push(cur);
     return sents;
   }
 
-  const sentences = groupSentences();
+  const sentences = useMemo(() => groupSentences(), [tokens]);
 
   return (
-    <div className="space-y-5">
-      {/* Layout toggle: Flow (inline) vs Subtitle (one sentence per line) */}
-      <div className="flex items-center gap-1 text-xs">
-        <span className="text-muted-foreground">Layout</span>
-        <div className="flex items-center border rounded-md overflow-hidden">
-          <button
-            className={`px-2 py-1 ${view === "flow" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-            onClick={() => setView("flow")}
-            title="Inline paragraph"
-          >
-            Flow
-          </button>
-          <button
-            className={`px-2 py-1 ${view === "subtitle" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-            onClick={() => setView("subtitle")}
-            title="One sentence per line"
-          >
-            Subtitle
-          </button>
-        </div>
-      </div>
-
-      {/* Transcript body */}
-      {view === "subtitle" ? (
-        <div ref={containerRef} className="select-text" onMouseUp={onMouseUp}>
-          {sentences.map((s, si) => {
+    <div className="h-full flex flex-col min-h-0">
+      {/* Transcript body — always subtitle (one sentence per line), shown
+          caption-style: the active line is centered + recoloured and the
+          list auto-scrolls up as playback advances (see scroll effect). */}
+      <div
+        ref={containerRef}
+        className="subtitle-list select-text subtitle-caption"
+        onMouseUp={onMouseUp}
+      >
+        {deriveSegments.length === 0 && sentences.length > 0 ? (
+          // No timing data (or no words yet) — render the legacy
+          // punctuation-only sentence list so user still has something to read.
+          sentences.map((s, si) => {
             const start = s.find((x) => x.t.start != null)?.t.start;
             const isActive = s.some((x) => x.i === activeIdx);
             return (
               <div
                 key={si}
-                className={`subtitle-line ${isActive ? "active" : ""}`}
-                onClick={() => start != null && onSeek?.(start)}
-                title={start != null ? "Click to play this sentence" : undefined}
+                data-seg-i={si}
+                className={`subtitle-row ${isActive ? "active" : ""}`}
+                onClick={() => {
+                  if (start != null) {
+                    onSeekSegment
+                      ? onSeekSegment({
+                          index: si,
+                          number: si + 1,
+                          text: s.map((x) => x.t.text).join(" "),
+                          startTime: start,
+                          endTime: start,
+                          wordStartIdx: s[0].i,
+                          wordEndIdx: s[s.length - 1].i,
+                        })
+                      : onSeek?.(start);
+                    scrollToRow(si);
+                  }
+                }}
               >
-                {s.map((x) => renderToken(x.t, x.i))}
+                <span className="subtitle-time">
+                  {start != null ? formatSrtTime(start) : ""}
+                </span>
+                <span className="subtitle-text">
+                  {s.map((x) => renderToken(x.t, x.i))}
+                </span>
               </div>
             );
-          })}
-        </div>
-      ) : (
-        <div
-          ref={containerRef}
-          className="leading-7 text-[15px] select-text prose max-w-none"
-          onMouseUp={onMouseUp}
-          onClick={(e) => {
-            const sel = window.getSelection();
-            if (!sel || !sel.isCollapsed) return;
-            const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-            if (!range || !containerRef.current?.contains(range.commonAncestorContainer)) return;
-            const text = range.startContainer.textContent || "";
-            let start = range.startOffset, end = range.endOffset;
-            while (start > 0 && /\w/.test(text[start - 1])) start--;
-            while (end < text.length && /\w/.test(text[end])) end++;
-            const word = text.slice(start, end).trim().replace(/^[^a-zA-Z0-9']+|[^a-zA-Z0-9']+$/g, "");
-            if (word && /^[a-zA-Z']{2,}$/.test(word) && onWordClick) {
-              onWordClick({ text: word, context: word, isWord: true, band: bandFor(word) });
-            }
-          }}
-        >
-          {(() => {
-            const source = transcript || "";
-            const paras = segmentText(source);
-            return paras.map((para, pi) => (
-              <p key={pi} className="mb-5">{para}</p>
-            ));
-          })()}
-        </div>
-      )}
+          })
+        ) : (
+          deriveSegments.map((seg, si) => (
+              <div
+                key={seg.index}
+                data-seg-i={si}
+                className={`subtitle-row ${si === computedSegIdx ? "active" : ""}`}
+                onClick={() => {
+                  onSeekSegment ? onSeekSegment(seg) : onSeek?.(seg.startTime);
+                  scrollToRow(si);
+                }}
+                title="Click to play from this line"
+              >
+              <span className="subtitle-time">{formatSrtTime(seg.startTime)} – {formatSrtTime(seg.endTime)}</span>
+              <span className="subtitle-text">
+                {tokens.slice(seg.wordStartIdx, seg.wordEndIdx + 1).map((t, ti) =>
+                  renderToken(t, seg.wordStartIdx + ti)
+                )}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
 
       {selectedText && (
-        <div className="text-[11px] text-muted-foreground">
+        <div className="text-[11px] text-muted-foreground mt-2 shrink-0">
           Selection sent to right panel · {selectedText.length} chars
         </div>
       )}

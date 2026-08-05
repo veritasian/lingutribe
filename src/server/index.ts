@@ -4,7 +4,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { execFile, execFileSync } from "child_process";
+import { execFile } from "child_process";
 import { fileURLToPath } from "url";
 import {
   getDb,
@@ -27,6 +27,17 @@ import {
   type ChatMessage,
 } from "./engines.js";
 import { Mdict } from "@divisey/js-mdict";
+import {
+  readAnalysisCache,
+  writeAnalysisCache,
+  fingerprintFile,
+  probeDuration,
+  computePeaks,
+  buildSegmentsFromWords,
+  type AnalysisCache,
+} from "./analysis.js";
+import { findFfmpeg } from "./util-ffmpeg.js";
+import type { Segment } from "./segments.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,27 +106,8 @@ if (fs.existsSync(OLD_ECHO) && OLD_ECHO !== NEW_ECHO) {
 }
 
 // --- Locate ffmpeg (platform-aware) so audio/video import works everywhere ---
-function findFfmpeg(): string | null {
-  if (process.env.FFMPEG_BIN) return process.env.FFMPEG_BIN;
-  if (process.platform === "win32") {
-    try {
-      const out = execFileSync("where", ["ffmpeg"], { windowsHide: true })
-        .toString().trim();
-      return out.split(/\r?\n/)[0] || null;
-    } catch {
-      return null; // yt-dlp will fall back to ffmpeg on PATH
-    }
-  }
-  for (const c of ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"]) {
-    try { fs.accessSync(c, fs.constants.X_OK); return c; } catch { /* try next */ }
-  }
-  try {
-    const out = execFileSync("which", ["ffmpeg"]).toString().trim();
-    return out.split(/\r?\n/)[0] || null;
-  } catch {
-    return null;
-  }
-}
+// Implementation lives in util-ffmpeg.ts; keep this alias for any callers that
+// imported it from index.js previously.
 const ffmpegPath = findFfmpeg();
 
 const PORT = Number(process.env.PORT) || 8787;
@@ -418,7 +410,98 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
       now(),
       req.params.id
     );
+    // Pre-compute analysis cache so subsequent opens load instantly.
+    const words = (result.words || []) as { text: string; start: number; end: number }[];
+    try {
+      const fpStat = await fingerprintFile(fp);
+      const segs = buildSegmentsFromWords(words);
+      let peaks: number[] = [];
+      let duration = 0;
+      try {
+        const out = await computePeaks(fp);
+        peaks = out.peaks;
+        duration = out.duration;
+      } catch (pe) {
+        // ffmpeg decode failed — keep an empty peaks array, fall back to
+        // duration probe.
+        try { duration = await probeDuration(fp); } catch { /* ignore */ }
+        console.warn("[analysis] peaks failed:", (pe as Error).message);
+      }
+      const cache: AnalysisCache = {
+        version: 3,
+        resourceId: req.params.id,
+        md5: fpStat,
+        createdAt: new Date().toISOString(),
+        duration: duration || (segs[segs.length - 1]?.endTime ?? 0),
+        durationProbedAt: Date.now(),
+        transcript: result.transcript || "",
+        words,
+        segments: segs,
+        peaks,
+        peaksPerSec: 100,
+      };
+      await writeAnalysisCache(cache);
+    } catch (e: any) {
+      console.warn("[analysis] cache write failed:", e.message);
+    }
     res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * GET /api/resources/:id/analysis
+ *
+ * Returns the pre-computed analysis (peaks, segments, transcript, duration)
+ * for a resource, or 404 if not yet cached. The renderer uses this on open:
+ *   - peaks + duration → wavesurfer.load(url, peaks, duration) (skip decode)
+ *   - segments          → subtitle list (#1 #2 #3 …) without recompute
+ *
+ * If words are in the DB but the cache file is missing/stale, the server
+ * regenerates the cache synchronously (skipping peaks if ffmpeg fails).
+ */
+app.get("/api/resources/:id/analysis", async (req, res) => {
+  const row = db.prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: "not found" });
+  const fp = resolveResourceFile(row.relativePath);
+  if (!fp) return res.status(404).json({ error: "file missing" });
+  try {
+    const fpStat = await fingerprintFile(fp);
+    const r = await readAnalysisCache(req.params.id, fpStat);
+    if (r.status === "hit") {
+      return res.json(r.data);
+    }
+    // Cache miss — regenerate if we have word data to segment.
+    const wordsRaw = row.words as string | null;
+    const words: { text: string; start: number; end: number }[] = wordsRaw
+      ? (JSON.parse(wordsRaw) as any[])
+      : [];
+    const segs = buildSegmentsFromWords(words);
+    let peaks: number[] = [];
+    let duration = 0;
+    try {
+      const out = await computePeaks(fp);
+      peaks = out.peaks;
+      duration = out.duration;
+    } catch {
+      try { duration = await probeDuration(fp); } catch { /* ignore */ }
+    }
+    const cache: AnalysisCache = {
+      version: 3,
+      resourceId: req.params.id,
+      md5: fpStat,
+      createdAt: new Date().toISOString(),
+      duration: duration || (segs[segs.length - 1]?.endTime ?? 0),
+      durationProbedAt: Date.now(),
+      transcript: row.transcript || "",
+      words,
+      segments: segs,
+      peaks,
+      peaksPerSec: 100,
+    };
+    await writeAnalysisCache(cache);
+    res.json(cache);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -437,7 +520,16 @@ function parseTimestamp(ts: string): number {
   return +m[1] * 60 + +m[2] + +m[3] / 1000;
 }
 
-function parseSubtitlesFile(fp: string): { transcript: string; words: ImpWord[] } | null {
+// Returns the original subtitle cues (text + their own start/end times) as the
+// canonical segments, plus the per-word tokens (evenly distributed across each
+// cue's time range) used for word-level sync. Keeping the *original* cues means
+// an imported YouTube/video subtitle is shown exactly as authored — its own
+// text and timing — rather than being re-segmented.
+function parseSubtitlesFile(fp: string): {
+  transcript: string;
+  words: ImpWord[];
+  segments: Segment[];
+} | null {
   const raw = fs.readFileSync(fp, "utf8");
   const cues = raw.replace(/\r/g, "").split(/\n\n+/);
   // YouTube auto-captions use a "pop-on" stack where each (start,end) range
@@ -468,24 +560,38 @@ function parseSubtitlesFile(fp: string): { transcript: string; words: ImpWord[] 
       byRange.set(key, { start, end, text });
     }
   }
-  // Sort by start time, build transcript + words.
+  // Sort by start time, build transcript + words + original-cue segments.
   const sorted = [...byRange.values()].sort((a, b) => a.start - b.start);
   const words: ImpWord[] = [];
+  const segments: Segment[] = [];
   const parts: string[] = [];
+  let wi = 0; // running word index across all cues
   for (const cue of sorted) {
     parts.push(cue.text);
     const toks = cue.text.split(/\s+/).filter(Boolean);
     const n = toks.length || 1;
+    const startIdx = wi;
     toks.forEach((tk, i) => {
       words.push({
         text: tk,
         start: +(cue.start + ((cue.end - cue.start) * i) / n).toFixed(2),
         end: +(cue.start + ((cue.end - cue.start) * (i + 1)) / n).toFixed(2),
       });
+      wi++;
+    });
+    const endIdx = wi - 1;
+    segments.push({
+      index: segments.length,
+      number: segments.length + 1,
+      text: cue.text,
+      startTime: cue.start,
+      endTime: cue.end,
+      wordStartIdx: startIdx,
+      wordEndIdx: endIdx,
     });
   }
   if (!words.length) return null;
-  return { transcript: parts.join(" "), words };
+  return { transcript: parts.join(" "), words, segments };
 }
 
 function ytDlpBin(): string {
@@ -554,7 +660,7 @@ app.post("/api/import", async (req, res) => {
     const work = fs.mkdtempSync(path.join(os.tmpdir(), "lingo-import-"));
     let mediaFile: string | null = null;
     let title: string | null = null;
-    let subs: { transcript: string; words: ImpWord[] } | null = null;
+    let subs: { transcript: string; words: ImpWord[]; segments?: Segment[] } | null = null;
 
     const outTpl = path.join(work, "%(id)s.%(ext)s");
     const fmt = isVideo
@@ -659,6 +765,45 @@ app.post("/api/import", async (req, res) => {
     ).run(row);
     // Clean up temp dir.
     try { fs.rmSync(work, { recursive: true, force: true }); } catch { /* ignore */ }
+
+    // Pre-compute analysis cache now so the resource opens instantly on first
+    // view — same flow as the transcribe endpoint (peaks + segments + duration).
+    const destFp = path.join(typeDir(type), destName);
+    if (subs && subs.words && subs.words.length > 0) {
+      try {
+        const fpStat = await fingerprintFile(destFp);
+        const segs =
+          subs.segments && subs.segments.length
+            ? subs.segments
+            : buildSegmentsFromWords(subs.words as any);
+        let peaks: number[] = [];
+        let duration = 0;
+        try {
+          const out = await computePeaks(destFp);
+          peaks = out.peaks;
+          duration = out.duration;
+        } catch {
+          try { duration = await probeDuration(destFp); } catch { /* ignore */ }
+        }
+        const cache: AnalysisCache = {
+          version: 3,
+          resourceId: id,
+          md5: fpStat,
+          createdAt: new Date().toISOString(),
+          duration: duration || (segs[segs.length - 1]?.endTime ?? 0),
+          durationProbedAt: Date.now(),
+          transcript: subs.transcript || "",
+          words: subs.words as any,
+          segments: segs,
+          peaks,
+          peaksPerSec: 100,
+        };
+        await writeAnalysisCache(cache);
+      } catch (e: any) {
+        console.warn("[analysis] url-import cache write failed:", e.message);
+      }
+    }
+
     res.json({ ...row, words: subs ? subs.words : [] });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

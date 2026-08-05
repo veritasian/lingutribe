@@ -17,7 +17,22 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:8787",
+      // Proxy real API routes (/api/...) to the Express backend.
+      // Use a regex (not the "/api" prefix) so the frontend module
+      // src/web/api.ts — which Vite serves at /api.ts — is NOT captured by
+      // the proxy. That prefix collision hijacked the module and blanked
+      // the dev page.
+      // Proxy /api/* to the Express backend. The bypass lets Vite serve the
+      // frontend module src/web/api.ts (requested as /api.ts) locally instead
+      // of proxying it — otherwise the "/api" prefix hijacked that module and
+      // blanked the dev page.
+      "/api": {
+        target: "http://localhost:8787",
+        changeOrigin: true,
+        bypass: (req) => {
+          if (req.url && req.url.endsWith(".ts")) return req.url;
+        },
+      },
     },
   },
   build: {

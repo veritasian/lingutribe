@@ -6,6 +6,15 @@ Lingutribe is a lightweight, self-hosted study companion. You drop in audio/vide
 
 🇨🇳 **中文说明：[README.zh-CN.md](./README.zh-CN.md)** — 安装方式、模型手动下载链接与离线安装步骤见该文档。
 
+## 🆕 What's new
+
+- **Player UI overhaul** — Transcript and Statistics are now tabs beside Delete; audio gets a native-styled transport bar (dark track, green progress); the video layout shows captions below the player with a show/hide toggle.
+- **Captions / subtitles** — Each line now shows a `MM:SS – MM:SS` time range (YouTube-style) instead of `#N`, renders at 13px, and scrolls without vertical jumping (fixed-height rows + contained smooth scroll, synced to the timeline).
+- **Statistics redesign** — Each COCA band (`0–1000`, `1000–3000`, … `6000+`) shows as a centered heading with a divider; its words are listed directly — no click-to-expand.
+- **Stronger COCA lemmatizer** — Contractions (`I'm`, `it'll`, `don't`, `gonna`…) now map into the 1K band; irregular inflections (`went→go`, `children→child`, `men→man`) and more suffix rules (plurals, `-ies/-ied→y`, `-es`) are handled.
+- **Backend cleanup** — `analysis`, `segments`, and `ffmpeg` helpers extracted out of the Express entry into dedicated modules for easier maintenance.
+- **Comfortable layout** — Transcript / Statistics content keeps clear margins from the sidebar with more vertical breathing room.
+
 ---
 
 ## ✨ Features
@@ -96,10 +105,15 @@ Library data lives at `~/Documents/LingoLibrary` by default (word lists, notes, 
 lingutribe/
 ├── src/
 │   ├── server/        # Express API + better-sqlite3 + echogarden engines
-│   │   ├── index.ts   # server entry
-│   │   ├── db.ts      # SQLite + library paths
-│   │   └── engines.ts # STT / TTS / LLM + model download
+│   │   ├── index.ts      # server entry
+│   │   ├── db.ts         # SQLite + library paths
+│   │   ├── engines.ts    # STT / TTS / LLM + model download
+│   │   ├── analysis.ts   # media analysis (duration, peaks, segments)
+│   │   ├── segments.ts   # word/segment timing types & helpers
+│   │   └── util-ffmpeg.ts# ffmpeg discovery/util
 │   ├── web/           # React front-end (pages + components)
+│   │   ├── components/ # PlayerView, Transcript, Caption, AudioBar, VocabProfile…
+│   │   └── lib/       # coca.ts (frequency bands), segments.ts (timing)
 │   ├── shared/        # shared TypeScript types
 │   └── electron/      # desktop shell (main.cjs)
 ├── docs/              # user manual (zh)

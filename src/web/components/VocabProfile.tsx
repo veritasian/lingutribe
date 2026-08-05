@@ -4,7 +4,6 @@ import {
   bandOf,
   lemmatizeWord,
   BAND_META,
-  useVisibleBands,
   isStopWord,
   type Band,
   type CocaData,
@@ -12,14 +11,22 @@ import {
 
 interface BandStat { band: Exclude<Band, null>; label: string; unique: number; words: string[] }
 
+/** Human-readable COCA range label shown as the centred band heading in
+ *  Statistics (e.g. "0 – 1000"). Kept neutral — no band tint. */
+const RANGE_LABEL: Record<Exclude<Band, null>, string> = {
+  "1k": "0 – 1000",
+  "3k": "1000 – 3000",
+  "5k": "3000 – 5000",
+  "6k": "5000 – 6000",
+  "above": "6000+",
+};
+
 export default function VocabProfile({
   coca,
   words,
   transcript,
   onWordClick,
 }: { coca: CocaData | null; words: WordHit[]; transcript?: string; onWordClick?: (word: string) => void }) {
-  const [visBands] = useVisibleBands();
-
   const effectiveWords: WordHit[] = useMemo(() => {
     if (words.length) return words;
     const txt = transcript?.trim();
@@ -110,33 +117,23 @@ export default function VocabProfile({
         })}
       </div>
 
-      {/* Per-band detail cards */}
+      {/* Per-band word groups — always visible, no expand/collapse.
+          Title centred with a divider; font colour stays neutral. */}
       {stats.map((s) => {
-        const m = BAND_META[s.band];
+        const range = RANGE_LABEL[s.band];
         const uPct = totalUnique > 0 ? Math.round((s.unique / totalUnique) * 100) : 0;
-        const on = visBands.has(s.band);
         return (
-          <div key={s.band} className="border rounded-lg p-3"
-            style={{
-              borderColor: on ? m.color : "hsl(var(--border))",
-              background: on ? `rgba(${m.rgb},0.05)` : "hsl(var(--card))",
-            }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold text-sm" style={{ color: m.color }}>{m.label}</span>
-              <span className="text-[11px] text-muted-foreground">{s.unique} unique · {uPct}% of vocab</span>
+          <div key={s.band} className="stat-band">
+            <div className="stat-band-head">
+              <div className="stat-band-title">{range}</div>
+              <div className="stat-divider" />
             </div>
-            <details className="text-xs">
-              <summary className="cursor-pointer text-muted-foreground hover:text-foreground mb-1">
-                {s.unique} words ▾
-              </summary>
-              <div className="flex flex-wrap gap-1 pt-1">
-                {s.words.map((w) => (
-                  <button key={w} className="px-1.5 py-0.5 rounded text-[11px] cursor-pointer hover:opacity-80"
-                    style={{ color: m.color, background: `rgba(${m.rgb},0.12)` }}
-                    onClick={() => onWordClick?.(w)} title={`Look up "${w}"`}>{w}</button>
-                ))}
-              </div>
-            </details>
+            <div className="stat-band-meta">{s.unique} unique · {uPct}% of vocab</div>
+            <div className="stat-words">
+              {s.words.map((w) => (
+                <button key={w} className="stat-word" onClick={() => onWordClick?.(w)} title={`Look up "${w}"`}>{w}</button>
+              ))}
+            </div>
           </div>
         );
       })}

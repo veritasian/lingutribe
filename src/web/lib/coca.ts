@@ -76,12 +76,50 @@ const CONTRACTION_MAP: Record<string, string> = {
   "he's": "be", "she's": "be", "it's": "be",
   // possessives
   "'s": "", "s'": "",
+  // would / had ('d)
+  "i'd": "would", "you'd": "would", "we'd": "would", "they'd": "would",
+  "he'd": "would", "she'd": "would", "it'd": "would", "'d": "would",
+  // will ('ll)
+  "i'll": "will", "you'll": "will", "we'll": "will", "they'll": "will",
+  "he'll": "will", "she'll": "will", "it'll": "will", "'ll": "will",
+  // have ('ve)
+  "i've": "have", "you've": "have", "we've": "have", "they've": "have",
+  "he've": "have", "she've": "have", "'ve": "have",
   // other
   "let's": "let", "that's": "that", "what's": "what",
   "who's": "who", "there's": "there", "here's": "here",
-  "gonna": "going", "wanna": "want", "gotta": "got",
+  "gonna": "go", "wanna": "want", "gotta": "get",
   "d'you": "do", "dunno": "know", "gimme": "give",
   "lemme": "let", "kinda": "kind", "sorta": "sort",
+};
+
+/**
+ * Irregular inflections that no suffix rule can derive.  Maps a surface form
+ * directly to its COCA headword (lemma).  Only the high-frequency ones that
+ * actually appear in spoken transcripts are listed — this is an exception list,
+ * not a full dictionary.  Keys are lowercase; values are headwords present in
+ * the COCA bands file.
+ */
+const IRREGULAR: Record<string, string> = {
+  // irregular noun plurals
+  children: "child", men: "man", women: "woman", feet: "foot",
+  teeth: "tooth", mice: "mouse", geese: "goose", oxen: "ox",
+  // strong-verb past / past-participle → base
+  went: "go", got: "get", took: "take", came: "come", gave: "give",
+  made: "make", said: "say", saw: "see", knew: "know", thought: "think",
+  found: "find", brought: "bring", bought: "buy", caught: "catch",
+  taught: "teach", slept: "sleep", kept: "keep", left: "leave", lost: "lose",
+  held: "hold", told: "tell", felt: "feel", met: "meet", led: "lead",
+  paid: "pay", laid: "lay", meant: "mean", built: "build", sent: "send",
+  spent: "spend", lent: "lend", dealt: "deal", heard: "hear", shook: "shake",
+  broke: "break", spoke: "speak", wrote: "write", ate: "eat", drove: "drive",
+  chose: "choose", froze: "freeze", stole: "steal", drew: "draw", showed: "show",
+  grew: "grow", threw: "throw", blew: "blow", flew: "fly", wore: "wear",
+  bore: "bear", tore: "tear", rode: "ride", hid: "hide", bit: "bite",
+  lit: "light", sank: "sink", swam: "swim", ran: "run",
+  // irregular adjectives / adverbs
+  better: "good", best: "good", worse: "bad", worst: "bad",
+  farther: "far", further: "far",
 };
 
 /** English function words: pronouns, articles, auxiliaries, prepositions,
@@ -176,6 +214,12 @@ export function rankOf(data: CocaData, word: string, depth = 0): number | null {
   const w = normalized || word.toLowerCase().replace(/[^a-z']/g, "");
   if (!w) return null;
   if (data.ranks[w] != null) return data.ranks[w];
+
+  // Irregular inflections (no rule can derive these) — explicit exceptions.
+  // Checked before the length guard so short forms (men, ran, ate, saw…) resolve.
+  const irr = IRREGULAR[w];
+  if (irr != null && data.ranks[irr] != null) return data.ranks[irr];
+
   if (w.length < 4) return null;
 
   // ----- Phase 1: derivational prefix strip -----
@@ -194,11 +238,15 @@ export function rankOf(data: CocaData, word: string, depth = 0): number | null {
     ["ically",  "y"],     // historically → history
     ["ical",    "y"],     // historical → history
     ["ities",   "ity"],   // cities → city
+    ["iest",    "y"],     // happiest → happy
+    ["ier",     "y"],     // happier → happy
+    ["ies",     "y"],     // flies → fly, carries → carry
+    ["ied",     "y"],     // cried → cry, studied → study
     ["ation",   "ate"],   // creation → create
     ["tion",    "te"],    // completion → complete
     ["ian",     "y"],     // historian → history
     ["iness",   "y"],     // happiness → happy
-    ["fully",   ""],      // carefully → care
+    ["fully",   "ful"],   // carefully → careful
     ["ously",   "ous"],   // famously → famous
     ["ively",   "ive"],   // actively → active
     ["ibly",    "ible"],  // impossibly → impossible
@@ -206,7 +254,7 @@ export function rankOf(data: CocaData, word: string, depth = 0): number | null {
     ["ally",    "al"],    // basically → basic
   ];
   for (const [from, to] of REPLACEMENTS) {
-    if (!w.endsWith(from) || w.length <= from.length + 2) continue;
+    if (!w.endsWith(from) || w.length <= from.length + 1) continue;
     const cand = w.slice(0, -from.length) + to;
     const r = rankOf(data, cand, depth + 1);
     if (r != null) return r;
@@ -218,12 +266,13 @@ export function rankOf(data: CocaData, word: string, depth = 0): number | null {
     "iest", "ier",                // easy/easier/easiest
     "ing", "ed", "er", "est",     // walk/walking/walked/walker
     "ly",                          // immediate/immediately
+    "es",                          // boxes→box, goes→go, tomatoes→tomato, does→do
     "s",                           // cat/cats  (last because very broad)
     "ful", "ness", "ment",        // delight/delightful, dark/darkness
     "al",                          // cultural
   ];
   for (const suf of SUFFIXES) {
-    if (!w.endsWith(suf) || w.length <= suf.length + 2) continue;
+    if (!w.endsWith(suf) || w.length <= suf.length + 1) continue;
     const stem = w.slice(0, -suf.length);
     // Bare stem
     const r0 = rankOf(data, stem, depth + 1);
@@ -258,6 +307,9 @@ export function lemmatizeWord(data: CocaData | null, word: string, depth = 0): s
   if (norm && data.ranks[norm] != null) return norm;
   if (w in data.ranks) return w;
   if (norm && norm in data.ranks) return norm;
+  // irregular inflections (exception dictionary) — before length guard
+  const irr = IRREGULAR[w];
+  if (irr != null && irr in data.ranks) return irr;
   if (w.length < 4) return word;
   // prefix strip
   const PREFIXES = ["im", "in", "ir", "un", "non", "dis", "re", "pre", "mis", "over", "under"];
@@ -272,21 +324,22 @@ export function lemmatizeWord(data: CocaData | null, word: string, depth = 0): s
   // suffix replacements
   const REPL: [string, string][] = [
     ["ication","y"],["ically","y"],["ical","y"],["ities","ity"],
+    ["iest","y"],["ier","y"],["ies","y"],["ied","y"],
     ["ation","ate"],["tion","te"],["ian","y"],["iness","y"],
-    ["fully",""],["ously","ous"],["ively","ive"],["ibly","ible"],
+    ["fully","ful"],["ously","ous"],["ively","ive"],["ibly","ible"],
     ["ily","y"],["ally","al"],
   ];
   for (const [from, to] of REPL) {
-    if (!w.endsWith(from) || w.length <= from.length + 2) continue;
+    if (!w.endsWith(from) || w.length <= from.length + 1) continue;
     const cand = w.slice(0, -from.length) + to;
     if (data.ranks[cand] != null) return cand;
     const r = lemmatizeWord(data, cand, depth + 1);
     if (r !== cand) return r;
   }
   // simple suffix stripping
-  const SUF = ["ies","ied","ying","iest","ier","ing","ed","er","est","ly","s","ful","ness","ment","al"];
+  const SUF = ["ies","ied","ying","iest","ier","ing","ed","er","est","ly","es","s","ful","ness","ment","al"];
   for (const suf of SUF) {
-    if (!w.endsWith(suf) || w.length <= suf.length + 2) continue;
+    if (!w.endsWith(suf) || w.length <= suf.length + 1) continue;
     const stem = w.slice(0, -suf.length);
     if (data.ranks[stem] != null) return stem;
     if (data.ranks[stem + "e"] != null) return stem + "e";

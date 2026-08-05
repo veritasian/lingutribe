@@ -86,6 +86,27 @@ export interface ChatMessage {
   content: string;
 }
 
+import type { Segment } from "./lib/segments";
+
+/**
+ * Cached analysis result for a resource. Returned by the server's
+ * /api/resources/:id/analysis endpoint. The renderer uses this on open
+ * to skip re-deriving subtitles, durations, and waveform peaks.
+ */
+export interface Analysis {
+  version: number;
+  resourceId: string;
+  md5: string;
+  createdAt: string;
+  duration: number;
+  durationProbedAt: number;
+  transcript: string;
+  words: WordHit[];
+  segments: Segment[];
+  peaks: number[];
+  peaksPerSec: number;
+}
+
 export const api = {
   health: () => req("/api/health"),
   // settings
@@ -112,6 +133,15 @@ export const api = {
     req(`/api/resources/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
   transcribeResource: (id: string, language?: string) =>
     req(`/api/resources/${id}/transcribe`, { method: "POST", body: JSON.stringify({ language }) }),
+  /** Pre-computed analysis cache: peaks, segments, transcript, duration.
+   *  Returns null when the server has no cache yet (e.g. never transcribed). */
+  getAnalysis: async (id: string) => {
+    try {
+      return await req<Analysis>(`/api/resources/${id}/analysis`);
+    } catch {
+      return null;
+    }
+  },
   // Import a resource from a URL (video link / podcast link). Pulls media +
   // subtitles when available; returns the resource row with words populated.
   importUrl: (url: string, type: string) =>
