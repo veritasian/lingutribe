@@ -6,12 +6,14 @@ Lingutribe 是一个轻量、可自托管的英语学习助手。你把音频 / 
 
 ## 最近更新
 
-- **播放器界面重构** — Transcript 与 Statistics 现在作为标签置于 Delete 之前；音频改用原生风格传输条（暗色轨道、绿色进度）；视频布局在播放器下方显示字幕，并带显隐开关。
-- **字幕体验** — 每行字幕改为 YouTube 风格的时间区间（`MM:SS – MM:SS`），不再用 `#N` 编号；字号 13px；采用固定行高 + 局部平滑滚动（按时间轴同步），消除上下跳动。
-- **Statistics 重做** — 每个 COCA 词频段（`0–1000`、`1000–3000` … `6000+`）以居中标题 + 分割线呈现，单词直接列出，无需点击展开。
-- **COCA 词形还原增强** — 缩略词（`I'm`、`it'll`、`don't`、`gonna` 等）纳入 1K 区段；新增不规则变化（`went→go`、`children→child`、`men→man`）与更多派生规则（复数、`-ies/-ied→y`、`-es`）。
-- **后端整理** — 将 `analysis`、`segments`、`ffmpeg` 辅助逻辑从 Express 入口拆分到独立模块，便于维护。
-- **布局留白** — Transcript / Statistics 主内容现在与侧边栏保持清晰左右间距，并加大上下留白。
+- **Transcript 双视图** — *Subtitle*（带时间戳行，点词即查词典）与 *Content*（正文段落，选中文字弹出 **Ask AI / Copy**）。字幕行按固定 ~5–10 秒分块、不重叠；正文合并为 ~25 秒段落。
+- **STT 输出更干净** — Whisper/echogarden 偶发的"循环重复"（如 *…like I have this immense guilt towards I have this like…*）在服务端转写时与客户端展示时自动去重；已有字幕（如 YouTube 自带字幕）的资源不再重复转写。
+- **保存的提示词（Saved prompts）** — 设置 → LLM 中提示词可保存历史；在 Ask 对话框输入 `/` 可展开并插入已保存的提示词（名称 + 内容）。
+- **播放器头部** — Transcript / Statistics / Transcribe / Delete 变为图标按钮，与"点击切换倍速"的速度控制一起放在右侧；波形开关、面板关闭均为图标 + tooltip；右侧面板宽度可拖拽并记忆。
+- **侧边栏与筛选** — 展开/折叠改为图标式并统一 hover 圆形样式；COCA 筛选栏固定不动，单词列表在其下方独立滚动。
+- **安装包更小** — 未使用的 `kuromoji`（日语分词）与微软语音 SDK 已从 dmg 中排除（≈240 MB → ≈224 MB）；完全离线的 Whisper/Kokoro/Ollama 技术栈不变。
+- **字幕体验** — 每行显示 `MM:SS – MM:SS` 时间区间（YouTube 风格），固定行高 + 局部平滑滚动（跟随播放进度）。
+- **COCA 词形还原增强** — 缩略词（`I'm`、`it'll`、`gonna` 等）纳入 1K 区段；新增不规则变化（`went→go`、`children→child`、`men→man`）与更多派生规则。
 
 ---
 
@@ -81,6 +83,12 @@ npm run app
 ```
 
 打开 **http://localhost:5173**（开发）或 **http://localhost:8787**（生产）即可使用。
+
+### 架构与端口
+
+- **开发模式** — 两个进程、两个端口：Vite 开发服务器（React + HMR）在 **5173**，Express API 在 **8787**；Vite 把 `/api/*` 代理到 8787。
+- **生产模式** — 一个进程、一个端口：Express 同时托管 `dist/` 里构建好的前端与 API，统一在 **8787**（`npm run build && npm start`）。
+- **桌面端（dmg）** — Electron 主进程直接 `import()` 预编译的服务端（`dist-server/index.mjs`），API 就跑在 **Electron 主进程内部**（单进程，没有独立的服务进程）。只监听 **8787，完全不占用 5173**。如果 8787 已被占用（比如 dev 服务在跑），app 会直接复用已有服务，不再启动自己的实例。
 
 **系统要求**
 - Node.js 18 或更高（推荐 20+）。
@@ -222,13 +230,13 @@ lingutribe/
 │   │   ├── components/ # PlayerView、Transcript、Caption、AudioBar、VocabProfile…
 │   │   └── lib/       # coca.ts（词频段）、segments.ts（计时）
 │   ├── shared/        # 共享 TypeScript 类型
-│   └── electron/      # 桌面端外壳（main.cjs）
+├── electron/          # 桌面端外壳（main.cjs — 打包时内嵌服务端）
 ├── docs/              # 用户手册（中文 HTML）
 ├── package.json
 └── vite.config.ts
 ```
 
-> **不在仓库内**：`node_modules/`、`dist/`、`data/`（运行时词库 + 模型缓存，约 566 MB）、`.DS_Store`。详见 `.gitignore`。
+> **不在仓库内**：`node_modules/`、`.venv/`、`dist/`、`dist-electron/`、`data/`（运行时词库 + 模型缓存，约 566 MB）、`.DS_Store`。详见 `.gitignore`。
 
 ## 许可证
 

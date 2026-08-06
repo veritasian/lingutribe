@@ -8,12 +8,14 @@ Lingutribe is a lightweight, self-hosted study companion. You drop in audio/vide
 
 ## 🆕 What's new
 
-- **Player UI overhaul** — Transcript and Statistics are now tabs beside Delete; audio gets a native-styled transport bar (dark track, green progress); the video layout shows captions below the player with a show/hide toggle.
-- **Captions / subtitles** — Each line now shows a `MM:SS – MM:SS` time range (YouTube-style) instead of `#N`, renders at 13px, and scrolls without vertical jumping (fixed-height rows + contained smooth scroll, synced to the timeline).
-- **Statistics redesign** — Each COCA band (`0–1000`, `1000–3000`, … `6000+`) shows as a centered heading with a divider; its words are listed directly — no click-to-expand.
-- **Stronger COCA lemmatizer** — Contractions (`I'm`, `it'll`, `don't`, `gonna`…) now map into the 1K band; irregular inflections (`went→go`, `children→child`, `men→man`) and more suffix rules (plurals, `-ies/-ied→y`, `-es`) are handled.
-- **Backend cleanup** — `analysis`, `segments`, and `ffmpeg` helpers extracted out of the Express entry into dedicated modules for easier maintenance.
-- **Comfortable layout** — Transcript / Statistics content keeps clear margins from the sidebar with more vertical breathing room.
+- **Transcript dual view** — *Subtitle* (timestamped rows; click a word to look it up) and *Content* (readable prose; select text → **Ask AI / Copy** popup). Subtitle rows are fixed ~5–10s chunks with no overlapping lines; Content merges into ~25s paragraphs.
+- **Cleaner STT output** — loop-repetition artifacts from Whisper/echogarden are collapsed automatically (server-side at transcribe time, and client-side for existing resources). If a resource already has subtitles (e.g. imported YouTube captions), re-transcription is skipped.
+- **Saved prompts** — LLM prompts now keep a history in Settings → LLM; type `/` in the Ask dialog to insert a saved prompt (name + content).
+- **Player header** — Transcript / Statistics / Transcribe / Delete are icon buttons grouped with a click-to-cycle speed control on the right; waveform toggle and panel close are icon-only with tooltips; the right panel width is draggable and remembered.
+- **Sidebar & filters** — icon-style expand/collapse toggles with a consistent hover-circle; the COCA filter bar stays fixed while words scroll below it.
+- **Smaller desktop app** — the unused `kuromoji` (Japanese segmentation) and Microsoft speech SDK are excluded from the packaged dmg (≈240 MB → ≈224 MB); the fully offline Whisper/Kokoro/Ollama stack is unchanged.
+- **Captions / subtitles** — each line shows a `MM:SS – MM:SS` time range (YouTube-style) with fixed-height rows and contained smooth scroll synced to playback.
+- **Stronger COCA lemmatizer** — contractions (`I'm`, `it'll`, `gonna`…) map into the 1K band; irregular inflections (`went→go`, `children→child`, `men→man`) and more suffix rules are handled.
 
 ---
 
@@ -58,6 +60,12 @@ npm run app
 ```
 
 Open **http://localhost:5173** in development, or **http://localhost:8787** after `npm start`.
+
+## 🏗 Architecture & ports
+
+- **Development** — two processes, two ports: Vite dev server on **5173** (React + HMR) and the Express API on **8787**; Vite proxies `/api/*` to 8787.
+- **Production** — one process, one port: Express serves the built SPA from `dist/` *and* the API on **8787** (`npm run build && npm start`).
+- **Desktop app (dmg)** — the Electron main process `import()`s the pre-compiled server (`dist-server/index.mjs`) directly, so the API runs **inside the Electron main process** (single process; no separate server). It listens on **8787 only — 5173 is never used by the packaged app**. If something is already listening on 8787 (e.g. a dev server), the app reuses it instead of starting its own instance.
 
 ---
 
@@ -114,14 +122,14 @@ lingutribe/
 │   ├── web/           # React front-end (pages + components)
 │   │   ├── components/ # PlayerView, Transcript, Caption, AudioBar, VocabProfile…
 │   │   └── lib/       # coca.ts (frequency bands), segments.ts (timing)
-│   ├── shared/        # shared TypeScript types
-│   └── electron/      # desktop shell (main.cjs)
+│   └── shared/        # shared TypeScript types
+├── electron/          # desktop shell (main.cjs — embeds the server when packaged)
 ├── docs/              # user manual (zh)
 ├── package.json
 └── vite.config.ts
 ```
 
-> **Not in the repo:** `node_modules/`, `.venv/`, `dist/`, `data/` (runtime word library + dictionary lexicons, ~566 MB), and `.DS_Store`. See `.gitignore`.
+> **Not in the repo:** `node_modules/`, `.venv/`, `dist/`, `dist-electron/`, `data/` (runtime word library + dictionary lexicons, ~566 MB), and `.DS_Store`. See `.gitignore`.
 
 ## 📄 License
 
