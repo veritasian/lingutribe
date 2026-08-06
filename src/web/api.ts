@@ -51,6 +51,12 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
 }
+export interface SavedPrompt {
+  id: string;
+  name: string;
+  content: string;
+  createdAt: number;
+}
 export interface Settings {
   libraryPath: string;
   languages: { learning: string; native: string };
@@ -60,10 +66,10 @@ export interface Settings {
     tts: { engine: string; voice?: string; language?: string; baseUrl?: string; apiKey?: string; model?: string; kokoroVoice?: string; kokoroModel?: string; fishModel?: string; maleVoice?: string; femaleVoice?: string; saveAudio?: boolean };
     llm: { engine: string; baseUrl: string; model: string; apiKey?: string };
   };
-  prompts?: { grammar: string };
+  prompts?: { grammar: string; list?: SavedPrompt[] };
   llmHistory?: { id: number; ts: string; engine: string; baseUrl: string; model: string; apiKey?: string }[];
   sttHistory?: { id: number; ts: string; model: string }[];
-  ttsHistory?: { id: number; ts: string; engine: string; voice: string; model?: string; maleVoice?: string; femaleVoice?: string }[];
+  ttsHistory?: { id: number; ts: string; engine: string; voice: string; model?: string; maleVoice?: string; femaleVoice?: string; baseUrl?: string; apiKey?: string }[];
   defaultTtsId?: number;
   defaultLlmId?: number;
 }

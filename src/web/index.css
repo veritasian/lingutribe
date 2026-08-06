@@ -121,6 +121,74 @@ body {
   cursor: not-allowed;
 }
 
+/* Square icon-only button (e.g. Re-transcribe) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: filter 0.12s ease, background 0.12s ease;
+}
+.icon-btn:hover {
+  background: hsl(var(--accent));
+}
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Circular icon-only button with a ring around it (e.g. Delete) */
+.icon-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.icon-circle-btn:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 0.45);
+  background: hsl(var(--accent));
+}
+
+/* Toggle arrow: small button that becomes circular on hover. Used by the
+   sidebar logo, the resources list, and the right panel close/collapse —
+   keeps the three expand/collapse controls visually consistent. */
+.toggle-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  border: none;
+  transition: background 0.12s ease, color 0.12s ease, border-radius 0.12s ease;
+}
+.toggle-circle-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+  border-radius: 9999px;
+}
+.toggle-circle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .input,
 .textarea,
 .select {
@@ -641,6 +709,89 @@ body {
   flex: 0 0 auto;
 }
 
+/* Subtitle / Content view switch (lives inside the Transcript component) */
+.transcript-toolbar {
+  display: flex;
+  align-items: center;
+}
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  padding: 2px;
+  background: hsl(var(--muted) / 0.4);
+}
+.mode-toggle button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 4px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-toggle button:hover {
+  color: hsl(var(--foreground));
+}
+.mode-toggle button.active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Content (reading) view: flowing paragraphs with a faint timestamp. */
+.content-body {
+  padding: 2px 2px;
+}
+.content-para {
+  margin-bottom: 14px;
+  line-height: 1.7;
+  font-size: 14px;
+  text-align: left;
+}
+.content-time {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-right: 8px;
+  user-select: none;
+  vertical-align: baseline;
+}
+.content-text {
+  text-align: left;
+}
+
+/* Floating Ask / Copy popup shown on text selection in Content mode */
+.ask-popup {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+.ask-popup-btn {
+  appearance: none;
+  border: none;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ask-popup-btn:last-child {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.ask-popup-btn:hover {
+  opacity: 0.9;
+}
+
 /* Statistics — per-band word groups (no expand/collapse).
    Title centred with a neutral divider; words always visible. */
 .stat-band {
@@ -934,6 +1085,25 @@ body {
 /* CSS Custom Highlight API — used by the Read page during read-aloud */
 ::highlight(lingo-sentence) {
   background-color: rgba(59, 130, 246, 0.25);
+}
+
+/* Word panel drag-to-resize handle (left edge) */
+.wp-resizer {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 10;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.wp-resizer:hover {
+  background: hsl(var(--primary) / 0.28);
+}
+.wp-resizer:active {
+  background: hsl(var(--primary) / 0.45);
 }
 
 

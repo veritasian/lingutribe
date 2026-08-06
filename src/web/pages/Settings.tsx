@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, type Settings, type DiskUsage, type KokoroVoice, fmtBytes } from "../api";
 import { applyTheme } from "../App";
-import { IconSettings, IconMic, IconVolume, IconRobot } from "../components/Icon";
+import { IconSettings, IconMic, IconVolume, IconRobot, IconEdit, IconTrash } from "../components/Icon";
 import { switchLang } from "../lib/locale";
 
 const STT_MODELS = ["tiny", "base", "small", "medium", "large"];
@@ -47,6 +47,10 @@ export default function Settings() {
   const [savedCat, setSavedCat] = useState<Cat | null>(null);
   const [grammarSaved, setGrammarSaved] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem("lingo-theme") || "light");
+  // Saved-prompt manager (named prompt history)
+  const [spName, setSpName] = useState("");
+  const [spContent, setSpContent] = useState("");
+  const [spMsg, setSpMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Drag-to-reorder state for the saved LLM / TTS config lists.
   // The item at index 0 is always the default (no star toggle needed).
@@ -293,6 +297,48 @@ export default function Settings() {
     const next = { ...settings, llmHistory: arr, defaultLlmId: arr[0]?.id };
     setSettings(next);
     api.saveSettings(next);
+  }
+
+  // Saved-prompt manager: persist named prompts under settings.prompts.list.
+  function savePrompt() {
+    if (!settings) return;
+    const name = spName.trim();
+    const content = spContent;
+    if (!name) {
+      setSpMsg({ ok: false, text: "Please enter a name for the prompt." });
+      return;
+    }
+    const id =
+      "p_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const list = [...(settings.prompts?.list || [])];
+    list.unshift({ id, name, content, createdAt: Date.now() });
+    const next: Settings = {
+      ...settings,
+      prompts: { ...(settings.prompts || { grammar: "" }), list },
+    };
+    setSettings(next);
+    api.saveSettings(next);
+    setSpMsg({ ok: true, text: `Saved “${name}” ✓` });
+    setTimeout(() => setSpMsg(null), 2000);
+    setSpName("");
+    setSpContent("");
+  }
+  function deletePrompt(id: string) {
+    if (!settings) return;
+    const list = (settings.prompts?.list || []).filter((p) => p.id !== id);
+    const next: Settings = {
+      ...settings,
+      prompts: { ...(settings.prompts || { grammar: "" }), list },
+    };
+    setSettings(next);
+    api.saveSettings(next);
+  }
+  function loadPrompt(id: string) {
+    const p = (settings?.prompts?.list || []).find((x) => x.id === id);
+    if (!p) return;
+    setSpName(p.name);
+    setSpContent(p.content);
+    setSpMsg(null);
   }
 
   // Reorder a saved-config list by drag-and-drop. After a move, the item now
@@ -976,6 +1022,91 @@ export default function Settings() {
                   <button className="btn btn-primary" onClick={confirmLlm}>
                     Confirm
                   </button>
+                </div>
+              </section>
+
+              {/* Saved prompts (named history) */}
+              <section className="note-card p-4 space-y-3">
+                <h2 className="text-sm font-semibold text-muted-foreground">Saved prompts</h2>
+                <p className="text-xs text-muted-foreground">
+                  Save reusable prompts by name. They appear below and can be inserted into the Ask
+                  AI box by typing <code>/</code>.
+                </p>
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">Name</span>
+                  <input
+                    className="input"
+                    value={spName}
+                    placeholder="e.g. Summarize, Explain simply…"
+                    onChange={(v) => {
+                      setSpName(v.target.value);
+                      setSpMsg(null);
+                    }}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-muted-foreground">Content</span>
+                  <textarea
+                    className="textarea"
+                    rows={6}
+                    value={spContent}
+                    placeholder="Write the prompt instructions here…"
+                    onChange={(v) => setSpContent(v.target.value)}
+                  />
+                </label>
+                <div className="flex items-center gap-3">
+                  <button className="btn btn-primary" onClick={savePrompt}>
+                    Save prompt
+                  </button>
+                  {spMsg && (
+                    <span className={`text-xs ${spMsg.ok ? "text-green-600" : "text-red-500"}`}>
+                      {spMsg.text}
+                    </span>
+                  )}
+                </div>
+
+                {/* List of saved prompt names */}
+                <div className="pt-1">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">
+                    Saved ({ (settings?.prompts?.list || []).length })
+                  </div>
+                  {(settings?.prompts?.list || []).length === 0 ? (
+                    <div className="text-xs text-muted-foreground">No saved prompts yet.</div>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {(settings?.prompts?.list || []).map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[13px] font-medium truncate">{p.name}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {p.content.trim() ? p.content.trim().slice(0, 80) : "(empty)"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              className="icon-btn"
+                              title="Load into editor"
+                              aria-label="Load prompt"
+                              onClick={() => loadPrompt(p.id)}
+                            >
+                              <IconEdit size={15} />
+                            </button>
+                            <button
+                              className="icon-circle-btn"
+                              title="Delete"
+                              aria-label="Delete prompt"
+                              onClick={() => deletePrompt(p.id)}
+                            >
+                              <IconTrash size={14} />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </section>
             </>

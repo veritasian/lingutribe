@@ -21,12 +21,14 @@ import {
 } from "../lib/coca";
 import { type Resource, type WordHit, api, type Analysis } from "../api";
 import {
-  IconAudio,
+  IconList,
+  IconChart,
   IconMic,
   IconTrash,
+  IconPanelLeft,
   IconChevronDown,
 } from "./Icon";
-import { buildSegments, type Segment } from "../lib/segments";
+import { chunkWordsByTime, collapseRepetition, type Segment } from "../lib/segments";
 
 export default function PlayerView({
   resource,
@@ -74,10 +76,30 @@ export default function PlayerView({
     };
   }, [resource.id]);
 
-  const segments: Segment[] = useMemo(() => {
-    if (analysis?.segments && analysis.segments.length) return analysis.segments;
-    return buildSegments(words);
-  }, [words, analysis]);
+  // STT engines (Whisper/echogarden) occasionally loop during silence or
+  // "[music]" tags, producing verbatim repeated runs in the stored `words`/
+  // `transcript`. Collapse those once so every view (subtitle, content, vocab,
+  // AI) sees the clean text — matching what a native authored caption looks
+  // like. From the collapsed words we build:
+  //   • subtitle lines  → fixed ~5–10s time chunks (no overlapping rows)
+  //   • content/paragraphs → 25s merges (handled inside Transcript)
+  const collapsedWords: WordHit[] = useMemo(
+    () => collapseRepetition(words),
+    [words]
+  );
+  const transcriptClean: string = useMemo(
+    () =>
+      collapsedWords.length
+        ? collapsedWords.map((w) => w.text).join(" ")
+        : // No word-level timings (e.g. an STT engine that only returned a plain
+          // transcript) — fall back to the stored transcript so the text isn't lost.
+          resource.transcript || "",
+    [collapsedWords, resource.transcript]
+  );
+  const segments: Segment[] = useMemo(
+    () => chunkWordsByTime(collapsedWords, 5, 10),
+    [collapsedWords]
+  );
 
   const initialDuration = analysis?.duration ?? 0;
 
@@ -125,10 +147,10 @@ export default function PlayerView({
       const t = media.currentTime;
       // word level
       let wIdx = -1;
-      if (words.length > 0) {
+      if (collapsedWords.length > 0) {
         // Linear scan is fine for typical transcripts.
-        for (let i = 0; i < words.length; i++) {
-          const w = words[i];
+        for (let i = 0; i < collapsedWords.length; i++) {
+          const w = collapsedWords[i];
           if (t >= w.start && t < w.end) { wIdx = i; break; }
         }
       }
@@ -152,7 +174,7 @@ export default function PlayerView({
     media.addEventListener("timeupdate", tick);
     tick();
     return () => media.removeEventListener("timeupdate", tick);
-  }, [words.length, segments.length, mediaRef, resource.id]);
+  }, [collapsedWords.length, segments.length, mediaRef, resource.id]);
 
   // Spacebar play/pause
   useEffect(() => {
@@ -185,12 +207,22 @@ export default function PlayerView({
   // Video subtitles visibility (toggle to hide captions, show only video).
   const [showSubs, setShowSubs] = useState(true);
 
+  // Right slide-in panel width — draggable, persisted.
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    const w = Number(localStorage.getItem("lingo-panel-w"));
+    return w && w >= 280 && w <= 640 ? w : 360;
+  });
+  useEffect(() => {
+    localStorage.setItem("lingo-panel-w", String(panelWidth));
+  }, [panelWidth]);
+
   // Statistics page (COCA filter chips + vocabulary profile).
   function renderStatistics() {
     return (
-      <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-4">
-        {coca && (
-          <div className="flex items-center gap-2 flex-wrap text-xs mb-4">
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* COCA filter — fixed-height bar that stays put while words scroll below */}
+        <div className="shrink-0 px-1 pb-4 mb-[30px] border-b">
+          <div className="flex items-center gap-2 flex-wrap text-xs">
             <span className="text-muted-foreground">COCA filter</span>
             {(Object.keys(BAND_META) as Array<keyof typeof BAND_META>).map((b) => {
               const m = BAND_META[b];
@@ -213,15 +245,18 @@ export default function PlayerView({
               );
             })}
           </div>
-        )}
-        <VocabProfile
-          coca={coca}
-          words={words}
-          transcript={resource.transcript}
-          onWordClick={(w) =>
-            setPanel({ text: w, context: w, isWord: true, rank: null, band: null })
-          }
-        />
+        </div>
+        {/* Vocabulary profile — scrolls within the remaining height */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-4">
+          <VocabProfile
+            coca={coca}
+            words={collapsedWords}
+            transcript={transcriptClean}
+            onWordClick={(w) =>
+              setPanel({ text: w, context: w, isWord: true, rank: null, band: null })
+            }
+          />
+        </div>
       </div>
     );
   }
@@ -231,39 +266,62 @@ export default function PlayerView({
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-2 border-b">
-          {/* Left: menu tabs (page categories) */}
+        <div className="px-6 h-14 shrink-0 flex items-center justify-between gap-2 border-b">
+          {/* Left: title / spacer */}
+          <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground truncate">
+            {resource.name}
+          </div>
+          {/* Right: player actions + speed + panel close, grouped together */}
           <div className="flex items-center gap-1">
             <button
-              className={`hdr-tab ${playerTab === "transcript" ? "active" : ""}`}
+              className={`icon-btn ${playerTab === "transcript" ? "ring-1 ring-primary" : ""}`}
               onClick={() => setPlayerTab("transcript")}
+              title="Transcript"
+              aria-label="Transcript"
+              aria-pressed={playerTab === "transcript"}
             >
-              Transcript
+              <IconList size={16} />
             </button>
             <button
-              className={`hdr-tab ${playerTab === "layout" ? "active" : ""}`}
+              className={`icon-btn ${playerTab === "layout" ? "ring-1 ring-primary" : ""}`}
               onClick={() => setPlayerTab("layout")}
+              title="Statistics"
+              aria-label="Statistics"
+              aria-pressed={playerTab === "layout"}
             >
-              Statistics
+              <IconChart size={16} />
             </button>
-          </div>
-          {/* Right: actions */}
-          <div className="flex items-center gap-2">
             {onTranscribe && (
               <button
-                className="btn btn-secondary inline-flex items-center gap-1"
+                className="icon-btn"
                 disabled={busy}
                 onClick={onTranscribe}
+                title={words.length > 0 ? "Re-transcribe" : "Transcribe"}
+                aria-label={words.length > 0 ? "Re-transcribe" : "Transcribe"}
               >
-                <IconMic size={15} /> {words.length > 0 ? "Re-transcribe" : "Transcribe"}
+                <IconMic size={16} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                className="icon-btn"
+                onClick={onDelete}
+                title="Delete"
+                aria-label="Delete"
+              >
+                <IconTrash size={16} />
               </button>
             )}
             <SpeedControl mediaRef={mediaRef} />
-            {onDelete && (
-              <button className="btn btn-ghost inline-flex items-center gap-1" onClick={onDelete}>
-                <IconTrash size={15} /> Delete
-              </button>
-            )}
+            <button
+              className="toggle-circle-btn"
+              onClick={() => setPanel(null)}
+              disabled={!panel}
+              title={panel ? "Close panel" : "No panel open"}
+              aria-label="Close right panel"
+            >
+              <IconPanelLeft size={18} />
+            </button>
           </div>
         </div>
 
@@ -279,7 +337,7 @@ export default function PlayerView({
             />
             <AudioBar mediaRef={audioRef} />
             <div className="text-[11px] text-muted-foreground mt-2">
-              {words.length} words · {resource.transcript ? "transcribed" : "not transcribed"}
+              {collapsedWords.length} words · {transcriptClean ? "transcribed" : "not transcribed"}
               {segments.length > 0 && ` · ${segments.length} segments`}
             </div>
           </div>
@@ -289,8 +347,11 @@ export default function PlayerView({
         {!isVideo && (
           <div className="px-6 shrink-0 pt-3">
             <button
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground w-full mb-1"
+              className="toggle-circle-btn mb-1"
               onClick={() => setShowWave((v) => !v)}
+              title={showWave ? "Hide waveform" : "Show waveform"}
+              aria-label={showWave ? "Hide waveform" : "Show waveform"}
+              aria-expanded={showWave}
             >
               <span
                 style={{
@@ -299,9 +360,8 @@ export default function PlayerView({
                   transition: "transform 0.15s",
                 }}
               >
-                <IconChevronDown size={12} />
+                <IconChevronDown size={14} />
               </span>
-              Waveform{!showWave && " (hidden)"}
             </button>
             {showWave && (
               <WaveformPlayer
@@ -337,6 +397,7 @@ export default function PlayerView({
               className="w-full rounded-lg bg-black max-h-[52vh] object-contain shrink-0"
             />
             <div className="subtitle-divider" />
+            <div className="max-w-2xl mx-auto w-full flex-1 min-h-0 flex flex-col overflow-hidden">
             {playerTab === "transcript" ? (
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-1 pt-1 pb-2 shrink-0">
@@ -351,8 +412,8 @@ export default function PlayerView({
                 {showSubs && (
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <Transcript
-                      words={words}
-                      transcript={resource.transcript || ""}
+                      words={collapsedWords}
+                      transcript={transcriptClean}
                       onSeek={seek}
                       activeIdx={activeIdx}
                       activeSegIdx={activeSegIdx}
@@ -366,7 +427,7 @@ export default function PlayerView({
                           isWord: false,
                           defaultTab: "ask",
                           thread: resource.id,
-                          article: resource.transcript || "",
+                          article: transcriptClean,
                         })
                       }
                       visBands={visBands}
@@ -378,6 +439,7 @@ export default function PlayerView({
             ) : (
               renderStatistics()
             )}
+            </div>
           </div>
         ) : (
           /* Audio: single-column, transcript / statistics centred with max width */
@@ -385,8 +447,8 @@ export default function PlayerView({
             <div className="max-w-2xl mx-auto w-full flex-1 min-h-0 flex flex-col overflow-hidden">
               {playerTab === "transcript" ? (
                 <Transcript
-                  words={words}
-                  transcript={resource.transcript || ""}
+                  words={collapsedWords}
+                  transcript={transcriptClean}
                   onSeek={seek}
                   activeIdx={activeIdx}
                   activeSegIdx={activeSegIdx}
@@ -400,7 +462,7 @@ export default function PlayerView({
                       isWord: false,
                       defaultTab: "ask",
                       thread: resource.id,
-                      article: resource.transcript || "",
+                      article: transcriptClean,
                     })
                   }
                   visBands={visBands}
@@ -418,6 +480,8 @@ export default function PlayerView({
       <WordPanel
         data={panel}
         onClose={() => setPanel(null)}
+        width={panelWidth}
+        onWidthChange={setPanelWidth}
         onAdded={(term) => {
           console.log("added", term);
         }}
@@ -427,21 +491,26 @@ export default function PlayerView({
 }
 
 function SpeedControl({ mediaRef }: { mediaRef: React.RefObject<HTMLMediaElement> }) {
+  const opts = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
   const [rate, setRate] = useState(1);
   useEffect(() => {
     if (mediaRef.current) mediaRef.current.playbackRate = rate;
   }, [rate, mediaRef]);
-  const opts = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  function cycle() {
+    const i = opts.indexOf(rate as (typeof opts)[number]);
+    const next = opts[(i + 1) % opts.length];
+    setRate(next);
+  }
   return (
-    <select
-      className="select"
-      style={{ width: 70, padding: "3px 6px", fontSize: 12 }}
-      value={rate}
-      onChange={(e) => setRate(Number(e.target.value))}
+    <button
+      className="icon-btn"
+      onClick={cycle}
+      title={`Playback speed: ${rate}× — click to change`}
+      aria-label={`Playback speed ${rate}×. Click to change.`}
     >
-      {opts.map((o) => (
-        <option key={o} value={o}>{o}×</option>
-      ))}
-    </select>
+      <span style={{ fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+        {rate}×
+      </span>
+    </button>
   );
 }

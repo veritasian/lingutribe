@@ -5,8 +5,7 @@ import PlayerView from "../components/PlayerView";
 import {
   IconAudio,
   IconVideo,
-  IconChevronLeft,
-  IconChevronRight,
+  IconPanelLeft,
   IconPlus,
 } from "../components/Icon";
 
@@ -82,8 +81,12 @@ export default function Resources() {
     setBusy(true);
     setMsg("Transcribing… (first run downloads the model)");
     try {
-      const res = await api.transcribeResource(r.id, "en");
-      setMsg("Transcription done");
+      const res: any = await api.transcribeResource(r.id, "en");
+      if (res?.skipped) {
+        setMsg("Already has subtitles — kept existing transcript (no re-STT)");
+      } else {
+        setMsg("Transcription done");
+      }
       await load();
       setActive({ ...r, transcript: res.transcript, words: res.words });
     } catch (err: any) {
@@ -128,19 +131,21 @@ export default function Resources() {
       {/* list + tabs — collapsible left column */}
       {listOpen ? (
         <div className="w-[340px] border-r flex flex-col shrink-0">
-          <div className="px-4 py-3 border-b">
-            <div className="flex items-center justify-between">
+          <div className="border-b">
+            <div className="px-4 h-14 flex items-center justify-between">
               <h2 className="text-[15px] font-semibold capitalize">{tab}</h2>
               <button
-                className="btn btn-ghost px-2 inline-flex items-center"
+                className="toggle-circle-btn"
                 onClick={toggleList}
                 title="Collapse list"
+                aria-label="Collapse list"
               >
-                <IconChevronLeft size={16} />
+                <IconPanelLeft size={18} />
               </button>
             </div>
+            <div className="px-4 pb-3">
             {/* Source mode: local file or URL */}
-            <div className="flex items-center border rounded-md overflow-hidden mt-3 text-xs">
+            <div className="flex items-center border rounded-md overflow-hidden text-xs">
               <button
                 className={`flex-1 px-2 py-1 ${mode === "file" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
                 onClick={() => setMode("file")}
@@ -181,6 +186,7 @@ export default function Resources() {
                 </button>
               </div>
             )}
+            </div>
           </div>
           <input
             ref={fileRef}
@@ -211,11 +217,12 @@ export default function Resources() {
       <div className="flex-1 min-w-0 relative">
         {!listOpen && (
           <button
-            className="absolute top-3 left-3 w-8 h-8 rounded-full bg-secondary hover:bg-accent inline-flex items-center justify-center z-10"
+            className="toggle-circle-btn absolute top-3 left-3 z-10"
             onClick={toggleList}
             title="Expand list"
+            aria-label="Expand list"
           >
-            <IconChevronRight size={16} />
+            <IconPanelLeft size={18} />
           </button>
         )}
         {msg && <div className="text-xs text-muted-foreground mb-3 px-6 pt-4">{msg}</div>}

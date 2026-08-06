@@ -3,7 +3,7 @@
 // of truth; this panel just renders the analysis.
 
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api, type SavedPrompt } from "../api";
 import { rankOf, useCoca, type Band } from "../lib/coca";
 import { IconVolume } from "./Icon";
 
@@ -33,12 +33,17 @@ export default function WordPanel({
   onClose,
   onAdded,
   dictOnly,
+  width,
+  onWidthChange,
 }: {
   data: WordPanelData | null;
   onClose: () => void;
   onAdded?: (term: string) => void;
   // When true, only the dictionary tab is shown (no Grammar/AI analysis).
   dictOnly?: boolean;
+  // Draggable width (px). Controlled by the parent so the layout reflows.
+  width?: number;
+  onWidthChange?: (w: number) => void;
 }) {
   const coca = useCoca();
   const [lookup, setLookup] = useState<any>(null);
@@ -58,6 +63,12 @@ export default function WordPanel({
   const [askInput, setAskInput] = useState("");
   const [askBusy, setAskBusy] = useState(false);
   const askThread = data?.thread || "global";
+
+  // Slash-command menu: saved prompts inserted via "/".
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+  const [showPromptMenu, setShowPromptMenu] = useState(false);
+  const [promptQuery, setPromptQuery] = useState("");
+  const [promptHi, setPromptHi] = useState(0);
 
   // Real rank via the COCA lemmatizer.
   const realRank = data && coca ? rankOf(coca, data.text) : null;
@@ -118,6 +129,11 @@ export default function WordPanel({
         .chatHistory(askThread)
         .then((r) => setAskMsgs(r.messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))))
         .catch(() => {});
+      // Load saved prompts so the "/" slash menu can offer them.
+      api
+        .getSettings()
+        .then((s) => setSavedPrompts(s.prompts?.list || []))
+        .catch(() => {});
     }
   }, [tab, askThread]);
 
@@ -177,13 +193,104 @@ export default function WordPanel({
     }
   }
 
+  // Detect a "/query" token at the cursor so we can pop the saved-prompt menu.
+  const filteredPrompts = savedPrompts.filter((p) =>
+    p.name.toLowerCase().includes(promptQuery.toLowerCase())
+  );
+
+  function onAskInputChange(v: string) {
+    setAskInput(v);
+    const m = v.match(/(?:^|\s)(\/[^\s/]*)$/);
+    if (m) {
+      setShowPromptMenu(true);
+      setPromptQuery(m[1].slice(1)); // drop the leading "/"
+      setPromptHi(0);
+    } else {
+      setShowPromptMenu(false);
+      setPromptQuery("");
+    }
+  }
+
+  // Insert a saved prompt (name + content) in place of the "/query" token.
+  function applyPrompt(p: SavedPrompt) {
+    const full = askInput;
+    const m = full.match(/(?:^|\s)(\/[^\s/]*)$/);
+    const insert = `${p.name}\n${p.content}`;
+    if (!m) {
+      // No slash token (e.g. menu opened manually) — just append.
+      setAskInput(full + (full && !full.endsWith("\n") ? "\n" : "") + insert);
+    } else {
+      const start = (m.index ?? 0) + (m[0].length - m[1].length); // position before "/"
+      const next = full.slice(0, start) + insert + full.slice(start + m[1].length);
+      setAskInput(next);
+    }
+    setShowPromptMenu(false);
+    setPromptQuery("");
+  }
+
+  function onAskKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (showPromptMenu && filteredPrompts.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPromptHi((i) => (i + 1) % filteredPrompts.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPromptHi((i) => (i - 1 + filteredPrompts.length) % filteredPrompts.length);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        applyPrompt(filteredPrompts[promptHi]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowPromptMenu(false);
+        setPromptQuery("");
+        return;
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      askSend();
+    }
+  }
+
   if (!data) return null;
 
   return (
     <aside
-      className="w-[360px] shrink-0 border-l flex flex-col h-full overflow-hidden bg-card"
-      style={{ animation: "wp-slide-in 0.18s ease-out" }}
+      className="relative shrink-0 border-l flex flex-col h-full overflow-hidden bg-card"
+      style={{ width: width ?? 360, animation: "wp-slide-in 0.18s ease-out" }}
     >
+      {/* Drag handle to resize the panel width (left edge) */}
+      <div
+        className="wp-resizer"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          const startX = e.clientX;
+          const startW = width ?? 360;
+          const onMove = (ev: PointerEvent) => {
+            const delta = startX - ev.clientX;
+            let nw = startW + delta;
+            nw = Math.max(280, Math.min(640, nw));
+            onWidthChange?.(nw);
+          };
+          const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+          };
+          document.body.style.cursor = "col-resize";
+          document.body.style.userSelect = "none";
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+        }}
+        title="Drag to resize"
+      />
       <style>{`@keyframes wp-slide-in { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }`}</style>
 
       {/* Header */}
@@ -381,20 +488,46 @@ export default function WordPanel({
               ))}
               {askBusy && <div className="text-xs text-muted-foreground">Thinking…</div>}
             </div>
-            <div className="pt-2 flex gap-2 items-end">
+            <div className="pt-2 flex gap-2 items-end relative">
               <textarea
                 className="input flex-1"
                 style={{ minHeight: 40, resize: "none" }}
-                placeholder="Ask about this text…"
+                placeholder="Ask about this text…  (type / for saved prompts)"
                 value={askInput}
-                onChange={(e) => setAskInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    askSend();
-                  }
-                }}
+                onChange={(e) => onAskInputChange(e.target.value)}
+                onKeyDown={onAskKeyDown}
+                onBlur={() => setTimeout(() => setShowPromptMenu(false), 150)}
               />
+              {showPromptMenu && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 z-20 rounded-lg border bg-popover shadow-lg max-h-56 overflow-y-auto">
+                  {filteredPrompts.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      {savedPrompts.length === 0
+                        ? "No saved prompts — add them in Settings → LLM → Saved prompts"
+                        : "No prompts match “/" + promptQuery + "”"}
+                    </div>
+                  ) : (
+                    filteredPrompts.map((p, i) => (
+                      <button
+                        key={p.id}
+                        className={`w-full text-left px-3 py-2 flex flex-col gap-0.5 ${
+                          i === promptHi ? "bg-accent" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          applyPrompt(p);
+                        }}
+                        onMouseEnter={() => setPromptHi(i)}
+                      >
+                        <span className="text-[13px] font-medium">{p.name}</span>
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {p.content.trim() ? p.content.trim().slice(0, 70) : "(empty)"}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
               <button
                 className="btn btn-primary"
                 onClick={askSend}

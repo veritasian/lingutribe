@@ -12,8 +12,7 @@ import {
   IconWords,
   IconChat,
   IconSettings,
-  IconChevronLeft,
-  IconChevronRight,
+  IconPanelLeft,
   IconShieldCheck,
 } from "./components/Icon";
 import { t } from "./lib/locale";
@@ -72,7 +71,7 @@ export default function App() {
         className="flex flex-col border-r bg-sidebar shrink-0"
         style={{ width: sidebarOpen ? 220 : 64, transition: "width 0.15s" }}
       >
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 h-14 border-b">
           {sidebarOpen && (
             <div className="text-[15px] font-semibold tracking-tight">
             Lingutribe
@@ -82,11 +81,12 @@ export default function App() {
             </div>
           )}
           <button
-            className="btn btn-ghost px-2 inline-flex items-center"
+            className="toggle-circle-btn"
             onClick={toggleSidebar}
             title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
-            {sidebarOpen ? <IconChevronLeft size={18} /> : <IconChevronRight size={18} />}
+            <IconPanelLeft size={18} />
           </button>
         </div>
         <nav className="flex flex-col gap-1 px-2">

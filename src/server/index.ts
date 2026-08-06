@@ -36,6 +36,7 @@ import {
   buildSegmentsFromWords,
   type AnalysisCache,
 } from "./analysis.js";
+import { collapseRepetition } from "./segments.js";
 import { findFfmpeg } from "./util-ffmpeg.js";
 import type { Segment } from "./segments.js";
 
@@ -397,6 +398,24 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
   if (!row) return res.status(404).json({ error: "not found" });
   const fp = resolveResourceFile(row.relativePath);
   if (!fp) return res.status(404).json({ error: "file missing" });
+  // Guard: if this resource already carries a transcript (e.g. an imported
+  // YouTube video with its own captions/subtitles), do NOT run speech
+  // recognition again. Re-STT-ing already-subtitled media is redundant and
+  // risks re-introducing engine loop-repetition artifacts into otherwise clean
+  // caption text (the earlier "repeated sentences" bug). Only transcribe when
+  // there is genuinely no transcript yet.
+  const existingTranscript = (row.transcript || "").toString().trim();
+  if (existingTranscript.length > 0) {
+    const existingWords =
+      typeof row.words === "string" ? JSON.parse(row.words || "[]") : row.words || [];
+    res.json({
+      transcript: row.transcript,
+      words: existingWords,
+      skipped: true,
+      reason: "already_has_subtitles",
+    });
+    return;
+  }
   try {
     const settings = readSettings();
     const result = await transcribeFile(
@@ -404,14 +423,25 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
       settings.engines.stt.model,
       req.body.language || "en"
     );
+    // STT engines (Whisper/echogarden) occasionally loop during silence or
+    // "[music]" tags, emitting verbatim repeated word-runs. Collapse those once
+    // so the stored transcript/words read like a clean authored caption. Only
+    // rebuild the transcript text from words when we actually have word
+    // timings — otherwise keep the engine's own transcript.
+    const rawWords = (result.words || []) as { text: string; start: number; end: number }[];
+    const words = rawWords.length
+      ? collapseRepetition(rawWords as any)
+      : rawWords;
+    const transcript = rawWords.length
+      ? words.map((w: any) => w.text).join(" ")
+      : (result.transcript || "");
     db.prepare("UPDATE resources SET transcript=?, words=?, updatedAt=? WHERE id=?").run(
-      result.transcript,
-      JSON.stringify(result.words || []),
+      transcript,
+      JSON.stringify(words),
       now(),
       req.params.id
     );
     // Pre-compute analysis cache so subsequent opens load instantly.
-    const words = (result.words || []) as { text: string; start: number; end: number }[];
     try {
       const fpStat = await fingerprintFile(fp);
       const segs = buildSegmentsFromWords(words);
@@ -434,7 +464,7 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
         createdAt: new Date().toISOString(),
         duration: duration || (segs[segs.length - 1]?.endTime ?? 0),
         durationProbedAt: Date.now(),
-        transcript: result.transcript || "",
+        transcript,
         words,
         segments: segs,
         peaks,

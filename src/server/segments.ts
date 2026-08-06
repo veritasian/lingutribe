@@ -58,3 +58,50 @@ export function buildSegments(words: WordEntry[]): Segment[] {
   }
   return segs;
 }
+
+/**
+ * Collapse consecutive repeated word-runs produced by STT engines that loop
+ * during silence or "[music]" tags. Purely structural (identical consecutive
+ * word sequences), so legitimate prose is untouched. See the web client's
+ * `src/web/lib/segments.ts` for the matching copy used at display time.
+ */
+export function collapseRepetition(words: WordEntry[]): WordEntry[] {
+  if (!words || words.length < 4) return words ?? [];
+  const n = words.length;
+  const out: WordEntry[] = [];
+  let i = 0;
+  const maxL = Math.min(40, Math.floor(n / 2));
+  while (i < n) {
+    let collapsed = false;
+    for (let L = 2; L <= maxL; L++) {
+      if (i + L > n) break;
+      let reps = 1;
+      let match = true;
+      while (i + reps * L + L <= n) {
+        let blockSame = true;
+        for (let t = 0; t < L; t++) {
+          if (words[i + reps * L + t].text !== words[i + (reps - 1) * L + t].text) {
+            blockSame = false;
+            break;
+          }
+        }
+        if (blockSame) reps++;
+        else {
+          match = false;
+          break;
+        }
+      }
+      if (reps >= 2) {
+        for (let t = 0; t < L; t++) out.push(words[i + t]);
+        i += reps * L;
+        collapsed = true;
+        break;
+      }
+    }
+    if (!collapsed) {
+      out.push(words[i]);
+      i++;
+    }
+  }
+  return out;
+}

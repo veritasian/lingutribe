@@ -146,6 +146,29 @@ export function IconChevronDown(p: P) {
   );
 }
 
+/* Sidebar / panel toggle — rounded square with a vertical line on the right.
+   Used for both open and closed states; the action itself is a toggle. */
+export function IconPanelLeft(p: P) {
+  return (
+    <Svg {...p}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <line x1="14" y1="4" x2="14" y2="20" />
+    </Svg>
+  );
+}
+
+/* Bar chart — used for the Statistics header tab. */
+export function IconChart(p: P) {
+  return (
+    <Svg {...p}>
+      <line x1="4" y1="20" x2="4" y2="13" />
+      <line x1="10" y1="20" x2="10" y2="7" />
+      <line x1="16" y1="20" x2="16" y2="11" />
+      <line x1="2" y1="20" x2="22" y2="20" />
+    </Svg>
+  );
+}
+
 export function IconPlus(p: P) {
   return (
     <Svg {...p}>
@@ -188,6 +211,15 @@ export function IconVolume(p: P) {
     <Svg {...p}>
       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+    </Svg>
+  );
+}
+
+export function IconEdit(p: P) {
+  return (
+    <Svg {...p}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </Svg>
   );
 }
