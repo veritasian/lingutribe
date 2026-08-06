@@ -765,6 +765,14 @@ body {
   text-align: left;
 }
 
+/* Read page article: clear blank-line gap between paragraphs. */
+.read-article p {
+  margin: 0 0 1em;
+}
+.read-article p:last-child {
+  margin-bottom: 0;
+}
+
 /* Per-message copy / delete buttons (Ask AI + Chat) */
 .ask-msg-btn {
   display: inline-flex;

@@ -82,7 +82,6 @@ export default function Read() {
   const sentencesRef = useRef<string[]>([]);
   const [showAudio, setShowAudio] = useState(false);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dirty, setDirty] = useState(false);
 
   async function load() {
@@ -105,7 +104,6 @@ export default function Read() {
   // Clean up timers when the component unmounts (avoid leaked intervals).
   useEffect(() => () => {
     if (progressTimer.current) clearInterval(progressTimer.current);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
     (CSS as any)?.highlights?.delete?.("lingo-sentence");
   }, []);
 
@@ -150,30 +148,6 @@ export default function Read() {
       s.node.parentElement?.scrollIntoView({ block: "center", behavior: "smooth" });
     } catch { /* range errors are non-fatal */ }
   }, [sentIdx, playing]);
-
-  // Debounced auto-save when content is edited
-  function onContentInput() {
-    if (!active) return;
-    setDirty(true);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      if (!contentRef.current || !active) return;
-      const html = contentRef.current.innerHTML;
-      // Extract plain text from innerHTML
-      const tmp = document.createElement("div");
-      tmp.innerHTML = html;
-      const plain = tmp.textContent || "";
-      try {
-        await api.updateResource(active.id, { transcript: plain });
-        // Update local state so the active object reflects the change
-        setItems((prev) => prev.map((r) => r.id === active.id ? { ...r, transcript: plain } : r));
-        setActive((a) => a?.id === active.id ? { ...a, transcript: plain } : a);
-        setDirty(false);
-      } catch (e: any) {
-        setMsg(`Auto-save error: ${e.message}`);
-      }
-    }, 800);
-  }
 
   // Click word → open dictionary panel
   function onContentClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -386,17 +360,15 @@ export default function Read() {
 
             {/* Tab content */}
             <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-5">
-              {/* Content tab — kept mounted (hidden on Layout) so edits persist across tab switches */}
+              {/* Content tab — read-only article: select to copy / ask AI,
+                  click a word to look it up. No editing. */}
               <div
                 ref={contentRef}
-                contentEditable
-                suppressContentEditableWarning
-                className="max-w-3xl mx-auto leading-7 text-[15px] select-text prose outline-none focus:ring-1 focus:ring-primary/20 rounded-lg p-1"
+                className="read-article max-w-3xl mx-auto leading-7 text-[15px] select-text prose rounded-lg p-1"
                 style={{ display: tab === "content" ? "" : "none" }}
-                onInput={onContentInput}
                 onClick={onContentClick}
                 onMouseUp={onContentMouseUp}
-                title="Click a word to look it up. Edit freely — changes auto-save."
+                title="Select text to copy or ask AI · click a word to look it up"
               />
               {/* Layout tab — data only, no content */}
               {tab === "layout" && (
