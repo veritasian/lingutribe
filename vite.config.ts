@@ -15,6 +15,10 @@ export default defineConfig({
     },
   },
   server: {
+    // Bind all interfaces (IPv4 + IPv6). Default "localhost" can end up
+    // listening on ::1 only, which makes http://localhost:5173 and
+    // http://127.0.0.1:5173 unreachable from browsers that resolve to IPv4.
+    host: "0.0.0.0",
     port: 5173,
     proxy: {
       // Proxy real API routes (/api/...) to the Express backend.
