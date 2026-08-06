@@ -22,6 +22,26 @@ interface ImportCtx {
   ffmpegPath: string | null;
 }
 
+/** Decode common HTML entities to their literal characters. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&(#0?39|apos);/gi, "'")
+    .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&[a-z]+;/gi, " ");
+}
+
+/** Extract the page <title> (decoded, trimmed) or empty string. */
+function pageTitle(html: string): string {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return "";
+  return decodeEntities(m[1]).replace(/\s+/g, " ").trim();
+}
+
 export function registerImportRoutes(app: express.Express, ctx: ImportCtx) {
   const { db, now, upload, ffmpegPath } = ctx;
 // --- URL import (video link / podcast link) ---
@@ -336,25 +356,32 @@ app.post("/api/import/text", upload.single("file"), async (req, res) => {
       name = name || req.file.originalname;
     } else if (req.body.url) {
       const r = await fetch(req.body.url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
+      if (!r.ok) {
+        return res.status(400).json({ error: `fetch failed (HTTP ${r.status})` });
+      }
       const html = await r.text();
-      // Strip HTML tags + scripts/styles, keep plain text.
+      // Use the page <title> as the resource name when none was supplied.
+      name = name || pageTitle(html) || new URL(req.body.url).hostname;
+      // Convert HTML to readable plain text while KEEPING the article's
+      // structure: block-level elements become paragraph breaks, so the
+      // imported news keeps its title/paragraph layout instead of collapsing
+      // into one wall of text. The Read page renders double newlines as <p>.
       content = html
         .replace(/<script[\s\S]*?<\/script>/gi, "")
         .replace(/<style[\s\S]*?<\/style>/gi, "")
+        // Normalize CRLF / CR to LF first so the \n{3,} collapse below works.
+        .replace(/\r\n?/g, "\n")
+        .replace(/<\/(p|h[1-6]|div|li|blockquote|section|article|header|footer|figure|ul|ol|pre|table|tr)>/gi, "\n\n")
+        .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<[^>]+>/g, " ")
-        // Decode common HTML entities instead of blanking them out.
-        .replace(/&nbsp;/gi, " ")
-        .replace(/&amp;/gi, "&")
-        .replace(/&lt;/gi, "<")
-        .replace(/&gt;/gi, ">")
-        .replace(/&quot;/gi, '"')
-        .replace(/&(#0?39|apos);/gi, "'")
-        .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(parseInt(n, 10)))
-        .replace(/&[a-z]+;/gi, " ")
-        .replace(/\s+/g, " ")
+        .replace(/[ \t]+/g, " ")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n[ \t]+/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
         .trim()
         .slice(0, 500_000);
-      name = name || new URL(req.body.url).hostname;
+      content = decodeEntities(content);
     }
     if (!content) return res.status(400).json({ error: "No content — upload a file or provide a URL." });
     const id = genId();
