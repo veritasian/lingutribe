@@ -109,6 +109,12 @@ export default function PlayerView({
   // Right slide-in panel
   const [panel, setPanel] = useState<WordPanelData | null>(null);
 
+  // Switching to another audio/video must start fresh: close the panel so the
+  // Ask AI conversation / dictionary never leaks from the previous resource.
+  useEffect(() => {
+    setPanel(null);
+  }, [resource.id]);
+
   function onWordClick(d: { text: string; context: string; isWord: boolean; band: Band }) {
     setPanel({
       text: d.text,
@@ -266,13 +272,13 @@ export default function PlayerView({
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="px-6 h-14 shrink-0 flex items-center justify-between gap-2 border-b">
-          {/* Left: title / spacer */}
-          <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground truncate">
+        <div className="px-6 h-14 shrink-0 relative flex items-center border-b">
+          {/* Centered resource title */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[55%] text-center text-[14px] font-medium text-muted-foreground truncate pointer-events-none">
             {resource.name}
           </div>
           {/* Right: player actions + speed + panel close, grouped together */}
-          <div className="flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1">
             <button
               className={`icon-btn ${playerTab === "transcript" ? "ring-1 ring-primary" : ""}`}
               onClick={() => setPlayerTab("transcript")}

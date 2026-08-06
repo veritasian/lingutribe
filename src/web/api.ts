@@ -193,6 +193,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ thread, role, content }),
     }),
+  deleteChatMessage: (id: string) => req(`/api/chat/${id}`, { method: "DELETE" }),
   // words
   listWords: () => req<Word[]>("/api/words"),
   createWord: (w: Partial<Word>) => req<Word>("/api/words", { method: "POST", body: JSON.stringify(w) }),

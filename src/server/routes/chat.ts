@@ -23,4 +23,10 @@ app.post("/api/chat", (req, res) => {
   ).run(row);
   res.json(row);
 });
+
+// Delete a single chat message (used by the Ask AI / Chat copy-delete buttons).
+app.delete("/api/chat/:id", (req, res) => {
+  db.prepare("DELETE FROM chat_messages WHERE id=?").run(req.params.id);
+  res.json({ ok: true });
+});
 }

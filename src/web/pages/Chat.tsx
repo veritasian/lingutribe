@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, type ChatMessage, type Note } from "../api";
-import { IconPlus, IconTrash, IconSend, IconChat } from "../components/Icon";
+import { IconPlus, IconTrash, IconSend, IconChat, IconCopy } from "../components/Icon";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -163,6 +163,13 @@ export default function Chat() {
     }
   }
 
+  // Delete a single message within the current conversation.
+  async function deleteMsg(i: number) {
+    const next = msgs.filter((_, idx) => idx !== i);
+    setMsgs(next);
+    await persist(next);
+  }
+
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -229,7 +236,7 @@ export default function Chat() {
                 {msgs.map((m, i) => (
                   <div
                     key={i}
-                    className={`chat-row ${m.role === "user" ? "chat-row-user" : "chat-row-assistant"}`}
+                    className={`chat-row group ${m.role === "user" ? "chat-row-user" : "chat-row-assistant"}`}
                   >
                     {m.role === "assistant" && (
                       <div className="chat-avatar chat-avatar-bot">
@@ -240,6 +247,25 @@ export default function Chat() {
                       {m.role === "assistant"
                         ? <div className="prose" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
                         : m.content}
+                      {/* Copy / delete per message */}
+                      <div className="mt-1.5 flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          className="ask-msg-btn"
+                          title="Copy"
+                          aria-label="Copy message"
+                          onClick={() => navigator.clipboard?.writeText(m.content)}
+                        >
+                          <IconCopy size={12} />
+                        </button>
+                        <button
+                          className="ask-msg-btn"
+                          title="Delete"
+                          aria-label="Delete message"
+                          onClick={() => deleteMsg(i)}
+                        >
+                          <IconTrash size={12} />
+                        </button>
+                      </div>
                     </div>
                     {m.role === "user" && (
                       <div className="chat-avatar chat-avatar-user">You</div>

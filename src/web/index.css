@@ -630,7 +630,7 @@ body {
   border-left: 3px solid transparent;
   cursor: pointer;
   line-height: 1.55;
-  font-size: 14.5px;
+  font-size: 15px;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .subtitle-caption {
@@ -663,7 +663,7 @@ body {
   flex: 1;
   min-width: 0;
   text-align: left;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* Fixed-window subtitle scroll container — shows ~10–20 rows and scrolls as
@@ -748,7 +748,7 @@ body {
 .content-para {
   margin-bottom: 14px;
   line-height: 1.7;
-  font-size: 14px;
+  font-size: 15px;
   text-align: left;
 }
 .content-time {
@@ -763,6 +763,25 @@ body {
 }
 .content-text {
   text-align: left;
+}
+
+/* Per-message copy / delete buttons (Ask AI + Chat) */
+.ask-msg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.ask-msg-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
 }
 
 /* Floating Ask / Copy popup shown on text selection in Content mode */

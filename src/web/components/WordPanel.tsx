@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { api, type SavedPrompt } from "../api";
 import { rankOf, useCoca, type Band } from "../lib/coca";
-import { IconVolume } from "./Icon";
+import { IconVolume, IconCopy, IconTrash } from "./Icon";
 
 export interface WordPanelData {
   // Source text — could be a single token (e.g. "habituate") or
@@ -26,7 +26,7 @@ export interface WordPanelData {
   article?: string;
 }
 
-type AskMsg = { role: "user" | "assistant"; content: string };
+type AskMsg = { id?: string; role: "user" | "assistant"; content: string };
 
 export default function WordPanel({
   data,
@@ -98,6 +98,9 @@ export default function WordPanel({
     setAdded(false);
     setAnalysis(null);
     setLlmDef(null);
+    // Switching to a different resource/thread must start a FRESH blank
+    // conversation — never show the previous resource's chat here.
+    setAskMsgs([]);
     // Skip the (local) dictionary lookup when opened straight on the Ask AI tab.
     if (data.isWord && data.defaultTab !== "ask") {
       setLoading(true);
@@ -120,14 +123,22 @@ export default function WordPanel({
         .catch((e) => setError(e.message || "lookup failed"))
         .finally(() => setLoading(false));
     }
-  }, [data?.text, data?.context, data?.isWord, data?.defaultTab]);
+  }, [data?.text, data?.context, data?.isWord, data?.defaultTab, data?.thread]);
 
   // Feature 2: load persisted chat when the Ask AI tab is shown.
   useEffect(() => {
     if (tab === "ask") {
       api
         .chatHistory(askThread)
-        .then((r) => setAskMsgs(r.messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))))
+        .then((r) =>
+          setAskMsgs(
+            r.messages.map((m) => ({
+              id: m.id,
+              role: m.role as "user" | "assistant",
+              content: m.content,
+            }))
+          )
+        )
         .catch(() => {});
       // Load saved prompts so the "/" slash menu can offer them.
       api
@@ -170,12 +181,13 @@ export default function WordPanel({
   async function askSend() {
     const text = askInput.trim();
     if (!text || askBusy) return;
-    const history = [...askMsgs, { role: "user" as const, content: text }];
-    setAskMsgs(history);
     setAskInput("");
     setAskBusy(true);
     try {
-      await api.saveChatMessage(askThread, "user", text);
+      // Persist the user message first so it gets a stable id (used by delete).
+      const saved = await api.saveChatMessage(askThread, "user", text);
+      const history = [...askMsgs, { id: saved.id, role: "user" as const, content: text }];
+      setAskMsgs(history);
       const system = buildAskSystem(data);
       const messages = [
         { role: "system" as const, content: system },
@@ -184,13 +196,27 @@ export default function WordPanel({
       ];
       const reply = await api.chat(messages);
       const assistantContent = reply.content;
-      setAskMsgs([...history, { role: "assistant", content: assistantContent }]);
-      await api.saveChatMessage(askThread, "assistant", assistantContent);
+      const asst = await api.saveChatMessage(askThread, "assistant", assistantContent);
+      setAskMsgs([...history, { id: asst.id, role: "assistant", content: assistantContent }]);
     } catch (e: any) {
-      setAskMsgs([...history, { role: "assistant", content: "Error: " + e.message }]);
+      setAskMsgs([...askMsgs, { role: "assistant", content: "Error: " + e.message }]);
     } finally {
       setAskBusy(false);
     }
+  }
+
+  // Delete a single Ask-AI message (server + local).
+  async function deleteAskMsg(i: number) {
+    const m = askMsgs[i];
+    if (!m) return;
+    if (m.id) {
+      try {
+        await api.deleteChatMessage(m.id);
+      } catch {
+        /* keep going — remove locally regardless */
+      }
+    }
+    setAskMsgs((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   // Detect a "/query" token at the cursor so we can pop the saved-prompt menu.
@@ -479,11 +505,30 @@ export default function WordPanel({
               {askMsgs.map((m, i) => (
                 <div
                   key={i}
-                  className={`text-[13px] leading-relaxed whitespace-pre-wrap rounded-lg px-3 py-2 ${
+                  className={`group relative text-[13px] leading-relaxed whitespace-pre-wrap rounded-lg px-3 py-2 ${
                     m.role === "user" ? "bg-primary/10 ml-6" : "bg-muted mr-6"
                   }`}
                 >
                   {m.content}
+                  {/* Copy / delete per message (SVG icons, shown on hover) */}
+                  <div className="absolute -top-2 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      className="ask-msg-btn"
+                      title="Copy"
+                      aria-label="Copy message"
+                      onClick={() => navigator.clipboard?.writeText(m.content)}
+                    >
+                      <IconCopy size={12} />
+                    </button>
+                    <button
+                      className="ask-msg-btn"
+                      title="Delete"
+                      aria-label="Delete message"
+                      onClick={() => deleteAskMsg(i)}
+                    >
+                      <IconTrash size={12} />
+                    </button>
+                  </div>
                 </div>
               ))}
               {askBusy && <div className="text-xs text-muted-foreground">Thinking…</div>}

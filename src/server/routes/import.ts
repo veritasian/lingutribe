@@ -371,7 +371,10 @@ app.post("/api/import/text", upload.single("file"), async (req, res) => {
     ).run(row);
     res.json(row);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    // Include the underlying cause (e.g. UND_ERR_CONNECT_TIMEOUT) so network
+    // failures are diagnosable instead of a bare "fetch failed".
+    const cause = e?.cause?.code || e?.cause?.message || "";
+    res.status(500).json({ error: e.message + (cause ? ` (${cause})` : "") });
   }
 });
 

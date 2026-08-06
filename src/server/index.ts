@@ -41,6 +41,16 @@ const TOOL_MODELS_ROOT = process.env.LINGO_MODELS_DIR
   : path.resolve(__dirname, "..", "..", "data", "models");
 fs.mkdirSync(TOOL_MODELS_ROOT, { recursive: true });
 
+// Route Node's built-in fetch (undici) through an HTTP proxy when one is
+// configured (HTTP(S)_PROXY). The built-in fetch ignores those env vars, so
+// real-site requests (URL import, RSS) time out with "fetch failed" while the
+// curl helper works fine. EnvHttpProxyAgent reads the env at call time — with
+// no proxy configured (normal machines) it connects directly.
+import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY) {
+  setGlobalDispatcher(new EnvHttpProxyAgent());
+}
+
 const realHomedir = os.homedir.bind(os);
 
 // Where echogarden will place its "packages" folder under a given root.
