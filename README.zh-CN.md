@@ -86,7 +86,7 @@ npm run app
 
 ### 架构与端口
 
-- **开发模式** — 两个进程、两个端口：Vite 开发服务器（React + HMR）在 **5173**，Express API 在 **8787**；Vite 把 `/api/*` 代理到 8787。
+- **开发模式** — 两个进程、两个端口：Vite 开发服务器（React + HMR）在 **5173**，Express API 在 **8787**；Vite 把 `/api/*` 代理到 8787。开发时 **8787 会实时镜像 5173**（Express 把前端页面代理给 Vite），所以 **两个端口永远显示同一份最新界面**，开发期无需手动 `npm run build`（Vite 未启动时自动回退到 `dist/`）。
 - **生产模式** — 一个进程、一个端口：Express 同时托管 `dist/` 里构建好的前端与 API，统一在 **8787**（`npm run build && npm start`）。
 - **桌面端（dmg）** — Electron 主进程直接 `import()` 预编译的服务端（`dist-server/index.mjs`），API 就跑在 **Electron 主进程内部**（单进程，没有独立的服务进程）。只监听 **8787，完全不占用 5173**。如果 8787 已被占用（比如 dev 服务在跑），app 会直接复用已有服务，不再启动自己的实例。
 

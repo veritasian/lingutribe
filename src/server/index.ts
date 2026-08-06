@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import fs from "fs";
+import http from "http";
 import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
@@ -297,6 +298,35 @@ app.use(
   "/api/audio",
   express.static(ttsDir())
 );
+// Dev live-mirror: when started via `npm run dev` (LINGO_DEV=1), proxy the SPA
+// to the Vite dev server so :8787 shows the SAME live UI as :5173 — no manual
+// `npm run build` needed while developing. Falls back to dist/ below when Vite
+// is not reachable. Production / packaged app never sets LINGO_DEV → dist only.
+const VITE_PORT = 5173;
+if (process.env.LINGO_DEV === "1" && process.env.LINGO_SERVE_LIVE !== "0") {
+  console.log(`[lingutribe] dev live-mirror: proxying SPA from http://localhost:${VITE_PORT}`);
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    const proxy = http.request(
+      {
+        host: "127.0.0.1",
+        port: VITE_PORT,
+        path: req.originalUrl,
+        method: req.method,
+        headers: { ...req.headers, host: `localhost:${VITE_PORT}` },
+      },
+      (pRes) => {
+        res.statusCode = pRes.statusCode ?? 502;
+        for (const [k, v] of Object.entries(pRes.headers)) {
+          if (v !== undefined) res.setHeader(k, v as any);
+        }
+        pRes.pipe(res);
+      }
+    );
+    proxy.on("error", () => next()); // Vite down → fall through to dist below
+    proxy.end();
+  });
+}
 // Built SPA lives in <project>/dist. From src/server that's two levels up.
 const distDir = path.resolve(__dirname, "..", "..", "dist");
 if (fs.existsSync(distDir)) {

@@ -63,7 +63,7 @@ Open **http://localhost:5173** in development, or **http://localhost:8787** afte
 
 ## 🏗 Architecture & ports
 
-- **Development** — two processes, two ports: Vite dev server on **5173** (React + HMR) and the Express API on **8787**; Vite proxies `/api/*` to 8787.
+- **Development** — two processes, two ports: Vite dev server on **5173** (React + HMR) and the Express API on **8787**; Vite proxies `/api/*` to 8787. In dev, **8787 live-mirrors 5173** (Express proxies the SPA to Vite), so **both ports always show the same current UI** — no manual `npm run build` while developing (falls back to `dist/` automatically if Vite is down).
 - **Production** — one process, one port: Express serves the built SPA from `dist/` *and* the API on **8787** (`npm run build && npm start`).
 - **Desktop app (dmg)** — the Electron main process `import()`s the pre-compiled server (`dist-server/index.mjs`) directly, so the API runs **inside the Electron main process** (single process; no separate server). It listens on **8787 only — 5173 is never used by the packaged app**. If something is already listening on 8787 (e.g. a dev server), the app reuses it instead of starting its own instance.
 

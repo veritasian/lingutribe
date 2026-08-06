@@ -7,7 +7,7 @@
   "description": "Lightweight local-first language-learning tool built around echogarden",
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev:server": "LINGO_DEV=1 tsx watch src/server/index.ts",
     "dev:web": "vite",
     "build": "vite build",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.mjs --packages=external --external:better-sqlite3 --external:onnxruntime-node --external:onnxruntime-common --external:fsevents --log-level=warning",
