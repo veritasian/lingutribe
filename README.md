@@ -8,7 +8,12 @@ Lingutribe is a lightweight, self-hosted study companion. You drop in audio/vide
 
 ## 🆕 What's new
 
-- **Transcript dual view** — *Subtitle* (timestamped rows; click a word to look it up) and *Content* (readable prose; select text → **Ask AI / Copy** popup). Subtitle rows are fixed ~5–10s chunks with no overlapping lines; Content merges into ~25s paragraphs.
+- **Selection toolbar in Read** — select any text and a floating **Copy / Ask AI / Read** bar appears. *Read* speaks exactly the selected span aloud (with sentence highlighting), instead of only the whole article; *Ask AI* opens a fresh thread about the selection.
+- **Markdown-rendered AI replies** — Chat, Ask AI, and the Grammar analysis now render proper Markdown (headings, lists, tables, code blocks, quotes) instead of showing raw `#` / `**` source.
+- **Reader-mode news import** — pasting a news URL extracts the article body with **Mozilla Readability** (text-density + punctuation scoring): ads, navigation, sidebars, and footers are dropped automatically. Non-article pages fall back to the plain-page import.
+- **Slimmer player header** — the centered resource title is hidden; the header keeps only the action buttons on the right.
+- **Arrow expand/collapse** — the Resources list toggle now uses chevron arrows (‹ collapse / › expand) instead of the panel icon.
+- **Transcript dual view** — *Subtitle* (timestamped rows; click a word to look it up) and *Content* (readable prose; select text → **Copy / Ask AI / Read** toolbar). Subtitle rows are fixed ~5–10s chunks with no overlapping lines; Content merges into ~25s paragraphs.
 - **Cleaner STT output** — loop-repetition artifacts from Whisper/echogarden are collapsed automatically (server-side at transcribe time, and client-side for existing resources). If a resource already has subtitles (e.g. imported YouTube captions), re-transcription is skipped.
 - **Saved prompts** — LLM prompts now keep a history in Settings → LLM; type `/` in the Ask dialog to insert a saved prompt (name + content).
 - **Player header** — Transcript / Statistics / Transcribe / Delete are icon buttons grouped with a click-to-cycle speed control on the right; waveform toggle and panel close are icon-only with tooltips; the right panel width is draggable and remembered.
@@ -22,7 +27,7 @@ Lingutribe is a lightweight, self-hosted study companion. You drop in audio/vide
 ## ✨ Features
 
 - **Resources** — import local audio/video or a URL; auto-transcribe (Whisper), show a word-level waveform, split/join, speed control, and spacebar-to-play.
-- **Read** — paste or open text; auto-saved per note; click any sentence to hear it read aloud (Kokoro, fully local).
+- **Read** — paste or open text (or import a news URL — the article body is auto-extracted via Readability); *Read aloud* speaks the whole article, or select a span and use the floating toolbar's **Read** to hear just that part (Kokoro, fully local).
 - **Dictionary panel** — select a word and get an offline MDict definition + LLM fallback (grammar, ask-AI, word-form restoration).
 - **Words** — COCA frequency-band coloring and filtering so you focus on the words that matter.
 - **Chat** — multi-session AI tutor with persistent history.
@@ -113,17 +118,20 @@ Library data lives at `~/Documents/LingoLibrary` by default (word lists, notes, 
 lingutribe/
 ├── src/
 │   ├── server/        # Express API + better-sqlite3 + echogarden engines
-│   │   ├── index.ts      # server entry (boot + resource/import routes)
+│   │   ├── index.ts      # server entry: boot, settings helpers, health, route registration
 │   │   ├── db.ts         # SQLite + library paths
 │   │   ├── engines/      # per-engine modules: stt / tts / llm / models / http
 │   │   ├── routes/       # thin HTTP layer: settings, words, notes, chat,
-│   │   │                 # engines (STT/TTS/LLM endpoints), dict (MDict)
+│   │   │                 # engines (STT/TTS/LLM endpoints), dict (MDict),
+│   │   │                 # resources, import (yt-dlp / RSS / Readability)
 │   │   ├── analysis.ts   # media analysis (duration, peaks, segments)
 │   │   ├── segments.ts   # word/segment timing types & helpers
 │   │   └── util-ffmpeg.ts# ffmpeg discovery/util
 │   ├── web/           # React front-end (pages + components)
 │   │   ├── components/ # PlayerView, Transcript, Caption, AudioBar, VocabProfile…
-│   │   └── lib/       # coca.ts (frequency bands), segments.ts (timing)
+│   │   ├── pages/      # Resources, Read, Words, Chat, Notes, Settings
+│   │   └── lib/        # coca.ts (frequency bands), markdown.ts (Markdown renderer),
+│   │                   # segments.ts (timing), locale.ts
 │   └── shared/        # shared TypeScript types
 ├── electron/          # desktop shell (main.cjs — embeds the server when packaged)
 ├── docs/              # user manual (zh)

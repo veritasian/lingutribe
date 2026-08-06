@@ -1,36 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { api, type Resource, type Settings } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { api, type Resource } from "../api";
 import VocabProfile from "../components/VocabProfile";
 import WordPanel, { type WordPanelData } from "../components/WordPanel";
 import { useCoca } from "../lib/coca";
-import { IconPlus, IconVolume, IconPause } from "../components/Icon";
-
-/** Lightweight Markdown → HTML. */
-function renderMd(raw: string): string {
-  let html = raw
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-secondary rounded-lg p-3 text-xs overflow-x-auto my-2"><code>$2</code></pre>');
-  html = html.replace(/^###### (.+)$/gm, "<h6>$1</h6>");
-  html = html.replace(/^##### (.+)$/gm, "<h5>$1</h5>");
-  html = html.replace(/^#### (.+)$/gm, "<h4>$1</h4>");
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-5 mb-2">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-6 mb-3">$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  html = html.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-secondary text-xs">$1</code>');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-primary underline">$1</a>');
-  html = html.replace(/^(\s*)[-*] (.+)$/gm, '$1<li class="ml-5 list-disc">$2</li>');
-  html = html.replace(/^(\s*)\d+\. (.+)$/gm, '$1<li class="ml-5 list-decimal">$2</li>');
-  html = html.replace(/\n\n+/g, '</p><p>');
-  html = `<p>${html}</p>`;
-  html = html.replace(/<p><\/p>/g, "");
-  html = html.replace(/<\/li><p>/g, "</li>");
-  html = html.replace(/<\/p><li/g, "<li");
-  html = html.replace(/<pre class="([^"]*)"><code>/g, '<pre class="$1"><code><p>');
-  html = html.replace(/<\/code><\/pre>/g, '</p></code></pre>');
-  return html;
-}
+import { renderMarkdown } from "../lib/markdown";
+import { IconPlus, IconVolume, IconPause, IconCopy, IconChat, IconPlay } from "../components/Icon";
 
 /** Strip HTML tags for TTS. */
 function stripHtml(html: string): string {
@@ -74,8 +48,10 @@ export default function Read() {
   const coca = useCoca();
   const [tab, setTab] = useState<"content" | "layout">("content");
   const [panel, setPanel] = useState<WordPanelData | null>(null);
-  // Floating "Ask AI" popover anchor (Feature 2).
-  const [askRect, setAskRect] = useState<{ x: number; y: number; text: string } | null>(null);
+  // Floating selection toolbar (Copy / Ask AI / Read) anchored to the
+  // selected text range.
+  const [selMenu, setSelMenu] = useState<{ x: number; y: number; text: string } | null>(null);
+  const selMenuRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sentIdx, setSentIdx] = useState(-1);
@@ -93,10 +69,10 @@ export default function Read() {
     if (list.length > 0 && !active) setActive(list[0]);
   }, [items, active]);
 
-  // When active changes, set the contentEditable innerHTML
+  // When active changes, set the article innerHTML
   useEffect(() => {
     if (active?.transcript && contentRef.current) {
-      contentRef.current.innerHTML = renderMd(active.transcript);
+      contentRef.current.innerHTML = renderMarkdown(active.transcript);
       setDirty(false);
     }
   }, [active?.id]);
@@ -157,19 +133,45 @@ export default function Read() {
     }
   }
 
-  // Feature 2: selection → floating "Ask AI" popover.
+  // Selection → floating toolbar (Copy / Ask AI / Read).
   function onContentMouseUp() {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
-      setAskRect(null);
+      setSelMenu(null);
       return;
     }
     const text = sel.toString().trim();
     if (!text || text.length < 2) return;
     if (!contentRef.current?.contains(sel.anchorNode)) return;
     const rect = sel.getRangeAt(0).getBoundingClientRect();
-    setAskRect({ x: rect.left, y: rect.bottom + 6, text });
+    // Show the toolbar below the selection, flipped above when there's not
+    // enough room at the bottom of the viewport.
+    const W = 220, H = 34;
+    let x = rect.left;
+    if (x + W > window.innerWidth - 8) x = window.innerWidth - W - 8;
+    if (x < 8) x = 8;
+    let y = rect.bottom + 6;
+    if (y + H > window.innerHeight - 8) y = Math.max(8, rect.top - H - 6);
+    setSelMenu({ x, y, text });
   }
+
+  // Close the floating toolbar on outside click / scroll / resize.
+  useEffect(() => {
+    if (!selMenu) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (selMenuRef.current?.contains(e.target as Node)) return;
+      setSelMenu(null);
+    };
+    const onScroll = () => setSelMenu(null);
+    window.addEventListener("mousedown", onDocDown);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("mousedown", onDocDown);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [selMenu]);
 
   async function onImport() {
     setBusy(true);
@@ -196,6 +198,13 @@ export default function Read() {
 
   async function speak() {
     if (!active?.transcript) return;
+    await speakText(active.transcript);
+  }
+
+  /** Read any text aloud (whole article, or the user's selected span). */
+  async function speakText(text: string) {
+    const clean = stripHtml(text).trim();
+    if (!clean) return;
     setPlaying(true);
     setMsg("⏳ Synthesizing audio…");
     try {
@@ -215,7 +224,7 @@ export default function Read() {
         if (mv && fv) voice = Math.random() < 0.5 ? mv : fv;
         else voice = mv || fv || undefined;
       }
-      const textToSpeak = stripHtml(active.transcript).slice(0, 5000);
+      const textToSpeak = clean.slice(0, 5000);
       // Read-aloud is real-time: if "save TTS audio" is off, the server
       // returns a data URL (no file on disk); otherwise a /api/audio URL.
       const r = await api.synthesize(textToSpeak, { voice, save: false });
@@ -223,7 +232,7 @@ export default function Read() {
       if (audioRef.current) {
         audioRef.current.src = r.url || r.dataUrl || "";
         setShowAudio(true);
-        sentencesRef.current = splitSentences(stripHtml(active.transcript));
+        sentencesRef.current = splitSentences(clean);
         setSentIdx(0);
         setProgress(0);
         startProgressTracking();
@@ -368,7 +377,7 @@ export default function Read() {
                 style={{ display: tab === "content" ? "" : "none" }}
                 onClick={onContentClick}
                 onMouseUp={onContentMouseUp}
-                title="Select text to copy or ask AI · click a word to look it up"
+                title="Select text to copy, ask AI, or read aloud · click a word to look it up"
               />
               {/* Layout tab — data only, no content */}
               {tab === "layout" && (
@@ -386,31 +395,60 @@ export default function Read() {
           </div>
         )}
       </div>
-      {/* Floating "Ask AI" popover (Feature 2) */}
-      {askRect && (
-        <button
-          className="fixed z-50 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs shadow-lg hover:opacity-90"
-          style={{ left: askRect.x, top: askRect.y }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const t = askRect.text;
-            setAskRect(null);
-            window.getSelection()?.removeAllRanges();
-            if (active) {
-              setPanel({
-                text: t,
-                context: t,
-                isWord: false,
-                defaultTab: "ask",
-                thread: active.id,
-                article: active.transcript || "",
-              });
-            }
-          }}
+      {/* Floating selection toolbar: Copy / Ask AI / Read */}
+      {selMenu && (
+        <div
+          ref={selMenuRef}
+          className="sel-toolbar"
+          style={{ left: selMenu.x, top: selMenu.y }}
+          onMouseDown={(e) => e.preventDefault()}
         >
-          Ask AI
-        </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Copy"
+            onClick={async () => {
+              const t = selMenu.text;
+              setSelMenu(null);
+              window.getSelection()?.removeAllRanges();
+              try { await navigator.clipboard.writeText(t); } catch { /* ignore */ }
+            }}
+          >
+            <IconCopy size={14} /> Copy
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Ask AI about the selected text"
+            onClick={() => {
+              const t = selMenu.text;
+              setSelMenu(null);
+              window.getSelection()?.removeAllRanges();
+              if (active) {
+                setPanel({
+                  text: t,
+                  context: t,
+                  isWord: false,
+                  defaultTab: "ask",
+                  thread: active.id,
+                  article: active.transcript || "",
+                });
+              }
+            }}
+          >
+            <IconChat size={14} /> Ask AI
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Read the selected text aloud"
+            onClick={() => {
+              const t = selMenu.text;
+              setSelMenu(null);
+              window.getSelection()?.removeAllRanges();
+              speakText(t);
+            }}
+          >
+            <IconPlay size={14} /> Read
+          </button>
+        </div>
       )}
       <WordPanel data={panel} onClose={() => setPanel(null)} />
     </div>

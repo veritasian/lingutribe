@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { api, type SavedPrompt } from "../api";
 import { rankOf, useCoca, type Band } from "../lib/coca";
 import { IconVolume, IconCopy, IconTrash } from "./Icon";
+import { renderMarkdown } from "../lib/markdown";
 
 export interface WordPanelData {
   // Source text — could be a single token (e.g. "habituate") or
@@ -457,8 +458,8 @@ export default function WordPanel({
                 {llmDef && (
                   <div className="mdict-section">
                     <div className="text-[11px] text-muted-foreground mb-1">AI definition</div>
-                    <div className="mdict-entry text-[13px] leading-relaxed whitespace-pre-wrap">
-                      {llmDef}
+                    <div className="mdict-entry text-[13px] leading-relaxed">
+                      <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(llmDef) }} />
                     </div>
                   </div>
                 )}
@@ -482,8 +483,8 @@ export default function WordPanel({
               {analyzing ? "Analyzing…" : "Analyze with AI"}
             </button>
             {analysis && (
-              <div className="whitespace-pre-wrap text-[13px] leading-relaxed border-t pt-3">
-                {analysis}
+              <div className="text-[13px] leading-relaxed border-t pt-3">
+                <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(analysis) }} />
               </div>
             )}
           </>
@@ -505,11 +506,15 @@ export default function WordPanel({
               {askMsgs.map((m, i) => (
                 <div
                   key={i}
-                  className={`group relative text-[13px] leading-relaxed whitespace-pre-wrap rounded-lg px-3 py-2 ${
+                  className={`group relative text-[13px] leading-relaxed rounded-lg px-3 py-2 ${
                     m.role === "user" ? "bg-primary/10 ml-6" : "bg-muted mr-6"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "assistant" ? (
+                    <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }} />
+                  ) : (
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  )}
                   {/* Copy / delete per message (SVG icons, shown on hover) */}
                   <div className="absolute -top-2 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button

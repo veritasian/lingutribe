@@ -5,7 +5,8 @@ import PlayerView from "../components/PlayerView";
 import {
   IconAudio,
   IconVideo,
-  IconPanelLeft,
+  IconChevronLeft,
+  IconChevronRight,
   IconPlus,
 } from "../components/Icon";
 
@@ -140,7 +141,7 @@ export default function Resources() {
                 title="Collapse list"
                 aria-label="Collapse list"
               >
-                <IconPanelLeft size={18} />
+                <IconChevronLeft size={18} />
               </button>
             </div>
             <div className="px-4 pb-3">
@@ -222,7 +223,7 @@ export default function Resources() {
             title="Expand list"
             aria-label="Expand list"
           >
-            <IconPanelLeft size={18} />
+            <IconChevronRight size={18} />
           </button>
         )}
         {msg && <div className="text-xs text-muted-foreground mb-3 px-6 pt-4">{msg}</div>}

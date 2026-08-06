@@ -6,36 +6,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type ChatMessage, type Note } from "../api";
 import { IconPlus, IconTrash, IconSend, IconChat, IconCopy } from "../components/Icon";
+import { renderMarkdown } from "../lib/markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
-
-/** Lightweight Markdown → HTML. */
-function renderMd(raw: string): string {
-  let html = raw
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  // Code blocks (```) before inline handling
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-secondary rounded-lg p-3 text-xs overflow-x-auto my-2"><code>$2</code></pre>');
-  html = html.replace(/^###### (.+)$/gm, "<h6>$1</h6>");
-  html = html.replace(/^##### (.+)$/gm, "<h5>$1</h5>");
-  html = html.replace(/^#### (.+)$/gm, "<h4>$1</h4>");
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-5 mb-2">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-6 mb-3">$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  html = html.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-secondary text-xs">$1</code>');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-primary underline">$1</a>');
-  html = html.replace(/^(\s*)[-*] (.+)$/gm, '$1<li class="ml-5 list-disc">$2</li>');
-  html = html.replace(/^(\s*)\d+\. (.+)$/gm, '$1<li class="ml-5 list-decimal">$2</li>');
-  html = html.replace(/\n\n+/g, '</p><p>');
-  html = `<p>${html}</p>`;
-  html = html.replace(/<p><\/p>/g, "");
-  html = html.replace(/<\/li><p>/g, "</li>");
-  html = html.replace(/<\/p><li/g, "<li");
-  html = html.replace(/<pre class="([^"]*)"><code>/g, '<pre class="$1"><code><p>');
-  html = html.replace(/<\/code><\/pre>/g, '</p></code></pre>');
-  return html;
-}
 
 function titleOf(msgs: Msg[]): string {
   const firstUser = msgs.find((m) => m.role === "user");
@@ -245,7 +218,7 @@ export default function Chat() {
                     )}
                     <div className={`chat-bubble ${m.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant"}`}>
                       {m.role === "assistant"
-                        ? <div className="prose" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
+                        ? <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }} />
                         : m.content}
                       {/* Copy / delete per message */}
                       <div className="mt-1.5 flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

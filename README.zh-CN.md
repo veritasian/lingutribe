@@ -6,7 +6,12 @@ Lingutribe 是一个轻量、可自托管的英语学习助手。你把音频 / 
 
 ## 最近更新
 
-- **Transcript 双视图** — *Subtitle*（带时间戳行，点词即查词典）与 *Content*（正文段落，选中文字弹出 **Ask AI / Copy**）。字幕行按固定 ~5–10 秒分块、不重叠；正文合并为 ~25 秒段落。
+- **阅读页划词工具栏** — 选中任意文字后弹出 **复制 / Ask AI / 朗读** 浮动工具条。点 **朗读** 只读选中的那段（带逐句高亮），不再只能整篇朗读；点 **Ask AI** 针对该段开新对话。
+- **AI 回复 Markdown 渲染** — Chat、Ask AI 和 Grammar 分析的结果按 Markdown 渲染（标题、列表、表格、代码块、引用都有样式），不再显示 `#`、`**` 等原始源码。
+- **新闻阅读模式导入** — 粘贴新闻链接导入时，用 **Mozilla Readability**（文本密度 + 标点打分）自动锁定文章正文，剔除广告、导航、侧边栏和页脚；非文章页面自动回退为普通导入。
+- **播放器头部更简洁** — 顶部的居中资源标题已隐藏，头部只保留右侧的操作按钮。
+- **箭头折叠/展开** — 资源列表的折叠开关改为箭头（‹ 收起 / › 展开），不再用面板方块图标。
+- **Transcript 双视图** — *Subtitle*（带时间戳行，点词即查词典）与 *Content*（正文段落，选中文字弹出 **复制 / Ask AI / 朗读** 工具条）。字幕行按固定 ~5–10 秒分块、不重叠；正文合并为 ~25 秒段落。
 - **STT 输出更干净** — Whisper/echogarden 偶发的"循环重复"（如 *…like I have this immense guilt towards I have this like…*）在服务端转写时与客户端展示时自动去重；已有字幕（如 YouTube 自带字幕）的资源不再重复转写。
 - **保存的提示词（Saved prompts）** — 设置 → LLM 中提示词可保存历史；在 Ask 对话框输入 `/` 可展开并插入已保存的提示词（名称 + 内容）。
 - **播放器头部** — Transcript / Statistics / Transcribe / Delete 变为图标按钮，与"点击切换倍速"的速度控制一起放在右侧；波形开关、面板关闭均为图标 + tooltip；右侧面板宽度可拖拽并记忆。
@@ -43,7 +48,7 @@ Lingutribe 把"听、说、读、背、问"整合进一个本地应用：
 ## 三、功能特性
 
 - **素材导入** — 本地音视频或 URL；Whisper 自动转写、词级波形、拆分合并、变速、空格播放。
-- **阅读跟读** — 粘贴或打开文本，自动保存；点句子本地朗读（Kokoro）。
+- **阅读跟读** — 粘贴/打开文本或导入新闻链接（Readability 自动提取正文）；整篇朗读，或选中片段用工具条上的 **朗读** 只读该段（Kokoro，本地）。
 - **词典面板** — 选中单词得离线 MDict 释义 + LLM 兜底（语法、提问、词形还原）。
 - **单词管理** — COCA 词频着色与过滤，聚焦高频词。
 - **AI 对话** — 多会话导师，历史持久化。
@@ -220,17 +225,20 @@ AI 导师、语法检查、以及"查不到词时的词典兜底"都依赖 LLM�
 lingutribe/
 ├── src/
 │   ├── server/        # Express API + better-sqlite3 + echogarden 引擎
-│   │   ├── index.ts      # 服务入口（启动 + 资源/导入路由）
+│   │   ├── index.ts      # 服务入口：启动、设置辅助、健康检查、注册路由
 │   │   ├── db.ts         # SQLite + 资料库路径
 │   │   ├── engines/      # 按引擎拆分：stt / tts / llm / models / http
 │   │   ├── routes/       # 薄 HTTP 层：settings、words、notes、chat、
-│   │   │                 # engines（STT/TTS/LLM 端点）、dict（MDict）
+│   │   │                 # engines（STT/TTS/LLM 端点）、dict（MDict）、
+│   │   │                 # resources、import（yt-dlp / RSS / Readability）
 │   │   ├── analysis.ts   # 媒体分析（时长、波形、分段）
 │   │   ├── segments.ts   # 词/段计时类型与辅助
 │   │   └── util-ffmpeg.ts# ffmpeg 探测/工具
 │   ├── web/           # React 前端（页面 + 组件）
 │   │   ├── components/ # PlayerView、Transcript、Caption、AudioBar、VocabProfile…
-│   │   └── lib/       # coca.ts（词频段）、segments.ts（计时）
+│   │   ├── pages/      # Resources、Read、Words、Chat、Notes、Settings
+│   │   └── lib/        # coca.ts（词频段）、markdown.ts（Markdown 渲染）、
+│   │                   # segments.ts（计时）、locale.ts
 │   └── shared/        # 共享 TypeScript 类型
 ├── electron/          # 桌面端外壳（main.cjs — 打包时内嵌服务端）
 ├── docs/              # 用户手册（中文 HTML）

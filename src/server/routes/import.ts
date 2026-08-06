@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { execFile } from "child_process";
+import { JSDOM } from "jsdom";
+import { Readability } from "@mozilla/readability";
 import { getDb, genId, typeDir } from "../db.js";
 import type { Segment } from "../segments.js";
 import {
@@ -40,6 +42,30 @@ function pageTitle(html: string): string {
   const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   if (!m) return "";
   return decodeEntities(m[1]).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Extract the main article body from a news page using Mozilla Readability.
+ * Readability scores every DOM node by text density (text length vs. tag
+ * count) and punctuation, then picks the most "article-like" subtree —
+ * which drops ads, navigation, sidebars, and footers. Returns the cleaned
+ * article HTML + its title, or null when the page has no convincing article
+ * body (e.g. a portal or a non-article page).
+ */
+function extractArticle(html: string, pageUrl: string): { html: string; title: string } | null {
+  try {
+    const dom = new JSDOM(html, { url: pageUrl });
+    const article = new Readability(dom.window.document).parse();
+    if (!article) return null;
+    const textLen = (article.textContent || "").replace(/\s+/g, " ").trim().length;
+    // Too little text → not a real article (Readability can be over-eager on
+    // comment sections etc.). Fall back to the caller's generic path.
+    if (textLen < 200) return null;
+    return { html: article.content || "", title: (article.title || "").trim() };
+  } catch (e: any) {
+    console.warn("[import] Readability extraction failed:", e?.message);
+    return null;
+  }
 }
 
 export function registerImportRoutes(app: express.Express, ctx: ImportCtx) {
@@ -360,13 +386,19 @@ app.post("/api/import/text", upload.single("file"), async (req, res) => {
         return res.status(400).json({ error: `fetch failed (HTTP ${r.status})` });
       }
       const html = await r.text();
-      // Use the page <title> as the resource name when none was supplied.
-      name = name || pageTitle(html) || new URL(req.body.url).hostname;
+      // Prefer the Readability-extracted article body: it drops ads, nav,
+      // sidebars, footers by text-density scoring, so the imported news only
+      // contains the actual content area (title + paragraphs). Falls back to
+      // the raw page when no article body is found.
+      const article = extractArticle(html, req.body.url);
+      const srcHtml = article?.html || html;
+      // Use the Readability title (best) → page <title> → hostname.
+      name = name || article?.title || pageTitle(html) || new URL(req.body.url).hostname;
       // Convert HTML to readable plain text while KEEPING the article's
       // structure: block-level elements become paragraph breaks, so the
       // imported news keeps its title/paragraph layout instead of collapsing
       // into one wall of text. The Read page renders double newlines as <p>.
-      content = html
+      content = srcHtml
         .replace(/<script[\s\S]*?<\/script>/gi, "")
         .replace(/<style[\s\S]*?<\/style>/gi, "")
         // Normalize CRLF / CR to LF first so the \n{3,} collapse below works.

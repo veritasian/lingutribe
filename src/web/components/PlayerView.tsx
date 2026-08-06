@@ -273,10 +273,6 @@ export default function PlayerView({
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="px-6 h-14 shrink-0 relative flex items-center border-b">
-          {/* Centered resource title */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[55%] text-center text-[14px] font-medium text-muted-foreground truncate pointer-events-none">
-            {resource.name}
-          </div>
           {/* Right: player actions + speed + panel close, grouped together */}
           <div className="ml-auto flex items-center gap-1">
             <button

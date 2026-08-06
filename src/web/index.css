@@ -773,6 +773,93 @@ body {
   margin-bottom: 0;
 }
 
+/* ---------------------------------------------------------------------------
+   Markdown rendered content (Chat / Ask AI / grammar analysis / Read page)
+   ------------------------------------------------------------------------- */
+.md {
+  white-space: normal;
+  line-height: 1.7;
+  word-break: break-word;
+  font-size: 13px;
+}
+.md p {
+  margin: 0 0 0.7em;
+}
+.md p:last-child {
+  margin-bottom: 0;
+}
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 1em 0 0.45em;
+}
+.md h1 { font-size: 1.35em; }
+.md h2 { font-size: 1.2em; }
+.md h3 { font-size: 1.08em; }
+.md h4 { font-size: 1em; }
+.md h5 { font-size: 0.95em; }
+.md h6 { font-size: 0.9em; color: hsl(var(--muted-foreground)); }
+.md ul, .md ol {
+  margin: 0.4em 0 0.7em;
+  padding-left: 1.4em;
+}
+.md li {
+  margin: 0.15em 0;
+}
+.md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: hsl(var(--muted));
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.md-pre {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.md-pre code {
+  background: transparent;
+  padding: 0;
+}
+.md-quote {
+  border-left: 3px solid hsl(var(--border));
+  margin: 0.5em 0;
+  padding: 2px 0 2px 12px;
+  color: hsl(var(--muted-foreground));
+}
+.md-hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 0.9em 0;
+}
+.md-table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  font-size: 12.5px;
+  width: 100%;
+}
+.md-table th,
+.md-table td {
+  border: 1px solid hsl(var(--border));
+  padding: 5px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.md-table th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+.md a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
 /* Per-message copy / delete buttons (Ask AI + Chat) */
 .ask-msg-btn {
   display: inline-flex;
@@ -792,31 +879,44 @@ body {
   background: hsl(var(--accent));
 }
 
-/* Floating Ask / Copy popup shown on text selection in Content mode */
-.ask-popup {
+/* Floating selection toolbar (Copy / Ask AI / Read) shown on text selection
+   in the Read page. */
+.sel-toolbar {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 4px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  animation: sel-toolbar-in 0.12s ease-out;
 }
-.ask-popup-btn {
+@keyframes sel-toolbar-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+.sel-toolbar-btn {
   appearance: none;
   border: none;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  color: hsl(var(--foreground));
   font-size: 12px;
   font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 7px;
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
 }
-.ask-popup-btn:last-child {
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-.ask-popup-btn:hover {
-  opacity: 0.9;
+.sel-toolbar-btn:hover {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 /* Statistics — per-band word groups (no expand/collapse).
