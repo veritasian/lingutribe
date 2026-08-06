@@ -113,9 +113,11 @@ Library data lives at `~/Documents/LingoLibrary` by default (word lists, notes, 
 lingutribe/
 ├── src/
 │   ├── server/        # Express API + better-sqlite3 + echogarden engines
-│   │   ├── index.ts      # server entry
+│   │   ├── index.ts      # server entry (boot + resource/import routes)
 │   │   ├── db.ts         # SQLite + library paths
-│   │   ├── engines.ts    # STT / TTS / LLM + model download
+│   │   ├── engines/      # per-engine modules: stt / tts / llm / models / http
+│   │   ├── routes/       # thin HTTP layer: settings, words, notes, chat,
+│   │   │                 # engines (STT/TTS/LLM endpoints), dict (MDict)
 │   │   ├── analysis.ts   # media analysis (duration, peaks, segments)
 │   │   ├── segments.ts   # word/segment timing types & helpers
 │   │   └── util-ffmpeg.ts# ffmpeg discovery/util

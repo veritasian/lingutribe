@@ -220,16 +220,18 @@ AI 导师、语法检查、以及"查不到词时的词典兜底"都依赖 LLM�
 lingutribe/
 ├── src/
 │   ├── server/        # Express API + better-sqlite3 + echogarden 引擎
-│   │   ├── index.ts      # 服务入口
+│   │   ├── index.ts      # 服务入口（启动 + 资源/导入路由）
 │   │   ├── db.ts         # SQLite + 资料库路径
-│   │   ├── engines.ts    # STT / TTS / LLM + 模型下载
+│   │   ├── engines/      # 按引擎拆分：stt / tts / llm / models / http
+│   │   ├── routes/       # 薄 HTTP 层：settings、words、notes、chat、
+│   │   │                 # engines（STT/TTS/LLM 端点）、dict（MDict）
 │   │   ├── analysis.ts   # 媒体分析（时长、波形、分段）
 │   │   ├── segments.ts   # 词/段计时类型与辅助
 │   │   └── util-ffmpeg.ts# ffmpeg 探测/工具
 │   ├── web/           # React 前端（页面 + 组件）
 │   │   ├── components/ # PlayerView、Transcript、Caption、AudioBar、VocabProfile…
 │   │   └── lib/       # coca.ts（词频段）、segments.ts（计时）
-│   ├── shared/        # 共享 TypeScript 类型
+│   └── shared/        # 共享 TypeScript 类型
 ├── electron/          # 桌面端外壳（main.cjs — 打包时内嵌服务端）
 ├── docs/              # 用户手册（中文 HTML）
 ├── package.json
