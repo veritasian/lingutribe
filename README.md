@@ -6,6 +6,22 @@ Lingutribe is a lightweight, self-hosted study companion. You drop in audio/vide
 
 🇨🇳 **中文说明：[README.zh-CN.md](./README.zh-CN.md)** — 安装方式、模型手动下载链接与离线安装步骤见该文档。
 
+## 📦 v0.1.0 — Desktop preview (2026-08-06)
+
+First packaged **macOS (Apple Silicon, arm64)** desktop build. This is a **beta / pre-release** for testing — not a final signed release.
+
+- Ships the full local stack (transcription, TTS, offline dictionary) inside a single `.dmg`.
+- Includes everything listed under **What's new** below.
+- **macOS note:** the build is currently **unsigned**. On a clean Mac, Gatekeeper blocks the first launch. Either right-click the app (or the `.dmg`) and choose **Open**, or, after copying to `/Applications`, run once:
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Lingutribe.app
+  ```
+  A Developer-ID signed + notarized build is planned.
+
+> 📥 Download `Lingutribe-0.1.0-arm64.dmg` from the GitHub **Releases** page.
+
+---
+
 ## 🆕 What's new
 
 - **Selection toolbar in Read** — select any text and a floating **Copy / Ask AI / Read** bar appears. *Read* speaks exactly the selected span aloud (with sentence highlighting), instead of only the whole article; *Ask AI* opens a fresh thread about the selection.
