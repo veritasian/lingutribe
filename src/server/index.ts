@@ -327,9 +327,18 @@ if (process.env.LINGO_DEV === "1" && process.env.LINGO_SERVE_LIVE !== "0") {
     proxy.end();
   });
 }
-// Built SPA lives in <project>/dist. From src/server that's two levels up.
-const distDir = path.resolve(__dirname, "..", "..", "dist");
-if (fs.existsSync(distDir)) {
+// Built SPA lives in <project>/dist. The relative path differs between
+// source (src/server → ../../dist) and the bundled server (dist-server →
+// ../dist, or Resources/app/dist-server → ../dist in the packaged app), so
+// probe each candidate and use the first one that actually contains
+// index.html.
+const distCandidates = [
+  path.resolve(__dirname, "..", "..", "dist"), // src/server → project/dist
+  path.resolve(__dirname, "..", "dist"),       // dist-server → project/dist / Resources/app/dist
+  path.resolve(__dirname, "dist"),             // fallback: sibling dist
+];
+const distDir = distCandidates.find((p) => fs.existsSync(path.join(p, "index.html")));
+if (distDir) {
   app.use(express.static(distDir));
   app.get("*", (req, res) => {
     // Unknown API routes must 404 as JSON — never fall through to the SPA shell.
