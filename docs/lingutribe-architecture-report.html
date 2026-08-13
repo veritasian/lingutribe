@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lingutribe · 架构重构报告 & 桌面 AI 工具蓝图</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#0a0e14; --panel:#161b22; --panel2:#1c2330;
+    --border:#30363d; --border2:#3d4550;
+    --text:#e6edf3; --muted:#8b949e; --dim:#6e7681;
+    --accent:#58a6ff; --green:#3fb950; --amber:#d29922; --red:#f85149; --purple:#bc8cff; --teal:#39c5cf;
+    --radius:12px; --radius-s:8px;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.75;padding-bottom:80px}
+  ::selection{background:rgba(88,166,255,.25)}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---------- Top bar ---------- */
+  header{
+    position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);
+    background:rgba(13,17,23,.85);border-bottom:1px solid var(--border);
+  }
+  .bar{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:12px 20px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:.2px}
+  .logo{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#1f6feb,#3fb950);color:#fff;font-size:15px;font-weight:800}
+  .brand small{display:block;font-size:11px;color:var(--muted);font-weight:400;letter-spacing:.5px}
+  .tabs{display:flex;gap:6px;margin-left:auto;background:var(--panel);padding:4px;border-radius:10px;border:1px solid var(--border)}
+  .tab{padding:7px 16px;border-radius:7px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:transparent;font-family:var(--sans);transition:.15s}
+  .tab:hover{color:var(--text)}
+  .tab.active{background:var(--accent);color:#0d1117}
+  @media(max-width:640px){.bar{justify-content:space-between}.tabs{margin-left:0;width:100%}.tab{flex:1;text-align:center}}
+
+  main{max-width:1120px;margin:0 auto;padding:28px 20px 40px}
+  section.tabpane{display:none;animation:fade .3s ease}
+  section.tabpane.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:36px 0 8px}
+  .hero h1{font-size:30px;line-height:1.3;font-weight:800;letter-spacing:-.3px}
+  .hero .sub{color:var(--muted);margin-top:10px;font-size:15px;max-width:820px}
+  .tags{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .tag{font-size:12px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--panel)}
+  .tag b{color:var(--accent);font-weight:600}
+
+  /* ---------- Stat cards ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:26px 0 8px}
+  .stat{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:18px 18px 14px;position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),transparent)}
+  .stat .num{font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:-1px}
+  .stat .num.arrow{font-size:22px}
+  .stat .lbl{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .stat .chg{font-size:11px;margin-top:6px;display:inline-block;padding:2px 8px;border-radius:12px;font-weight:600}
+  .chg.good{background:rgba(63,185,80,.14);color:var(--green)}
+  .chg.bad{background:rgba(248,81,73,.14);color:var(--red)}
+  .chg.warn{background:rgba(210,153,34,.14);color:var(--amber)}
+
+  /* ---------- Sections ---------- */
+  .sec{margin-top:42px}
+  .sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .sec-num{width:32px;height:32px;flex:0 0 32px;border-radius:9px;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--border2);color:var(--accent);font-weight:800;font-size:14px;font-family:var(--mono)}
+  .sec-h h2{font-size:21px;font-weight:750;letter-spacing:-.2px}
+  .sec-h .en{color:var(--dim);font-size:12.5px;font-weight:500;font-family:var(--mono)}
+  p.lead{color:var(--text);margin-bottom:12px}
+  .muted{color:var(--muted)}
+  .dim{color:var(--dim)}
+  h3{font-size:16.5px;margin:26px 0 10px;font-weight:700}
+  h4{font-size:14.5px;margin:18px 0 8px;font-weight:700;color:var(--text)}
+
+  /* ---------- Cards / grids ---------- */
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+  .card h4{margin:0 0 8px;font-size:14.5px}
+  .card p{color:var(--muted);font-size:13.5px}
+  .card .ic{font-size:18px;margin-bottom:8px;display:inline-block}
+  .card.hl{border-color:var(--border2)}
+  .card .k{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--bg2);border:1px solid var(--border);padding:1px 7px;border-radius:6px;color:var(--accent);margin:0 2px 2px 0}
+
+  /* ---------- Tables ---------- */
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+  th{text-align:left;padding:11px 14px;background:var(--panel2);font-weight:650;color:var(--text);font-size:12.5px;letter-spacing:.3px;white-space:nowrap}
+  td{padding:10px 14px;border-top:1px solid var(--border);color:#c9d1d9;vertical-align:top}
+  tr:hover td{background:rgba(88,166,255,.04)}
+  td code,th code{font-size:12px}
+  .tbl-ok{color:var(--green);font-weight:600}
+  .tbl-no{color:var(--red);font-weight:600}
+
+  /* ---------- Code ---------- */
+  pre{background:#0a0e14;border:1px solid var(--border);border-radius:var(--radius-s);padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.7;color:#c9d1d9;margin:10px 0}
+  code{font-family:var(--mono);font-size:12.8px;background:rgba(110,118,129,.15);padding:1.5px 6px;border-radius:5px;color:#79c0ff}
+  pre code{background:none;padding:0;color:inherit}
+  .c-kw{color:#ff7b72}.c-fn{color:#d2a8ff}.c-st{color:#7ee787}.c-cm{color:#8b949e}.c-nu{color:#79c0ff}.c-pn{color:#ffa657}
+
+  /* ---------- Diagram ---------- */
+  .dia{border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);padding:18px;margin:14px 0;overflow-x:auto}
+  .dia-title{font-size:13px;font-weight:650;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .dia-title::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block}
+  .dia svg{width:100%;height:auto;display:block;min-width:600px}
+
+  /* ---------- Callout ---------- */
+  .note{border-left:3px solid var(--accent);background:rgba(88,166,255,.06);border-radius:0 var(--radius-s) var(--radius-s) 0;padding:12px 16px;margin:14px 0;font-size:13.8px}
+  .note.warn{border-color:var(--amber);background:rgba(210,153,34,.07)}
+  .note.danger{border-color:var(--red);background:rgba(248,81,73,.07)}
+  .note.ok{border-color:var(--green);background:rgba(63,185,80,.07)}
+  .note b{color:var(--text)}
+
+  /* ---------- Tree ---------- */
+  details.tree{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin:8px 0;overflow:hidden}
+  details.tree>summary{cursor:pointer;padding:12px 16px;font-weight:650;font-size:14px;list-style:none;display:flex;align-items:center;gap:8px}
+  details.tree>summary::-webkit-details-marker{display:none}
+  details.tree>summary::before{content:"▸";color:var(--accent);transition:.15s;font-size:12px}
+  details.tree[open]>summary::before{content:"▾"}
+  .tree-body{padding:2px 16px 14px;border-top:1px solid var(--border)}
+  .tree pre{margin:12px 0 0;border:none;background:var(--bg2)}
+
+  /* ---------- Checklist ---------- */
+  .clist{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:12px 0}
+  .clist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+  .clist-head h4{margin:0;font-size:14.5px}
+  .prog{flex:1;min-width:160px;height:8px;background:var(--bg2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+  .prog>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .4s ease;border-radius:6px}
+  .prog-txt{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .clist label{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.8px;color:#c9d1d9;transition:.12s}
+  .clist label:hover{background:var(--panel2)}
+  .clist input[type=checkbox]{margin-top:4px;accent-color:var(--accent);width:15px;height:15px;flex:0 0 15px;cursor:pointer}
+  .clist label.done{color:var(--dim);text-decoration:line-through;text-decoration-color:rgba(139,148,158,.4)}
+
+  /* ---------- Pit list ---------- */
+  .pit{display:flex;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);margin:10px 0}
+  .pit .no{flex:0 0 34px;height:34px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);display:grid;place-items:center;font-weight:800;font-family:var(--mono);border:1px solid rgba(248,81,73,.3)}
+  .pit h4{margin:0 0 4px;font-size:14.5px}
+  .pit p{color:var(--muted);font-size:13.5px;margin:0}
+  .pit .fix{margin-top:8px;font-size:13px;color:var(--green)}
+
+  /* ---------- Timeline ---------- */
+  .tl{position:relative;margin:16px 0 6px;padding-left:26px}
+  .tl::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--border2)}
+  .tl-item{position:relative;padding:10px 0 10px 6px}
+  .tl-item::before{content:"";position:absolute;left:-24px;top:17px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:3px solid var(--bg)}
+  .tl-item.warn::before{background:var(--amber)}
+  .tl-item.good::before{background:var(--green)}
+  .tl-item .t{font-weight:700;font-size:14px}
+  .tl-item .s{color:var(--muted);font-size:13px;margin-top:2px}
+
+  /* ---------- Footer / backtop ---------- */
+  footer{max-width:1120px;margin:60px auto 0;padding:24px 20px 0;border-top:1px solid var(--border);color:var(--dim);font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
+  #backtop{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:12px;background:var(--panel2);border:1px solid var(--border2);color:var(--accent);font-size:18px;cursor:pointer;display:none;place-items:center;z-index:90;transition:.2s;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  #backtop:hover{background:var(--accent);color:#0d1117}
+  #backtop.show{display:grid}
+  .divider{height:1px;background:var(--border);margin:34px 0}
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header>
+  <div class="bar">
+    <div class="brand">
+      <div class="logo">L</div>
+      <div>lingutribe<small>v0.1.0 · 2026-08-06</small></div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="report">① 架构重构报告</button>
+      <button class="tab" data-tab="blueprint">② 桌面 AI 工具蓝图</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= TAB 1 : REPORT ================= -->
+<section class="tabpane active" id="pane-report">
+
+  <div class="hero">
+    <h1>lingutribe 架构重构总结报告</h1>
+    <p class="sub">把 1799 行的巨型 <code>index.ts</code> 与 309 行的混合 <code>engines.ts</code>，重构为「路由薄层 + 引擎层 + 数据层」三层模块化结构 —— 引擎拆分、路由与业务分离、数据分层，用三层安全网验证<strong>零行为变化</strong>。</p>
+    <div class="tags">
+      <span class="tag">关联提交 <b>c657f36 · 2a85665 · df3006f</b></span>
+      <span class="tag">纪律线 <b>&lt; 300 行/文件</b></span>
+      <span class="tag">重构原则 <b>纯重构 · 零行为变化</b></span>
+      <span class="tag">安全网 <b>typecheck + esbuild + smoke</b></span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num" data-count="1799">0</div><div class="lbl">index.ts（行）</div><span class="chg good">→ 353 行 · ↓80%</span></div>
+    <div class="stat"><div class="num" data-count="309">0</div><div class="lbl">engines.ts 混合引擎（行）</div><span class="chg good">→ 6 个独立文件</span></div>
+    <div class="stat"><div class="num" data-count="40">0</div><div class="lbl">内联路由</div><span class="chg good">→ 8 个 register 模块</span></div>
+    <div class="stat"><div class="num" data-count="1118">0</div><div class="lbl">Settings.tsx（行）</div><span class="chg good">→ 106 + 4 分区</span></div>
+  </div>
+
+  <!-- ====== 1 修改前的问题 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">1</span><h2>修改前的问题</h2><span class="en">Problems Before</span></div>
+
+    <h3>1.1 症状清单（客观事实）</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:24%">问题</th><th>量化证据</th></tr></thead>
+      <tbody>
+        <tr><td><b>服务端单体文件</b></td><td><code>src/server/index.ts</code> <b>1799 行</b>：40 条 Express 路由 + 静态托管 + 设置读写 + 引擎调用全部内联</td></tr>
+        <tr><td><b>引擎混合文件</b></td><td><code>src/server/engines.ts</code> <b>309 行</b>同时容纳：curl 网络工具、STT、TTS、LLM、Kokoro 模型管理</td></tr>
+        <tr><td><b>前端单体文件</b></td><td><code>src/web/pages/Settings.tsx</code> <b>1118 行</b></td></tr>
+        <tr><td><b>路由与业务纠缠</b></td><td>路由回调里直接拼 SQL、直接操作文件系统，HTTP 层与领域逻辑无边界</td></tr>
+        <tr><td><b>数据访问散落</b></td><td>多处各自持有数据库连接 / 拼接库路径，无单一入口</td></tr>
+        <tr><td><b>无测试边界</b></td><td>没有任何模块可独立单测 —— 没有独立文件边界，就没有单元</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>1.2 现实是什么（问题的实际表现）</h3>
+    <div class="grid3">
+      <div class="card"><span class="ic">🧠</span><h4>认知负担爆表</h4><p>改一个小功能要通读几千行；加一个 TTS 供应商，要在 309 行引擎文件里精准定位 synthesizeSpeech 而不碰坏旁边的 STT。</p></div>
+      <div class="card"><span class="ic">💥</span><h4>回归风险高</h4><p>路由与业务同处一处：改 SQL 牵连 HTTP 行为，改 HTTP 又怕碰业务，新增能力人人自危。</p></div>
+      <div class="card"><span class="ic">🧪</span><h4>无法单元测试</h4><p>没有独立文件边界，测试无从挂载，只能靠人工点 UI 验证。</p></div>
+      <div class="card"><span class="ic">⚔️</span><h4>合并冲突频繁</h4><p>大家都在改 index.ts / engines.ts 两个巨型文件，任何一个功能改动都容易撞车。</p></div>
+      <div class="card"><span class="ic">🔍</span><h4>故障定位慢</h4><p>「打开一片黑」需跨壳层 → 服务层 → 渲染层三层排查；只有分层清晰，才能靠 <code>/api/health</code> + headless Chrome 快速归因到打包集成层。</p></div>
+      <div class="card"><span class="ic">🧗</span><h4>无法渐进演进</h4><p>单体文件不支持「只替换一个引擎实现」式的局部演进，任何改动都是全量风险。</p></div>
+    </div>
+
+    <h3>1.3 为什么现在改</h3>
+    <div class="note ok"><b>时机：</b>功能进入稳定期（README 已刷新、打包链路已通）是做结构性收敛的最佳窗口 —— 边加功能边重构会两头风险叠加。</div>
+    <div class="note"><b>目标：</b>模块化设计、路由与业务分离、数据分层、引擎拆分；每个文件遵守 <b>&lt; 300 行</b> 工程纪律。</div>
+    <div class="note warn"><b>约束（关键）：</b>纯重构、零行为变化。安全网不是「小心」，而是三层工具兜底：<code>tsc --noEmit</code> + esbuild 打包 + 全 API 冒烟测试（health / settings / resources / words / notes / chat / coca / dict / tts voices / llm / import）。</div>
+  </div>
+
+  <!-- ====== 2 修改后的架构 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">2</span><h2>修改后的架构（现状）</h2><span class="en">Architecture After</span></div>
+
+    <h3>2.1 总体架构：单进程 + 内嵌服务</h3>
+    <div class="dia">
+      <div class="dia-title">运行时拓扑 Runtime Topology</div>
+      <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" font-family="PingFang SC, sans-serif">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#58a6ff"/></marker>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f6feb"/><stop offset="1" stop-color="#388bfd"/></linearGradient>
+          <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#238636"/><stop offset="1" stop-color="#3fb950"/></linearGradient>
+        </defs>
+        <!-- Electron shell -->
+        <rect x="20" y="60" width="250" height="170" rx="14" fill="#161b22" stroke="#3d4550" stroke-width="1.5"/>
+        <rect x="20" y="60" width="250" height="34" rx="14" fill="#1c2330"/>
+        <text x="40" y="82" fill="#e6edf3" font-size="14" font-weight="700">⚡ Electron 壳</text>
+        <text x="40" y="108" fill="#8b949e" font-size="11.5">main.cjs · 单实例锁 · 健康握手</text>
+        <text x="40" y="126" fill="#8b949e" font-size="11.5">Dev: spawn npm start (tsx)</text>
+        <text x="40" y="144" fill="#8b949e" font-size="11.5">Prod: import dist-server/index.mjs</text>
+        <text x="40" y="162" fill="#8b949e" font-size="11.5">userData 可写目录重定向</text>
+        <rect x="40" y="180" width="80" height="26" rx="7" fill="#0d1117" stroke="#30363d"/><text x="80" y="197" fill="#ffa657" font-size="10.5" text-anchor="middle" font-family="monospace">spawn / import</text>
+        <line x1="270" y1="130" x2="330" y2="130" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr)"/>
+        <!-- Express -->
+        <rect x="335" y="55" width="270" height="180" rx="14" fill="#161b22" stroke="#58a6ff" stroke-width="1.8"/>
+        <rect x="335" y="55" width="270" height="34" rx="14" fill="rgba(88,166,255,.12)"/>
+        <text x="355" y="77" fill="#58a6ff" font-size="14" font-weight="700">🖥 Express 单进程 :8787</text>
+        <text x="355" y="105" fill="#8b949e" font-size="11.5">/api/* 路由层 → 引擎层/业务层</text>
+        <text x="355" y="123" fill="#8b949e" font-size="11.5">静态托管 React SPA (dist/)</text>
+        <text x="355" y="141" fill="#8b949e" font-size="11.5">/api/* 未命中 → JSON 404 保护</text>
+        <text x="355" y="159" fill="#8b949e" font-size="11.5">Dev: live-mirror 代理 → Vite :5173</text>
+        <rect x="355" y="176" width="110" height="40" rx="8" fill="#0d1117" stroke="#30363d"/><text x="410" y="193" fill="#7ee787" font-size="10.5" text-anchor="middle" font-family="monospace">SQLite · FS · 三方API</text><text x="410" y="207" fill="#7ee787" font-size="10.5" text-anchor="middle" font-family="monospace">(WAL + 文件系统)</text>
+        <line x1="605" y1="130" x2="660" y2="130" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr)"/>
+        <!-- BrowserWindow -->
+        <rect x="665" y="60" width="215" height="170" rx="14" fill="#161b22" stroke="#3d4550" stroke-width="1.5"/>
+        <rect x="665" y="60" width="215" height="34" rx="14" fill="#1c2330"/>
+        <text x="685" y="82" fill="#e6edf3" font-size="14" font-weight="700">🪟 BrowserWindow</text>
+        <text x="685" y="108" fill="#8b949e" font-size="11.5">React SPA</text>
+        <text x="685" y="126" fill="#8b949e" font-size="11.5">pages / components / lib</text>
+        <text x="685" y="144" fill="#8b949e" font-size="11.5">加载 http://localhost:8787</text>
+        <text x="685" y="162" fill="#8b949e" font-size="11.5">contextIsolation: true</text>
+        <text x="685" y="180" fill="#8b949e" font-size="11.5">nodeIntegration: false</text>
+        <!-- caption -->
+        <text x="450" y="250" fill="#6e7681" font-size="11" text-anchor="middle">单端口同时服务 API + SPA · 未来可拆远程部署而无需重构</text>
+      </svg>
+    </div>
+
+    <h3>2.2 分层结构</h3>
+    <div class="dia">
+      <div class="dia-title">四层架构 Layered Architecture</div>
+      <svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" font-family="PingFang SC, sans-serif">
+        <defs>
+          <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#58a6ff"/></marker>
+        </defs>
+        <!-- Layer 1 routes -->
+        <rect x="30" y="30" width="560" height="44" rx="10" fill="rgba(88,166,255,.10)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="50" y="57" fill="#58a6ff" font-size="13" font-weight="700">路由层 routes/</text>
+        <text x="200" y="57" fill="#c9d1d9" font-size="11.5" font-family="monospace">8 个 register(app, ctx) 模块 · 只做解析/校验/回包</text>
+        <line x1="310" y1="74" x2="310" y2="98" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr2)"/>
+        <!-- Layer 2 business -->
+        <rect x="30" y="100" width="560" height="44" rx="10" fill="rgba(63,185,80,.10)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="50" y="127" fill="#3fb950" font-size="13" font-weight="700">业务层 engines/ + analysis + segments</text>
+        <text x="360" y="127" fill="#c9d1d9" font-size="11.5" font-family="monospace">引擎能力 + 领域逻辑</text>
+        <line x1="310" y1="144" x2="310" y2="168" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr2)"/>
+        <!-- Layer 3 data -->
+        <rect x="30" y="170" width="560" height="44" rx="10" fill="rgba(210,153,34,.10)" stroke="#d29922" stroke-width="1.5"/>
+        <text x="50" y="197" fill="#d29922" font-size="13" font-weight="700">数据层 db.ts</text>
+        <text x="180" y="197" fill="#c9d1d9" font-size="11.5" font-family="monospace">SQLite(WAL) 单例 + 库路径 + 迁移 + 目录规划 · 全应用唯一读写入口</text>
+        <!-- Shared side -->
+        <rect x="640" y="30" width="240" height="184" rx="10" fill="rgba(188,140,255,.08)" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="660" y="58" fill="#bc8cff" font-size="13" font-weight="700">共享层 shared/</text>
+        <text x="660" y="82" fill="#c9d1d9" font-size="11.5" font-family="monospace">types.ts</text>
+        <text x="660" y="102" fill="#8b949e" font-size="11">前后端共享类型</text>
+        <text x="660" y="124" fill="#8b949e" font-size="11">Resource / Word / Note</text>
+        <text x="660" y="142" fill="#8b949e" font-size="11">Settings / SavedPrompt</text>
+        <!-- Frontend -->
+        <rect x="640" y="170" width="240" height="44" rx="10" fill="rgba(57,197,207,.08)" stroke="#39c5cf" stroke-width="1.5"/>
+        <text x="660" y="197" fill="#39c5cf" font-size="13" font-weight="700">前端 web/</text>
+        <text x="755" y="197" fill="#c9d1d9" font-size="11.5" font-family="monospace">pages·components·lib</text>
+        <!-- caption -->
+        <text x="450" y="240" fill="#6e7681" font-size="11" text-anchor="middle">单向依赖：路由 → 业务 → 数据 · 前端通过 api.ts 薄客户端访问 /api/*</text>
+      </svg>
+    </div>
+
+    <h3>2.3 引擎层拆分（引擎拆分落点）</h3>
+    <p class="muted">`src/server/engines.ts`（309 行）→ `src/server/engines/` 目录，一引擎一文件，全部 &lt; 200 行：</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>文件</th><th>行数</th><th>职责</th></tr></thead>
+      <tbody>
+        <tr><td><code>http.ts</code></td><td>36</td><td>curl 封装（代理感知，唯一网络出口）</td></tr>
+        <tr><td><code>llm.ts</code></td><td>39</td><td>LLM 对话（OpenAI 兼容协议：ollama / 云端统一）</td></tr>
+        <tr><td><code>models.ts</code></td><td>12</td><td>模型 ensure（下载 / 校验 / 一次性逻辑）</td></tr>
+        <tr><td><code>stt.ts</code></td><td>61</td><td>语音转写（echogarden / Whisper 封装 + 模型名映射）</td></tr>
+        <tr><td><code>tts.ts</code></td><td>169</td><td>语音合成（Kokoro 本地 / Fish Audio 云端，多供应商）</td></tr>
+        <tr><td><code>index.ts</code></td><td>16</td><td>barrel —— 保持旧 `import from "../engines/index.js"` 导入面不变</td></tr>
+      </tbody>
+    </table></div>
+    <div class="grid3">
+      <div class="card"><span class="ic">📦</span><h4>一引擎一文件</h4><p>全部 &lt; 200 行（纪律线 300 行内），改 TTS 不碰 STT。</p></div>
+      <div class="card"><span class="ic">🔁</span><h4>Barrel 模式</h4><p>内部结构自由，对外导入面稳定，调用方零改动。</p></div>
+      <div class="card"><span class="ic">🔌</span><h4>统一协议</h4><p>LLM 与云端 TTS 都走「baseUrl + model + 可选 apiKey」的 OpenAI 兼容协议，供应商可插拔。</p></div>
+    </div>
+
+    <h3>2.4 路由层（路由与业务分离的落点）</h3>
+    <p class="muted">40 条内联路由 → 8 个路由模块，统一 DI 模式；`index.ts` 只负责组装与注册：</p>
+    <pre><code><span class="c-cm">// routes/chat.ts —— 薄 HTTP 层，只做校验 + 调业务</span>
+<span class="c-kw">export function</span> <span class="c-fn">registerChatRoutes</span>(app, ctx: { db; now }) {
+  <span class="c-kw">const</span> { db, now } = ctx;
+  app.get(<span class="c-st">"/api/chat"</span>, ...);
+  app.post(<span class="c-st">"/api/chat"</span>, ...);
+  app.delete(<span class="c-st">"/api/chat/:id"</span>, ...);
+}
+
+<span class="c-cm">// index.ts —— 组装与注册（依赖显式可见）</span>
+registerSettingsRoutes(app, { readSettings, writeSettings, dirSize });
+registerWordsRoutes(app, { db, now });
+registerNotesRoutes(app, { db, now });
+registerChatRoutes(app, { db, now });
+registerEngineRoutes(app, { readSettings, resolveLlm, resolveTts, buildTtsConfig, upload });
+registerDictRoutes(app, { readSettings, resolveLlm });
+registerResourcesRoutes(app, { db, now, readSettings, upload });
+registerImportRoutes(app, { db, now, upload, ffmpegPath });</code></pre>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>路由模块</th><th>行数</th><th>覆盖域</th></tr></thead>
+      <tbody>
+        <tr><td><code>dict.ts</code></td><td>635</td><td>词典查询 + 音频（MDict 离线词典，域内最重）</td></tr>
+        <tr><td><code>import.ts</code></td><td>440</td><td>URL 导入（yt-dlp / RSS 兜底 / 字幕解析）+ 文本导入</td></tr>
+        <tr><td><code>resources.ts</code></td><td>251</td><td>资源 CRUD、文件服务、转写、分析</td></tr>
+        <tr><td><code>engines.ts</code></td><td>193</td><td>引擎配置探测、TTS 音色列表、LLM 测试</td></tr>
+        <tr><td><code>words / notes / chat / settings</code></td><td>各 ~30-50</td><td>单词 / 笔记 / 对话 / 设置 CRUD</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.5 数据层</h3>
+    <p><code>db.ts</code>（145 行）是全应用数据唯一入口：</p>
+    <div class="grid2">
+      <div class="card"><span class="ic">🗄️</span><h4>SQLite + WAL + 单例</h4><p><code>getDb()</code> 惰性单例，<code>PRAGMA journal_mode=WAL</code>，<code>migrate()</code> 渐进式建表（CREATE TABLE IF NOT EXISTS）。</p></div>
+      <div class="card"><span class="ic">📁</span><h4>路径可配置 + 目录规划集中</h4><p><code>LINGO_LIBRARY_DIR</code> 环境变量（打包后指向 userData 可写目录）；<code>resources/ · audio|video|read/ · tts/</code> 全部由 db.ts 统一创建。</p></div>
+      <div class="card"><span class="ic">🧩</span><h4>兼容旧布局</h4><p><code>resolveResourceFile()</code> 同时支持新式（relativePath 含类型子目录）与 legacy 平铺文件名。</p></div>
+      <div class="card"><span class="ic">🛡️</span><h4>只读 bundle 保护</h4><p>打包后模型/资料库绝不写入只读的 app bundle，全部重定向到 userData。</p></div>
+    </div>
+
+    <h3>2.6 前端 + 构建打包</h3>
+    <div class="grid2">
+      <div class="card"><span class="ic">🎨</span><h4>前端拆分</h4><p><code>Settings.tsx</code> 1118 → 106 行 + 4 分区组件（<code>LlmSection / SttSection / TtsSection / SystemSection</code>）。全局分层：<code>pages/</code>（7 页）· <code>components/</code>（10 组件）· <code>lib/</code>（5 工具）· <code>settings/</code>（分区）。react-router 路由：/resources/:tab · /read · /words · /chat · /settings。</p></div>
+      <div class="card"><span class="ic">⚙️</span><h4>构建与打包</h4><p><code>dev</code>：concurrently 双进程（tsx watch + vite）· <code>build</code>：Vite → dist/ · <code>build:server</code>：esbuild → dist-server/index.mjs（native 模块 external）· <code>rebuild</code>：electron-rebuild · <code>dist:mac</code>：一键 build + build:server + rebuild + electron-builder。</p></div>
+    </div>
+  </div>
+
+  <!-- ====== 3 前后对比 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">3</span><h2>前后对比</h2><span class="en">Before vs After</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:16%">维度</th><th>修改前</th><th>修改后</th></tr></thead>
+      <tbody>
+        <tr><td><b>index.ts</b></td><td class="tbl-no">1799 行，40 路由内联 + 全部逻辑</td><td class="tbl-ok">353 行，纯 boot + 注册 + 静态托管</td></tr>
+        <tr><td><b>引擎组织</b></td><td class="tbl-no">1 个 309 行混合文件</td><td class="tbl-ok">6 个文件各 &lt; 200 行，一引擎一文件 + barrel</td></tr>
+        <tr><td><b>路由</b></td><td class="tbl-no">内联在 index.ts</td><td class="tbl-ok">8 个 register(app, ctx) 模块，薄 HTTP 层</td></tr>
+        <tr><td><b>业务边界</b></td><td class="tbl-no">路由回调里拼 SQL / 操作 fs</td><td class="tbl-ok">业务在 engines / analysis / segments，路由只调不实现</td></tr>
+        <tr><td><b>数据访问</b></td><td class="tbl-no">多处自开连接</td><td class="tbl-ok">db.ts 单例唯一入口（WAL + 迁移 + 路径策略集中）</td></tr>
+        <tr><td><b>前端设置页</b></td><td class="tbl-no">1118 行单体</td><td class="tbl-ok">106 行 + 4 分区组件</td></tr>
+        <tr><td><b>新增引擎成本</b></td><td class="tbl-no">改巨型文件、高回归风险</td><td class="tbl-ok">新建文件 + barrel 导出，其余零改动</td></tr>
+        <tr><td><b>新增路由成本</b></td><td class="tbl-no">改 index.ts</td><td class="tbl-ok">新建 routes/xxx.ts + index.ts 一行注册</td></tr>
+        <tr><td><b>测试性</b></td><td class="tbl-no">几乎不可测</td><td class="tbl-ok">单模块可测；typecheck / esbuild / smoke 三层安全网</td></tr>
+        <tr><td><b>心智负担</b></td><td class="tbl-no">高（改动前要通读全局）</td><td class="tbl-ok">低（&lt; 300 行纪律，按域导航）</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <!-- ====== 4 优势 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">4</span><h2>优势在哪里</h2><span class="en">Why It Wins</span></div>
+    <div class="grid3">
+      <div class="card"><span class="ic">🎯</span><h4>单一职责、按域组织</h4><p>路由层、引擎层、数据层、共享层、前端各归其位；「引擎拆分」让每个 AI 能力独立成文件，互不干扰。</p></div>
+      <div class="card"><span class="ic">🔗</span><h4>薄路由 + DI</h4><p>路由只做「解析 → 调用 → 回包」，业务实现可替换、可单测；ctx 注入让依赖显式可见。</p></div>
+      <div class="card"><span class="ic">🗃️</span><h4>数据分层单一入口</h4><p>连接、迁移、库路径、目录规划收敛在 db.ts，杜绝「两处对同一路径理解不一致」的 bug。</p></div>
+      <div class="card"><span class="ic">🔌</span><h4>引擎可插拔</h4><p>新增 STT/TTS/LLM 供应商 = 新文件 + barrel 注册；本地 ollama ↔ 云端 DeepSeek/Fish 切换只改配置。</p></div>
+      <div class="card"><span class="ic">🛡️</span><h4>可验证、零回归</h4><p>三层安全网（typecheck + esbuild + 全 API 冒烟）让重构大胆做、且能证明「没改坏任何东西」。</p></div>
+      <div class="card"><span class="ic">🗺️</span><h4>前后端同域组织</h4><p>设置分区组件与后端 engines/ 目录一一对应 —— 按同一域组织，导航成本最低。</p></div>
+      <div class="card"><span class="ic">🚀</span><h4>进程模型简化</h4><p>单端口 8787 同时服务 API 与 SPA；dev 的 live-mirror 只开一个地址即得热更新 UI；生产单进程打包体积与故障面最小。</p></div>
+      <div class="card"><span class="ic">📦</span><h4>面向打包的设计</h4><p>dist/ 与 dist-server/ 分离、native 模块 external + electron-rebuild、extraResources 打词典/模型、userData 重定向 —— 架构从第一天就为「能发布」服务。</p></div>
+    </div>
+  </div>
+
+  <!-- ====== 5 代价与TODO ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">5</span><h2>代价与后续 TODO（诚实清单）</h2><span class="en">Cost &amp; Next</span></div>
+    <div class="tl">
+      <div class="tl-item warn"><div class="t">routes/dict.ts（635）、import.ts（440）、resources.ts（440）超纪律线</div><div class="s">下一轮拆分候选（可再拆为 dict/lookup + dict/audio 等）。</div></div>
+      <div class="tl-item warn"><div class="t">index.ts 中的设置助手仍集中</div><div class="s">resolveLlm / resolveTts / buildTtsConfig 可下沉到 engines/config.ts 或独立模块。</div></div>
+      <div class="tl-item warn"><div class="t">前端 WordPanel（614）/ PlayerView（518）/ Transcript（416）偏大</div><div class="s">参照 Settings 拆分模式做下一轮前端拆分。</div></div>
+      <div class="tl-item"><div class="t">尚无自动化测试文件（tests/ 未建）</div><div class="s">本次靠冒烟脚本兜底，建议下一轮补 API 集成测试（vitest + supertest 即可）。</div></div>
+    </div>
+  </div>
+
+  <!-- ====== 6 方法论 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">6</span><h2>沉淀的方法论（可复用）</h2><span class="en">Methodology</span></div>
+    <div class="grid2">
+      <div class="card"><span class="ic">🌳</span><h4>先树形方案再动手</h4><p>结构重构前先给树形方案并确认，避免误改线上。</p></div>
+      <div class="card"><span class="ic">👣</span><h4>小步提交、每步可独立验证</h4><p>引擎拆分（c657f36）→ 剩余路由提取（2a85665）→ 前端拆分（df3006f），每步一个 commit，各自过安全网。</p></div>
+      <div class="card"><span class="ic">🧰</span><h4>零行为变化靠工具证明</h4><p>typecheck + bundle + smoke test 通过才允许合入，不靠「小心」。</p></div>
+      <div class="card"><span class="ic">📝</span><h4>Commit 写清 before/after 数字</h4><p>让评审者一眼看懂改动面与验证清单。</p></div>
+      <div class="card"><span class="ic">📏</span><h4>给重构设纪律线（&lt; 300 行）</h4><p>没有数字约束的重构会变成「换一种方式堆大文件」。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TAB 2 : BLUEPRINT ================= -->
+<section class="tabpane" id="pane-blueprint">
+
+  <div class="hero">
+    <h1>桌面 AI 工具架构蓝图</h1>
+    <p class="sub">由 lingutribe v0.1.0（Electron + Express + React + Vite，本地优先语言学习工具）实战沉淀。适用场景：<strong>本地优先 + AI 能力（TTS/STT/LLM）+ 媒体/文本处理 + 桌面分发</strong>。复制骨架，按「从 0 到 1 检查清单」逐阶段落地。</p>
+    <div class="tags">
+      <span class="tag">Tech Stack <b>TS 全栈</b></span>
+      <span class="tag">壳层 <b>Electron 33</b></span>
+      <span class="tag">服务 <b>Express :8787</b></span>
+      <span class="tag">前端 <b>React + Vite</b></span>
+      <span class="tag">数据 <b>better-sqlite3</b></span>
+    </div>
+  </div>
+
+  <!-- ====== B1 场景判断 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">1</span><h2>场景判断：这套架构适合什么</h2><span class="en">When to Use</span></div>
+    <h3>1.1 什么时候用这套架构（选这套）</h3>
+    <div class="grid3">
+      <div class="card"><span class="ic">🔒</span><h4>本地模型 + 隐私优先</h4><p>需要离线可用、数据不出本机的单机工具。</p></div>
+      <div class="card"><span class="ic">🟢</span><h4>核心能力有 Node 库</h4><p>echogarden / onnxruntime-node / better-sqlite3 / ffmpeg 子进程。</p></div>
+      <div class="card"><span class="ic">🖥️</span><h4>桌面分发 + 未来云同步</h4><p>dmg/安装包分发，且未来可能加多设备同步。</p></div>
+    </div>
+    <h3>1.2 什么时候别用</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:28%">场景</th><th style="width:22%">选型</th><th>原因</th></tr></thead>
+      <tbody>
+        <tr><td>包体积/内存敏感、纯 UI + 少量系统集成</td><td><b>Tauri 2</b>（Rust 侧载）</td><td>包小 10 倍、内存低；但 Node 生态库要么重写要么 FFI，成本高</td></tr>
+        <tr><td>纯在线工具、无桌面分发需求</td><td><b>Web 应用</b>（Vite SPA + 云 API）</td><td>不需要壳层与本地模型</td></tr>
+        <tr><td>多用户 / 账号体系 / 服务端协作</td><td><b>前后端分离远程部署</b></td><td>本地优先的假设不成立</td></tr>
+        <tr><td>核心模型只有 Python 实现</td><td><b>Python 后端</b>（FastAPI 侧服务）</td><td>Electron 调 Python 子进程也可以，但增加部署复杂度</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><b>决策规则：</b>先问「核心 AI/媒体能力有没有成熟的 Node 库」——有 → Electron 方案；没有且必须 Rust 性能 → Tauri + 原生模块；都没有 → 考虑 Web。</div>
+  </div>
+
+  <!-- ====== B2 Tech Stack ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">2</span><h2>Tech Stack（技术栈清单）</h2><span class="en">Tech Stack</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:13%">层</th><th style="width:30%">推荐选型（已验证）</th><th>为什么 / 备注</th><th style="width:16%">备选</th></tr></thead>
+      <tbody>
+        <tr><td><b>语言</b></td><td><code>TypeScript 全栈</code></td><td>server + web + shared 共享类型，一套心智；<code>src/shared/types.ts</code> 前后端复用</td><td>Rust（Tauri 路线）</td></tr>
+        <tr><td><b>桌面壳</b></td><td><code>Electron 33</code>（内嵌 Node 20）</td><td>直接 import Node 服务端代码；native 模块生态全</td><td>Tauri 2</td></tr>
+        <tr><td><b>服务端</b></td><td><code>Express 4 + cors + multer</code></td><td>轻量、无状态、register(app, ctx) DI 友好</td><td>Fastify</td></tr>
+        <tr><td><b>前端</b></td><td><code>React 18 + react-router-dom 6 + Vite 6 + Tailwind 3</code></td><td>生态最大、组件复用成熟</td><td>Vue 3 / Svelte</td></tr>
+        <tr><td><b>服务端打包</b></td><td><code>esbuild</code>（--bundle --format=esm --packages=external）</td><td>秒级打包；native 模块 external 不打包</td><td>tsup / rollup</td></tr>
+        <tr><td><b>数据库</b></td><td><code>better-sqlite3</code>（WAL、单文件）</td><td>零配置、事务简单、本地工具最优解；<code>journal_mode=WAL</code></td><td>SQLite + knex</td></tr>
+        <tr><td><b>本地语音</b></td><td><code>echogarden</code>（Kokoro TTS / Whisper STT）</td><td>一个库覆盖 STT+TTS+对齐，模型自动下载管理</td><td>sherpa-onnx</td></tr>
+        <tr><td><b>本地 ML</b></td><td><code>onnxruntime-node</code></td><td>ONNX 模型跨平台推理（词频分类、标点、向量化）</td><td>transformers.js</td></tr>
+        <tr><td><b>LLM 接入</b></td><td><code>OpenAI 兼容协议</code>（/chat/completions）</td><td>ollama（本地）/ DeepSeek / 任意云 API 统一接口，换供应商只改配置</td><td>各家原生 SDK</td></tr>
+        <tr><td><b>网络层</b></td><td><code>undici（Electron 下锁 6.x！）+ EnvHttpProxyAgent</code></td><td>Node 内置 fetch 底层；代理感知（HTTP(S)_PROXY），国内环境必需</td><td>node-fetch（已弃用）</td></tr>
+        <tr><td><b>网页清洗</b></td><td><code>jsdom + @mozilla/readability</code></td><td>新闻 URL 导入只保留正文，去广告/导航/侧栏/页脚</td><td>cheerio（无 JS 执行，弱）</td></tr>
+        <tr><td><b>离线词典</b></td><td><code>@divisey/js-mdict</code></td><td>直接读 .mdx 词典文件，离线查询+发音</td><td>自建词表 JSON</td></tr>
+        <tr><td><b>媒体处理</b></td><td><code>ffmpeg + wavesurfer.js + pitchfinder</code></td><td>转码、波形、基频分析</td><td>fluent-ffmpeg</td></tr>
+        <tr><td><b>Dev 编排</b></td><td><code>concurrently + tsx watch</code></td><td>双进程热更新</td><td>npm-run-all</td></tr>
+        <tr><td><b>打包分发</b></td><td><code>electron-builder + electron-rebuild</code></td><td>dmg/安装包、native ABI 重建</td><td>electron-forge</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <!-- ====== B3 目录结构 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">3</span><h2>目录结构模板（复制即用）</h2><span class="en">Directory Template</span></div>
+    <details class="tree" open>
+      <summary>📂 项目骨架（点击折叠/展开）</summary>
+      <div class="tree-body">
+<pre><code><span class="c-cm"># 原则：服务端按「路由 → 引擎 → 数据」分层，前端按「页面 → 组件 → 工具」分层，
+#       前后端按同一业务域组织（settings 分区 ↔ engines 目录一一对应）</span>
+<span class="c-pn">tool/</span>
+├── <span class="c-fn">electron/</span>
+│   └── main.cjs                  <span class="c-cm"># 壳层：单实例锁 · server 启动/健康握手 · 开窗 · userData 重定向</span>
+├── <span class="c-fn">src/</span>
+│   ├── <span class="c-fn">server/</span>
+│   │   ├── index.ts              <span class="c-cm"># boot：中间件 + 路由注册 + 静态托管（纪律：&lt; 400 行）</span>
+│   │   ├── db.ts                 <span class="c-cm"># 数据层唯一入口：SQLite(WAL) 单例 + 库路径 + 迁移 + 目录规划</span>
+│   │   ├── analysis.ts           <span class="c-cm"># 业务服务（分析、转写后处理）</span>
+│   │   ├── segments.ts           <span class="c-cm"># 领域逻辑（字幕/分段/对齐）</span>
+│   │   ├── util-ffmpeg.ts        <span class="c-cm"># 平台感知的 ffmpeg 定位</span>
+│   │   ├── <span class="c-fn">engines/</span>             <span class="c-cm"># 引擎层：一引擎一文件，&lt; 300 行</span>
+│   │   │   ├── http.ts           <span class="c-cm">#   统一网络出口（代理感知）</span>
+│   │   │   ├── stt.ts            <span class="c-cm">#   语音转写</span>
+│   │   │   ├── tts.ts            <span class="c-cm">#   语音合成（本地/云端多供应商）</span>
+│   │   │   ├── llm.ts            <span class="c-cm">#   大模型对话（OpenAI 兼容协议）</span>
+│   │   │   ├── models.ts         <span class="c-cm">#   本地模型 ensure/下载/校验</span>
+│   │   │   └── index.ts          <span class="c-cm">#   barrel：对外导入面稳定</span>
+│   │   └── <span class="c-fn">routes/</span>             <span class="c-cm"># 薄 HTTP 层：register(app, ctx)，只做解析/校验/回包</span>
+│   │       ├── resources.ts  import.ts  dict.ts  engines.ts
+│   │       └── settings.ts  words.ts  notes.ts  chat.ts
+│   ├── <span class="c-fn">shared/</span>
+│   │   └── types.ts              <span class="c-cm"># 前后端共享类型（Resource/Word/Note/Settings…）</span>
+│   └── <span class="c-fn">web/</span>                  <span class="c-cm"># 前端 SPA</span>
+│       ├── main.tsx  App.tsx  api.ts  index.css  index.html
+│       ├── <span class="c-fn">pages/</span>             <span class="c-cm"># 路由级页面</span>
+│       ├── <span class="c-fn">components/</span>        <span class="c-cm"># 复用组件</span>
+│       ├── <span class="c-fn">lib/</span>              <span class="c-cm"># 纯函数工具（markdown、segments、coca…）</span>
+│       └── <span class="c-fn">pages/settings/</span>    <span class="c-cm"># 设置分区（Llm/Tts/Stt/SystemSection）</span>
+├── <span class="c-fn">data/</span>                       <span class="c-cm"># 本地模型、词典、COCA 词表等（打包时 extraResources）</span>
+├── <span class="c-fn">dist/</span>  <span class="c-fn">dist-server/</span>  <span class="c-fn">dist-electron/</span>   <span class="c-cm"># SPA / 服务端单文件 / 安装包产物</span>
+├── <span class="c-fn">docs/</span>  <span class="c-fn">scripts/</span>  <span class="c-fn">tests/</span>              <span class="c-cm"># 文档 / 自动化脚本 / 测试</span>
+└── package.json  vite.config.ts  tsconfig.json  tailwind.config.js</code></pre>
+      </div>
+    </details>
+  </div>
+
+  <!-- ====== B4 进程与部署 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">4</span><h2>进程与部署模型</h2><span class="en">Process &amp; Deploy</span></div>
+
+    <h3>4.1 运行时拓扑：单进程内嵌服务</h3>
+    <div class="dia">
+      <div class="dia-title">Dev 双进程 vs 生产单进程</div>
+      <svg viewBox="0 0 900 190" xmlns="http://www.w3.org/2000/svg" font-family="PingFang SC, sans-serif">
+        <defs>
+          <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#58a6ff"/></marker>
+        </defs>
+        <!-- Dev -->
+        <text x="230" y="24" fill="#d29922" font-size="13" font-weight="700" text-anchor="middle">DEV · 双进程热更新</text>
+        <rect x="30" y="38" width="150" height="52" rx="10" fill="#161b22" stroke="#3d4550"/><text x="105" y="60" fill="#e6edf3" font-size="11.5" text-anchor="middle" font-weight="700">tsx watch</text><text x="105" y="78" fill="#8b949e" font-size="10.5" text-anchor="middle">server :8787</text>
+        <rect x="30" y="112" width="150" height="52" rx="10" fill="#161b22" stroke="#3d4550"/><text x="105" y="134" fill="#e6edf3" font-size="11.5" text-anchor="middle" font-weight="700">Vite</text><text x="105" y="152" fill="#8b949e" font-size="10.5" text-anchor="middle">web :5173</text>
+        <path d="M105 90 L105 104" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr3)"/>
+        <text x="105" y="108" fill="#58a6ff" font-size="9" text-anchor="middle">live-mirror 代理</text>
+        <text x="230" y="100" fill="#8b949e" font-size="11" text-anchor="middle">concurrently 编排 · 8787 把非 /api 代理到 5173</text>
+        <text x="230" y="118" fill="#8b949e" font-size="11" text-anchor="middle">开发只访问一个地址，即得热更新 UI + 真实 API</text>
+        <!-- Prod -->
+        <text x="660" y="24" fill="#3fb950" font-size="13" font-weight="700" text-anchor="middle">PROD · 单进程</text>
+        <rect x="440" y="38" width="200" height="126" rx="12" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="540" y="60" fill="#58a6ff" font-size="11.5" text-anchor="middle" font-weight="700">Electron 主进程</text>
+        <text x="540" y="80" fill="#8b949e" font-size="10.5" text-anchor="middle">import dist-server/index.mjs</text>
+        <text x="540" y="98" fill="#8b949e" font-size="10.5" text-anchor="middle">esbuild 单文件 ESM</text>
+        <text x="540" y="116" fill="#8b949e" font-size="10.5" text-anchor="middle">native 已 electron-rebuild</text>
+        <text x="540" y="134" fill="#8b949e" font-size="10.5" text-anchor="middle">运行时无需 npm/tsx</text>
+        <text x="540" y="152" fill="#8b949e" font-size="10.5" text-anchor="middle">userData 重定向可写目录</text>
+        <rect x="700" y="60" width="170" height="70" rx="10" fill="#161b22" stroke="#3d4550"/>
+        <text x="785" y="85" fill="#e6edf3" font-size="11.5" text-anchor="middle" font-weight="700">BrowserWindow</text>
+        <text x="785" y="103" fill="#8b949e" font-size="10.5" text-anchor="middle">加载 localhost:8787</text>
+        <text x="785" y="119" fill="#8b949e" font-size="10.5" text-anchor="middle">contextIsolation</text>
+        <line x1="640" y1="100" x2="696" y2="95" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr3)"/>
+      </svg>
+    </div>
+
+    <h3>4.2 为什么把服务端跑在 localhost 而不是直接调 Node API</h3>
+    <div class="grid3">
+      <div class="card"><span class="ic">🛡️</span><h4>安全面最小</h4><p>渲染进程保持 nodeIntegration:false + contextIsolation:true。</p></div>
+      <div class="card"><span class="ic">🧪</span><h4>可直接测试</h4><p>curl / 浏览器 / headless Chrome 都能测 —— 本次黑屏排查就靠这一点快速归因。</p></div>
+      <div class="card"><span class="ic">🔮</span><h4>未来可拆</h4><p>要拆「远程部署 / 云同步」时 HTTP 边界已就位，无需重构。</p></div>
+    </div>
+
+    <h3>4.3 一键脚本模板 + 打包要点</h3>
+    <pre><code><span class="c-cm">// package.json（核心 scripts）</span>
+"dev": <span class="c-st">"concurrently -n server,web \"npm:dev:server\" \"npm:dev:web\""</span>,
+"dev:server": <span class="c-st">"LINGO_DEV=1 tsx watch src/server/index.ts"</span>,
+"build": <span class="c-st">"vite build"</span>,
+"build:server": <span class="c-st">"esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.mjs --packages=external --external:better-sqlite3 --external:onnxruntime-node"</span>,
+"rebuild": <span class="c-st">"electron-rebuild -f -w better-sqlite3,onnxruntime-node"</span>,
+"dist:mac": <span class="c-st">"npm run build && npm run build:server && npm run rebuild && electron-builder --mac"</span></code></pre>
+    <div class="grid2">
+      <div class="card"><span class="ic">📦</span><h4>electron-builder 要点</h4><p><code>files</code>: dist/ + dist-server/ + electron/ + node_modules（排除体积大户）· <code>extraResources</code>: 词典/词表/模型 · <code>asar: false</code>（native 模块解包，稳定优先）· 打包前必须 electron-rebuild。</p></div>
+      <div class="card"><span class="ic">🚢</span><h4>发布策略</h4><p>测试版先发 GitHub prerelease（未签名需写明右键打开 / xattr 解法）；正式版 Developer ID 签名 + notarize（$99/年会员，公证免费）；CI 上 GitHub Actions 三平台矩阵。</p></div>
+    </div>
+  </div>
+
+  <!-- ====== B5/B6 数据层 & 引擎层 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">5</span><h2>数据层设计</h2><span class="en">Data Layer</span></div>
+    <div class="grid3">
+      <div class="card"><span class="ic">🗄️</span><h4>SQLite + WAL + 单例</h4><p>getDb() 惰性单例，PRAGMA journal_mode=WAL，渐进式 CREATE TABLE IF NOT EXISTS（轻量场景不需要迁移框架）。</p></div>
+      <div class="card"><span class="ic">⚙️</span><h4>设置用 key-value JSON 表</h4><p>默认值对象 + 存储值浅合并 —— 新增 key 对老用户配置向后兼容。</p></div>
+      <div class="card"><span class="ic">📁</span><h4>大文件不入库</h4><p>库只存元数据 + relativePath，文件在库目录；新/旧两种布局兼容解析。</p></div>
+      <div class="card"><span class="ic">🔑</span><h4>密钥管理</h4><p>API key 存本地 SQLite（不入 git 不写死）；多供应商用「历史列表 + defaultId」模式，默认模型只用自己存的 key，严格隔离。</p></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">6</span><h2>引擎层设计（可插拔）</h2><span class="en">Engine Layer</span></div>
+    <div class="grid3">
+      <div class="card"><span class="ic">📦</span><h4>一引擎一文件 &lt; 300 行 + barrel</h4><p>对外导入面稳定，内部自由拆分。</p></div>
+      <div class="card"><span class="ic">🔌</span><h4>统一协议</h4><p>LLM / 云端 TTS 全部走 OpenAI 兼容接口（baseUrl + model + 可选 apiKey）——本地 ollama、云端 DeepSeek/Fish 只是配置差异。</p></div>
+      <div class="card"><span class="ic">⬇️</span><h4>本地模型一次性 ensure</h4><p>ensureModel() 负责下载/校验/缓存；模型目录可重定向、首次启动做旧路径迁移。</p></div>
+      <div class="card"><span class="ic">🗺️</span><h4>settings 与引擎一一对应</h4><p>设置分区组件（LlmSection/TtsSection…）与后端 engines/ 目录同名同构，改配置链路直观。</p></div>
+    </div>
+  </div>
+
+  <!-- ====== B7-9 稳定效率安全 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">7</span><h2>稳定性 · 效率 · 安全</h2><span class="en">Stability · Efficiency · Security</span></div>
+    <h3>7.1 稳定性实践</h3>
+    <div class="grid3">
+      <div class="card"><span class="ic">❤️</span><h4>健康检查握手</h4><p>Electron 开窗前轮询 /api/health（超时兜底），server 没起来不闪窗。</p></div>
+      <div class="card"><span class="ic">🔐</span><h4>单实例锁 + 优雅退出</h4><p>requestSingleInstanceLock + second-instance 聚焦已有窗口；窗口全关 kill 服务子进程。</p></div>
+      <div class="card"><span class="ic">🌐</span><h4>代理感知网络</h4><p>Node 内置 fetch 忽略代理环境变量 → EnvHttpProxyAgent 启动时全局注入，无代理直连。</p></div>
+      <div class="card"><span class="ic">🧭</span><h4>dist 路径候选探测</h4><p>esbuild 改变 __dirname 深度 → 候选数组 find(exists(index.html)) 兜底。</p></div>
+      <div class="card"><span class="ic">🪂</span><h4>dev 镜像容错</h4><p>live-mirror 代理 Vite 失败时 fallback 到 dist 静态托管。</p></div>
+      <div class="card"><span class="ic">🛡️</span><h4>并发与缓存</h4><p>multer 限流（500MB）、ffmpeg 子进程、转写/分析结果缓存、STT 去重守卫。</p></div>
+    </div>
+    <h3>7.2 效率实践</h3>
+    <div class="grid3">
+      <div class="card"><span class="ic">⚡</span><h4>构建分离</h4><p>build（Vite 前端）与 build:server（esbuild 后端）独立，互不阻塞、可缓存。</p></div>
+      <div class="card"><span class="ic">🕒</span><h4>懒加载大资源</h4><p>只读 JSON 首载后缓存内存；模型 ensure 只跑一次。</p></div>
+      <div class="card"><span class="ic">💾</span><h4>分析缓存</h4><p>转写/分析按资源缓存（实测 2.4MB 缓存直接命中）。</p></div>
+      <div class="card"><span class="ic">📏</span><h4>&lt; 300 行纪律</h4><p>文件小 → 认知负载低 → 开发/评审/排错都快（最被低估的效率手段）。</p></div>
+    </div>
+    <h3>7.3 安全实践</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:22%">项</th><th>做法</th></tr></thead>
+      <tbody>
+        <tr><td><b>渲染进程隔离</b></td><td>contextIsolation: true, nodeIntegration: false —— 渲染层永远拿不到 Node</td></tr>
+        <tr><td><b>外链处理</b></td><td>setWindowOpenHandler 一律 shell.openExternal，阻止在壳内打开</td></tr>
+        <tr><td><b>API 404 保护</b></td><td>/api/* 未命中路由返回 JSON 404，绝不 fall 到 SPA shell</td></tr>
+        <tr><td><b>密钥管理</b></td><td>API key 存本地 SQLite；不入 git；默认模型 key 严格隔离</td></tr>
+        <tr><td><b>数据隐私（卖点）</b></td><td>本地优先：服务端无状态、音频仅内存 Blob、文本存本地；第三方 API 只发必要内容（DeepSeek/Fish 属"调用第三方"，与"自己服务器留存"明确区分）</td></tr>
+        <tr><td><b>沙盒预览</b></td><td>webview/iframe 预览 localStorage 缺失 → 提供 shim 保证可启动</td></tr>
+        <tr><td><b>分发安全</b></td><td>未签名包在 release notes 明示 Gatekeeper 解法；正式版签名 + 公证</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <!-- ====== B10 已知坑 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">8</span><h2>已知坑（lingutribe 实战踩过，直接避雷）</h2><span class="en">Pitfalls</span></div>
+    <div class="pit"><div class="no">1</div><div><h4>undici 版本与 Electron Node 版本必须对齐</h4><p>undici 8.x 需要 Node 22，而 Electron 33 内嵌 Node 20 → 服务端 import 即崩、窗口一片黑。<span class="fix">✅ 锁 undici@6.28.0（Node ≥ 18.17）</span></p></div></div>
+    <div class="pit"><div class="no">2</div><div><h4>esbuild 打包改变 __dirname 深度</h4><p>src/server/（到 dist 2 级）vs dist-server/（1 级）→ 静态托管路径找不到 → 黑屏。<span class="fix">✅ 候选路径探测 find(exists(index.html))</span></p></div></div>
+    <div class="pit"><div class="no">3</div><div><h4>native 模块 ABI 双轨</h4><p>dev 下 npm rebuild（Node ABI）与打包 electron-rebuild（Electron ABI）互斥。<span class="fix">✅ 在打包脚本里做 rebuild，别手动来回切</span></p></div></div>
+    <div class="pit"><div class="no">4</div><div><h4>Electron 拒绝 NODE_OPTIONS=--use-system-ca</h4><p>沙箱注入会导致 Electron 进程启动失败。<span class="fix">✅ 测试 Electron 进程用 env -u NODE_OPTIONS</span></p></div></div>
+    <div class="pit"><div class="no">5</div><div><h4>spawn 下 ffmpeg 编码器兼容</h4><p>spawn 调 aac 进 .mp3 会 exit 234。<span class="fix">✅ 静音占位一律用 WAV；真实 TTS 返回的 mp3 不受影响</span></p></div></div>
+    <div class="pit"><div class="no">6</div><div><h4>Vite 默认只绑 localhost</h4><p>dev 服务需 --host 0.0.0.0 才能被其它进程/容器访问。</p></div></div>
+    <div class="pit"><div class="no">7</div><div><h4>沙盒 iframe 无 localStorage</h4><p>预览环境启动即崩。<span class="fix">✅ 提供 shim</span></p></div></div>
+    <div class="pit"><div class="no">8</div><div><h4>端口逻辑不一致</h4><p>曾出现 server 忽略环境变量端口、curl 打错端口导致「假失败」。<span class="fix">✅ 端口逻辑统一，测试前先确认监听端口</span></p></div></div>
+  </div>
+
+  <!-- ====== B11 检查清单 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">9</span><h2>从 0 到 1 检查清单（可交互）</h2><span class="en">Interactive Checklist</span></div>
+
+    <div class="clist" data-prog>
+      <div class="clist-head"><h4>阶段 0 · 选型（30 分钟）</h4><div class="prog"><i></i></div><span class="prog-txt">0/2</span></div>
+      <label><input type="checkbox"> 确认核心能力有 Node 库（无 → 评估 Tauri / Web / Python 侧服务）</label>
+      <label><input type="checkbox"> 确定 LLM / TTS 统一走 OpenAI 兼容协议 + 数据库（默认 better-sqlite3）</label>
+    </div>
+
+    <div class="clist" data-prog>
+      <div class="clist-head"><h4>阶段 1 · 骨架（半天）</h4><div class="prog"><i></i></div><span class="prog-txt">0/4</span></div>
+      <label><input type="checkbox"> 目录模板落地（§3）</label>
+      <label><input type="checkbox"> 双进程 dev（8787 + 5173 live-mirror）跑通</label>
+      <label><input type="checkbox"> /api/health + SPA 静态托管跑通</label>
+      <label><input type="checkbox"> 空壳打包（electron-builder dmg）跑通 + userData 重定向</label>
+    </div>
+
+    <div class="clist" data-prog>
+      <div class="clist-head"><h4>阶段 2 · 数据层 + 第一个域（1 天）</h4><div class="prog"><i></i></div><span class="prog-txt">0/2</span></div>
+      <label><input type="checkbox"> db.ts 单例 + WAL + 迁移 + 库路径</label>
+      <label><input type="checkbox"> 一个完整 CRUD 域（resources）全链路：routes → db → 前端页面</label>
+    </div>
+
+    <div class="clist" data-prog>
+      <div class="clist-head"><h4>阶段 3 · 引擎接入（按需）</h4><div class="prog"><i></i></div><span class="prog-txt">0/3</span></div>
+      <label><input type="checkbox"> 顺序：LLM（最简单）→ TTS → STT → 本地模型</label>
+      <label><input type="checkbox"> 每个引擎：文件 &lt; 300 行 + barrel + 设置分区对应</label>
+      <label><input type="checkbox"> 稳定性：健康握手 + 单实例锁 + 优雅退出 + 代理感知 fetch + dist 路径探测 + 缓存/去重/大文件流式</label>
+    </div>
+
+    <div class="clist" data-prog>
+      <div class="clist-head"><h4>阶段 4 · 发布</h4><div class="prog"><i></i></div><span class="prog-txt">0/3</span></div>
+      <label><input type="checkbox"> GitHub prerelease（未签名 caveat 写进 release notes）</label>
+      <label><input type="checkbox"> 正式版：Developer ID 签名 + notarize（$99/年会员，公证免费）</label>
+      <label><input type="checkbox"> CI 三平台构建矩阵</label>
+    </div>
+
+    <div class="note"><b>总进度</b> 会根据勾选自动统计 —— 作为新项目的落地跟踪看板。</div>
+  </div>
+
+  <!-- ====== B12 演进路线 ====== -->
+  <div class="sec">
+    <div class="sec-h"><span class="sec-num">10</span><h2>演进路线</h2><span class="en">Evolution Path</span></div>
+    <div class="tl">
+      <div class="tl-item"><div class="t">server 拆独立进程</div><div class="s">与 Electron 壳彻底解耦：进程崩溃隔离、多窗口、可远程调试（当前 import 进主进程，崩溃即整窗黑）。</div></div>
+      <div class="tl-item"><div class="t">Tauri 备选</div><div class="s">若包体积成为硬指标，UI 层可平移，服务端逻辑仍可复用（Rust 侧需评估）。</div></div>
+      <div class="tl-item"><div class="t">云同步 / 多设备</div><div class="s">HTTP 边界已就位，加同步模块（加密上传可选资源）即可，不影响本地优先。</div></div>
+      <div class="tl-item"><div class="t">自动化测试补全</div><div class="s">vitest + supertest 补 API 集成测试，把冒烟脚本固化进 CI。</div></div>
+      <div class="tl-item good"><div class="t">数据导出 / 备份</div><div class="s">库单文件 + 资源目录，天然可整体备份。</div></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <span>lingutribe · 架构重构报告 & 桌面 AI 工具蓝图 · v0.1.0</span>
+  <span>基于真实 git 历史与行数统计 · 2026-08-06</span>
+</footer>
+
+<button id="backtop" title="回到顶部">↑</button>
+
+<script>
+  // ---------- Tab switching ----------
+  const tabs = document.querySelectorAll('.tab');
+  const panes = { report: document.getElementById('pane-report'), blueprint: document.getElementById('pane-blueprint') };
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    Object.entries(panes).forEach(([k, p]) => p.classList.toggle('active', k === t.dataset.tab));
+    window.scrollTo({ top: 0 });
+  }));
+
+  // ---------- Stat counter ----------
+  const stats = document.querySelectorAll('.stat .num[data-count]');
+  function animateCount(el) {
+    const target = +el.dataset.count;
+    const dur = 900; const t0 = performance.now();
+    function step(t) {
+      const p = Math.min((t - t0) / dur, 1);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { animateCount(e.target); io.unobserve(e.target); } }), { threshold: .4 });
+  stats.forEach(s => io.observe(s));
+
+  // ---------- Checklist progress ----------
+  document.querySelectorAll('.clist[data-prog]').forEach(cl => {
+    const boxes = cl.querySelectorAll('input[type=checkbox]');
+    const bar = cl.querySelector('.prog i');
+    const txt = cl.querySelector('.prog-txt');
+    const upd = () => {
+      const done = cl.querySelectorAll('input:checked').length;
+      bar.style.width = (done / boxes.length * 100) + '%';
+      txt.textContent = `${done}/${boxes.length}`;
+      boxes.forEach(b => b.closest('label').classList.toggle('done', b.checked));
+    };
+    boxes.forEach(b => b.addEventListener('change', upd));
+  });
+
+  // ---------- Back to top ----------
+  const bt = document.getElementById('backtop');
+  window.addEventListener('scroll', () => bt.classList.toggle('show', window.scrollY > 500));
+  bt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+</body>
+</html>

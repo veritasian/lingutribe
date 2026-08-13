@@ -1,90 +1,33 @@
 {
-  "name": "lingutribe",
+  "name": "lingutribe-core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "electron/main.cjs",
-  "description": "Lightweight local-first language-learning tool built around echogarden",
+  "description": "Local-first language-learning engine — Express API + echogarden STT/TTS. Public/open-core backend for Lingutribe (UI lives in the separate private lingutribe-web repo).",
   "scripts": {
-    "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "LINGO_DEV=1 tsx watch src/server/index.ts",
-    "dev:web": "vite",
-    "build": "vite build",
+    "dev:server": "tsx watch src/server/index.ts",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.mjs --packages=external --external:better-sqlite3 --external:onnxruntime-node --external:onnxruntime-common --external:fsevents --log-level=warning",
-    "rebuild": "electron-rebuild -f -w better-sqlite3,onnxruntime-node",
     "start": "tsx src/server/index.ts",
-    "app": "electron .",
-    "dist:mac": "npm run build && npm run build:server && npm run rebuild && electron-builder --mac",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.0",
     "@divisey/js-mdict": "^5.0.0",
-    "@mozilla/readability": "^0.6.0",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "echogarden": "^2.3.5",
     "express": "^4.21.2",
     "https-proxy-agent": "^9.1.0",
-    "jsdom": "^26.1.0",
     "multer": "^1.4.5-lts.1",
-    "pitchfinder": "^2.3.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "undici": "^6.28.0",
-    "wavesurfer.js": "^7.12.11"
+    "undici": "^8.9.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
-    "@types/jsdom": "^28.0.3",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.5",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.20",
-    "concurrently": "^9.1.2",
-    "electron": "^33.2.0",
-    "electron-builder": "^24.13.3",
-    "electron-rebuild": "^3.2.9",
     "esbuild": "^0.24.2",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "vite": "^6.2.2"
-  },
-  "build": {
-    "appId": "com.lingutribe.app",
-    "productName": "Lingutribe",
-    "directories": {
-      "output": "dist-electron",
-      "buildResources": "build"
-    },
-    "files": [
-      "dist/**",
-      "dist-server/**",
-      "electron/**",
-      "package.json",
-      "node_modules/**",
-      "!node_modules/kuromoji",
-      "!node_modules/kuromoji/**",
-      "!node_modules/microsoft-cognitiveservices-speech-sdk",
-      "!node_modules/microsoft-cognitiveservices-speech-sdk/**"
-    ],
-    "extraResources": [
-      {
-        "from": "data/coca-bands.json",
-        "to": "app/data/coca-bands.json"
-      }
-    ],
-    "asar": false,
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.education"
-    }
+    "typescript": "^5.7.2"
   }
 }
