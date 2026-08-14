@@ -1,0 +1,1236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 220 9% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 9% 12%;
+  --popover: 0 0% 100%;
+  --primary: 211 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 14% 94%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 211 100% 50%;
+  --sidebar: 220 15% 97%;
+  --radius: 0.625rem;
+}
+
+/* Use the theme border token for ALL borders (including Tailwind's
+   border-r / border-b utilities that otherwise default to a light gray
+   that looks white on the dark theme). */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: hsl(var(--border));
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    "Segoe UI", system-ui, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+.note-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.sidebar-item:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+.sidebar-item.active {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: filter 0.12s ease, background 0.12s ease;
+}
+.btn-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+.btn-secondary {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+.btn-secondary:hover {
+  background: hsl(var(--accent));
+}
+.btn-ghost {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+.btn-ghost:hover {
+  background: hsl(var(--accent));
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Square icon-only button (e.g. Re-transcribe) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: filter 0.12s ease, background 0.12s ease;
+}
+.icon-btn:hover {
+  background: hsl(var(--accent));
+}
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Circular icon-only button with a ring around it (e.g. Delete) */
+.icon-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.icon-circle-btn:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 0.45);
+  background: hsl(var(--accent));
+}
+
+/* Toggle arrow: small button that becomes circular on hover. Used by the
+   sidebar logo, the resources list, and the right panel close/collapse —
+   keeps the three expand/collapse controls visually consistent. */
+.toggle-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  border: none;
+  transition: background 0.12s ease, color 0.12s ease, border-radius 0.12s ease;
+}
+.toggle-circle-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+  border-radius: 9999px;
+}
+.toggle-circle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  font-size: 13px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  outline: none;
+}
+.textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.45;
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: hsl(var(--accent));
+  overflow: hidden;
+}
+.progress > div {
+  height: 100%;
+  background: hsl(var(--primary));
+  transition: width 0.2s ease;
+}
+
+.scroll {
+  overflow-y: auto;
+}
+.scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ---- Dark theme (Apple-inspired near-black paper) ---- */
+.dark {
+  --background: 240 6% 10%;
+  --foreground: 0 0% 96%;
+  --card: 240 6% 13%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 6% 14%;
+  --primary: 211 100% 56%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 18%;
+  --muted: 240 5% 17%;
+  --muted-foreground: 240 5% 64%;
+  --accent: 240 5% 21%;
+  --border: 240 5% 22%;
+  --input: 240 5% 22%;
+  --ring: 211 100% 56%;
+  --sidebar: 240 6% 11%;
+}
+.dark body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* ---- Transcript / clickable words ---- */
+.word {
+  display: inline-block;
+  padding: 0 1px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.word:hover {
+  background: hsl(var(--primary) / 0.16);
+  color: hsl(var(--primary));
+}
+.word.active {
+  background: hsl(var(--primary) / 0.28);
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+.word.added {
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.5);
+  text-underline-offset: 3px;
+}
+
+/* ---- Waveform container ---- */
+.waveform {
+  width: 100%;
+  border-radius: 10px;
+  background: hsl(var(--secondary));
+  padding: 6px 4px;
+}
+.waveform wave {
+  border-radius: 8px;
+}
+.dark .waveform wave {
+  filter: brightness(0.95);
+}
+
+/* ---------------------------------------------------------------------------
+   Waveform panel — enjoy-style balance (toolbar fused into the panel)
+   ------------------------------------------------------------------------- */
+.wp-panel {
+  position: relative;
+  background: hsl(var(--card));
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+.wp-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.wp-scroll::-webkit-scrollbar { height: 8px; }
+.wp-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+.wp-content {
+  position: relative;
+  padding: 4px 0;
+}
+.wp-wave {
+  background: transparent;
+  position: relative;
+}
+.wp-times-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 6px 0;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
+.reader-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.reader-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.reader-frame {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  width: 100%;
+  background: hsl(var(--card));
+}
+
+/* ---- Player view (audio/video detail) ---- */
+.resize-handle {
+  height: 6px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  background: hsl(var(--card));
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+}
+.resize-handle::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 3px;
+  border-radius: 999px;
+  background: hsl(var(--border));
+  transition: background 0.15s;
+}
+.resize-handle:hover::after {
+  background: hsl(var(--primary) / 0.6);
+}
+
+/* When the user is dragging the waveform, prevent text selection on the page. */
+.waveform-dragging,
+.waveform-dragging * {
+  user-select: none !important;
+  cursor: ew-resize !important;
+}
+
+/* ---- MDict dictionary entry (rendered HTML from .mdx) ---- */
+.mdict-entry {
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  line-height: 1.55;
+}
+.mdict-entry h1,
+.mdict-entry h2,
+.mdict-entry h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  color: hsl(var(--foreground));
+}
+.mdict-entry .headword,
+.mdict-entry .hw,
+.mdict-entry .title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.mdict-entry .pos,
+.mdict-entry .gram,
+.mdict-entry .p {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  font-size: 12px;
+}
+.mdict-entry .phonetic,
+.mdict-entry .pron,
+.mdict-entry .h {
+  color: hsl(var(--primary));
+  font-size: 12px;
+}
+.mdict-entry .def,
+.mdict-entry .d {
+  margin: 4px 0;
+}
+.mdict-entry .ex,
+.mdict-entry .example,
+.mdict-entry .x {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 8px;
+  margin: 4px 0;
+}
+.mdict-entry ol,
+.mdict-entry ul {
+  margin: 4px 0 4px 18px;
+  padding: 0;
+}
+.mdict-entry li {
+  margin: 2px 0;
+}
+.mdict-entry a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+.mdict-entry a:hover {
+  text-decoration: underline;
+}
+.mdict-entry img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+.mdict-entry table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+}
+.mdict-entry th,
+.mdict-entry td {
+  border: 1px solid hsl(var(--border));
+  padding: 4px 6px;
+  text-align: left;
+}
+.mdict-entry hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 8px 0;
+}
+
+/* Oxford / generic MDict custom tag names (rendered as unknown elements) */
+.mdict-entry def,
+.mdict-entry ex,
+.mdict-entry chn,
+.mdict-entry top-g,
+.mdict-entry cixing_part,
+.mdict-entry pos-g {
+  display: block;
+}
+.mdict-entry def {
+  margin: 6px 0;
+}
+.mdict-entry ex {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 8px;
+  margin: 5px 0;
+}
+.mdict-entry chn {
+  color: hsl(var(--primary));
+}
+.mdict-entry cixing_part {
+  margin-bottom: 14px;
+}
+.mdict-entry pos-g {
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+.mdict-entry symbol {
+  opacity: 0.5;
+}
+/* OALD8-style classes (span-based def/ex/chn instead of custom tags) */
+.mdict-entry .chn {
+  color: hsl(var(--primary));
+}
+.mdict-entry .def-g {
+  display: block;
+  margin: 5px 0;
+}
+.mdict-entry .x-g {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 8px;
+  margin: 5px 0;
+}
+.mdict-entry .sense-g {
+  display: block;
+  margin: 3px 0;
+}
+.mdict-entry .id {
+  opacity: 0.5;
+  font-size: 11px;
+}
+/* xhtml:a / a cross-refs (href stripped server-side) render as plain text */
+.mdict-entry xhtml\:a,
+.mdict-entry a {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+}
+
+/* Word-panel dictionary card pieces */
+.mdict-section {
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 10px;
+}
+.mdict-pos {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: hsl(var(--primary));
+  margin-bottom: 2px;
+}
+.mdict-audio {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  color: hsl(var(--primary));
+  border-radius: 4px;
+}
+.mdict-audio:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.12);
+}
+.mdict-audio:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.mdict-def {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.mdict-def-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+}
+.mdict-num {
+  font-weight: 600;
+  color: hsl(var(--primary));
+  min-width: 14px;
+}
+.mdict-en {
+  color: hsl(var(--foreground));
+}
+.mdict-cn {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.mdict-ex {
+  margin-top: 2px;
+  padding-left: 20px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.45;
+}
+
+/* ---- Subtitle (one sentence per line) transcript view ---- */
+.subtitle-line {
+  display: block;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  line-height: 1.6;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.subtitle-line:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+.subtitle-line.active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.07);
+}
+.subtitle-line .word {
+  padding: 0 1px;
+}
+
+/* ---- Subtitle (one sentence per line) — enjoy-style numbered rows ---- */
+.subtitle-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  min-height: 44px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  line-height: 1.55;
+  font-size: 15px;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.subtitle-caption {
+  text-align: left;
+}
+.subtitle-row:hover {
+  background: hsl(var(--muted) / 0.6);
+}
+.subtitle-row.active {
+  background: hsl(var(--primary) / 0.10);
+  border-left-color: hsl(var(--primary));
+}
+.subtitle-row.active .subtitle-text {
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+.subtitle-time {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+}
+.subtitle-row.active .subtitle-time {
+  color: hsl(var(--primary));
+}
+.subtitle-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 15px;
+}
+
+/* Fixed-window subtitle scroll container — shows ~10–20 rows and scrolls as
+   the active line moves, so the list never re-lays-out (no jump). */
+.subtitle-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  scrollbar-width: thin;
+}
+
+/* Header menu tabs (page categories) — unified bottom-border style. */
+.hdr-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.hdr-tab:hover {
+  color: hsl(var(--foreground));
+}
+.hdr-tab.active {
+  color: hsl(var(--primary));
+  border-bottom-color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+/* Divider between the video and the subtitle list. */
+.subtitle-divider {
+  height: 1px;
+  background: hsl(var(--border));
+  flex: 0 0 auto;
+}
+
+/* Subtitle / Content view switch (lives inside the Transcript component) */
+.transcript-toolbar {
+  display: flex;
+  align-items: center;
+}
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  padding: 2px;
+  background: hsl(var(--muted) / 0.4);
+}
+.mode-toggle button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 4px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-toggle button:hover {
+  color: hsl(var(--foreground));
+}
+.mode-toggle button.active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Content (reading) view: flowing paragraphs with a faint timestamp. */
+.content-body {
+  padding: 2px 2px;
+}
+.content-para {
+  margin-bottom: 14px;
+  line-height: 1.7;
+  font-size: 15px;
+  text-align: left;
+}
+.content-time {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-right: 8px;
+  user-select: none;
+  vertical-align: baseline;
+}
+.content-text {
+  text-align: left;
+}
+
+/* Read page article: clear blank-line gap between paragraphs. */
+.read-article p {
+  margin: 0 0 1em;
+}
+.read-article p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown rendered content (Chat / Ask AI / grammar analysis / Read page)
+   ------------------------------------------------------------------------- */
+.md {
+  white-space: normal;
+  line-height: 1.7;
+  word-break: break-word;
+  font-size: 13px;
+}
+.md p {
+  margin: 0 0 0.7em;
+}
+.md p:last-child {
+  margin-bottom: 0;
+}
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 1em 0 0.45em;
+}
+.md h1 { font-size: 1.35em; }
+.md h2 { font-size: 1.2em; }
+.md h3 { font-size: 1.08em; }
+.md h4 { font-size: 1em; }
+.md h5 { font-size: 0.95em; }
+.md h6 { font-size: 0.9em; color: hsl(var(--muted-foreground)); }
+.md ul, .md ol {
+  margin: 0.4em 0 0.7em;
+  padding-left: 1.4em;
+}
+.md li {
+  margin: 0.15em 0;
+}
+.md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: hsl(var(--muted));
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.md-pre {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.md-pre code {
+  background: transparent;
+  padding: 0;
+}
+.md-quote {
+  border-left: 3px solid hsl(var(--border));
+  margin: 0.5em 0;
+  padding: 2px 0 2px 12px;
+  color: hsl(var(--muted-foreground));
+}
+.md-hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 0.9em 0;
+}
+.md-table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  font-size: 12.5px;
+  width: 100%;
+}
+.md-table th,
+.md-table td {
+  border: 1px solid hsl(var(--border));
+  padding: 5px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.md-table th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+.md a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+/* Per-message copy / delete buttons (Ask AI + Chat) */
+.ask-msg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.ask-msg-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+/* Floating selection toolbar (Copy / Ask AI / Read) shown on text selection
+   in the Read page. */
+.sel-toolbar {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  animation: sel-toolbar-in 0.12s ease-out;
+}
+@keyframes sel-toolbar-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+.sel-toolbar-btn {
+  appearance: none;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.sel-toolbar-btn:hover {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Statistics — per-band word groups (no expand/collapse).
+   Title centred with a neutral divider; words always visible. */
+.stat-band {
+  margin-bottom: 22px;
+}
+.stat-band-head {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.stat-band-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+.stat-divider {
+  height: 1px;
+  width: 100%;
+  background: hsl(var(--border));
+}
+.stat-band-meta {
+  text-align: center;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 10px;
+}
+.stat-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.stat-word {
+  font-size: 12px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  padding: 2px 10px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.stat-word:hover {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Audio transport bar — dark bg, white track, green progress. */
+.audio-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+.audio-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  cursor: pointer;
+}
+.audio-play:hover {
+  filter: brightness(1.08);
+}
+.audio-time {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.audio-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.audio-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #22c55e;
+  border-radius: 999px;
+}
+.audio-thumb {
+  position: absolute;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.45);
+}
+
+/* Live caption (MDN <track> model): a fixed box that shows only the current
+   cue and switches text in real time — no list scrolling / jumping. */
+.caption-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  text-align: left;
+}
+.caption-text {
+  font-size: 19px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+.caption-idle {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ---------------------------------------------------------------------------
+   Words page — card grid + COCA filter chips
+   ------------------------------------------------------------------------- */
+.word-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.word-card {
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--card));
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+.word-card:hover {
+  border-color: hsl(var(--primary) / 0.55);
+  box-shadow: 0 2px 10px hsl(var(--primary) / 0.12);
+}
+.word-card:active {
+  transform: translateY(1px);
+}
+.word-card-term {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+}
+.word-card-meaning {
+  margin-top: 4px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.word-card-band {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.word-card-del {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.word-card:hover .word-card-del {
+  opacity: 0.8;
+}
+.word-card-del:hover {
+  color: hsl(var(--destructive, #dc2626));
+  opacity: 1 !important;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.filter-chip:hover {
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+/* ---------------------------------------------------------------------------
+   Chat page — ChatGPT-style bubbles
+   ------------------------------------------------------------------------- */
+.chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.chat-row-user {
+  flex-direction: row-reverse;
+}
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  color: #fff;
+}
+.chat-avatar-bot {
+  background: hsl(var(--primary));
+}
+.chat-avatar-user {
+  background: hsl(var(--muted-foreground));
+}
+.chat-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-bubble-user {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground, #fff));
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-assistant {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-bottom-left-radius: 4px;
+}
+.chat-input {
+  resize: none;
+  max-height: 160px;
+  border-radius: 12px;
+}
+/* typing indicator */
+.chat-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.chat-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground));
+  animation: chat-blink 1.2s infinite ease-in-out;
+}
+.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chat-blink {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Read page — sentence highlight during TTS playback */
+.sentence-hi {
+  background: rgba(59, 130, 246, 0.18);
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+/* CSS Custom Highlight API — used by the Read page during read-aloud */
+::highlight(lingo-sentence) {
+  background-color: rgba(59, 130, 246, 0.25);
+}
+
+/* Word panel drag-to-resize handle (left edge) */
+.wp-resizer {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 10;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.wp-resizer:hover {
+  background: hsl(var(--primary) / 0.28);
+}
+.wp-resizer:active {
+  background: hsl(var(--primary) / 0.45);
+}
+
+

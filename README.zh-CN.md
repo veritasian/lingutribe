@@ -1,251 +1,139 @@
-# Lingutribe 中文说明
+# Lingutribe
 
-> **本地优先的语言学习工具。** 离线语音识别、文本转语音、离线词典；可选的 LLM 用于深度讲解、语法和对话。
+![Platform](https://img.shields.io/badge/platform-macOS%20arm64-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![License](https://img.shields.io/badge/license-Proprietary-red)
 
-Lingutribe 是一个轻量、可自托管的英语学习助手。你把音频 / 视频 / 文本丢进去，它就帮你学：自动转写语音、逐句朗读、离线查词、和 AI 老师对话。凡是能本地跑的都本地跑，只有可选的 LLM 功能才需要联网。
+> **本地优先的英语学习工作台。** 离线语音识别、文本转语音、离线词典，以及可选的 AI 导师——全部集成在一个桌面应用里。音频、文本、单词列表都留在你的 Mac 上；只有你主动开启的 LLM 功能才联网。
 
-## 📦 v0.1.0 — 桌面预览版（2026-08-06）
+---
 
-首个打包的 **macOS（Apple 芯片，arm64）** 桌面安装包。这是一个用于测试的 **测试版 / 预发布**，还不是最终签名版本。
+## 📦 v0.1.0 — 桌面预览版（macOS arm64）
+
+首个打包的 **macOS（Apple 芯片）** 桌面安装包，用于测试的预览版。
 
 - 把完整的本地功能栈（语音识别、语音合成、离线词典）打包进一个 `.dmg`。
-- 包含下方「最近更新」里的全部新功能。
-- **macOS 说明：** 当前安装包**未签名**。在干净的 Mac 上，Gatekeeper 会拦截首次打开。请右键点击 App（或 `.dmg`）选择「打开」，或者复制到 `/Applications` 后执行一次：
+- 当前安装包**未签名**：在干净的 Mac 上 Gatekeeper 会拦截首次打开，请右键点击 App 选择「打开」，或执行一次：
   ```bash
   xattr -dr com.apple.quarantine /Applications/Lingutribe.app
   ```
-  后续会提供 Developer ID 签名并完成公证的版本。
+- 后续版本会提供 Developer ID 签名与公证。
 
-> 📥 在 GitHub 的 **Releases** 页面下载 `Lingutribe-0.1.0-arm64.dmg`。
-
----
-
-## 最近更新
-
-- **阅读页划词工具栏** — 选中任意文字后弹出 **复制 / Ask AI / 朗读** 浮动工具条。点 **朗读** 只读选中的那段（带逐句高亮），不再只能整篇朗读；点 **Ask AI** 针对该段开新对话。
-- **AI 回复 Markdown 渲染** — Chat、Ask AI 和 Grammar 分析的结果按 Markdown 渲染（标题、列表、表格、代码块、引用都有样式），不再显示 `#`、`**` 等原始源码。
-- **新闻阅读模式导入** — 粘贴新闻链接导入时，用 **Mozilla Readability**（文本密度 + 标点打分）自动锁定文章正文，剔除广告、导航、侧边栏和页脚；非文章页面自动回退为普通导入。
-- **播放器头部更简洁** — 顶部的居中资源标题已隐藏，头部只保留右侧的操作按钮。
-- **箭头折叠/展开** — 资源列表的折叠开关改为箭头（‹ 收起 / › 展开），不再用面板方块图标。
-- **Transcript 双视图** — *Subtitle*（带时间戳行，点词即查词典）与 *Content*（正文段落，选中文字弹出 **复制 / Ask AI / 朗读** 工具条）。字幕行按固定 ~5–10 秒分块、不重叠；正文合并为 ~25 秒段落。
-- **STT 输出更干净** — Moonshine 偶发的"循环重复"（如 *…like I have this immense guilt towards I have this like…*）在服务端转写时与客户端展示时自动去重；已有字幕（如 YouTube 自带字幕）的资源不再重复转写。
-- **保存的提示词（Saved prompts）** — 设置 → LLM 中提示词可保存历史；在 Ask 对话框输入 `/` 可展开并插入已保存的提示词（名称 + 内容）。
-- **播放器头部** — Transcript / Statistics / Transcribe / Delete 变为图标按钮，与"点击切换倍速"的速度控制一起放在右侧；波形开关、面板关闭均为图标 + tooltip；右侧面板宽度可拖拽并记忆。
-- **侧边栏与筛选** — 展开/折叠改为图标式并统一 hover 圆形样式；COCA 筛选栏固定不动，单词列表在其下方独立滚动。
-- **安装包更小** — 未使用的 `kuromoji`（日语分词）与微软语音 SDK 已从 dmg 中排除（≈240 MB → ≈224 MB）；完全离线的 Moonshine/Kokoro/Ollama 技术栈不变。
-- **字幕体验** — 每行显示 `MM:SS – MM:SS` 时间区间（YouTube 风格），固定行高 + 局部平滑滚动（跟随播放进度）。
-- **COCA 词形还原增强** — 缩略词（`I'm`、`it'll`、`gonna` 等）纳入 1K 区段；新增不规则变化（`went→go`、`children→child`、`men→man`）与更多派生规则。
+> 📥 在 GitHub Releases 下载 `Lingutribe-0.1.0-arm64.dmg`，或本地 `npm run dist:mac` 自行打包。
 
 ---
 
-## 一、这个项目是什么
-
-Lingutribe 把"听、说、读、背、问"整合进一个本地应用：
-
-- **Resources（素材）**：导入本地音频 / 视频，或粘贴一个视频链接，自动转写成文字。
-- **Read（阅读）**：打开或粘贴英文文章，点任意一句就能本地朗读。
-- **Dictionary（词典）**：选中一个单词，离线给出释义，查不到时回退到 AI 解释。
-- **Words（单词）**：按 COCA 词频标注和筛选，优先攻克高频词。
-- **Chat（对话）**：多轮 AI 辅导，带历史记录。
-
-一句话：**一个不强制上云、数据留在自己电脑上的英语学习工作台。**
-
-## 二、解决什么问题
+## 它能做什么
 
 | 学习痛点 | Lingutribe 怎么做 |
 |----------|-------------------|
-| 听不懂音频 / 视频 | Moonshine 本地转写，配词级波形，可拆分、变速、空格播放 |
-| 不会读、发音没反馈 | Kokoro 本地 TTS，点句子即朗读，完全离线 |
+| 听不懂音频 / 视频 | 本地 STT 自动转写，配词级波形，可拆分、变速、空格播放 |
+| 不会读、发音没反馈 | 本地 Kokoro TTS，点句子即朗读，完全离线 |
 | 生词不认识 | 离线 MDict 词典 + AI 兜底解释 |
 | 没人答疑 / 纠音 | 可接 Ollama 或 OpenAI 兼容接口的 AI 导师 |
-| 隐私顾虑、不想数据上云 | 核心功能全本地；只有你主动配置的 LLM 才联网 |
+| 隐私顾虑、不想数据上云 | 核心功能全本地；只有你配置的 LLM 才联网 |
 | 工具太多、来回切 | 资源 / 阅读 / 词典 / 单词 / 对话一处搞定 |
 
-## 三、功能特性
+凡是能本地跑的都本地跑，只有可选的 LLM 功能需要联网。
 
-- **素材导入** — 本地音视频或 URL；Moonshine 自动转写、词级波形、拆分合并、变速、空格播放。
-- **阅读跟读** — 粘贴/打开文本或导入新闻链接（Readability 自动提取正文）；整篇朗读，或选中片段用工具条上的 **朗读** 只读该段（Kokoro，本地）。
-- **词典面板** — 选中单词得离线 MDict 释义 + LLM 兜底（语法、提问、词形还原）。
-- **单词管理** — COCA 词频着色与过滤，聚焦高频词。
-- **AI 对话** — 多会话导师，历史持久化。
-- **引擎设置** — STT / TTS / LLM 多配置可拖拽排序，本地优先、云端兜底。
-- **桌面端** — 可选 Electron 外壳，把同一套服务包成原生应用。
+---
 
-## 四、技术栈
-
-| 层 | 选型 |
-|----|------|
-| 前端 | React + Vite + Tailwind + TypeScript |
-| 后端 | Express + `tsx` + better-sqlite3 |
-| 语音识别（STT） | Moonshine（本地，sherpa-onnx） |
-| 语音合成（TTS） | Kokoro（本地）/ OpenAI 兼容（可选云端） |
-| 词典 | MDict 词库（离线）+ LLM 兜底 |
-| 桌面端 | Electron |
-| 媒体抓取 | `yt-dlp` / `curl`（系统二进制） |
-
-## 五、如何安装
-
-### 方式一：从源码运行（推荐）
+## 快速开始（从源码）
 
 ```bash
 git clone https://github.com/veritasian/lingutribe.git
 cd lingutribe
 npm install
 
-# 开发模式（Web UI 在 :5173，API 在 :8787）
-npm run dev
-
-# 生产模式（构建一次，之后在 :8787 提供完整应用）
-npm run build
-npm start
-
-# 桌面端（Electron 外壳，包住同一个服务）
+npm run dev      # UI 在 :5173，API 在 :8787
+# 或启动桌面端（Electron）：
 npm run app
 ```
 
-打开 **http://localhost:5173**（开发）或 **http://localhost:8787**（生产）即可使用。
+开发模式打开 **http://localhost:5173**，生产 / 打包模式打开 **http://localhost:8787**。
 
-### 架构与端口
-
-- **开发模式** — 两个进程、两个端口：Vite 开发服务器（React + HMR）在 **5173**，Express API 在 **8787**；Vite 把 `/api/*` 代理到 8787。开发时 **8787 会实时镜像 5173**（Express 把前端页面代理给 Vite），所以 **两个端口永远显示同一份最新界面**，开发期无需手动 `npm run build`（Vite 未启动时自动回退到 `dist/`）。
-- **生产模式** — 一个进程、一个端口：Express 同时托管 `dist/` 里构建好的前端与 API，统一在 **8787**（`npm run build && npm start`）。
-- **桌面端（dmg）** — Electron 主进程直接 `import()` 预编译的服务端（`dist-server/index.mjs`），API 就跑在 **Electron 主进程内部**（单进程，没有独立的服务进程）。只监听 **8787，完全不占用 5173**。如果 8787 已被占用（比如 dev 服务在跑），app 会直接复用已有服务，不再启动自己的实例。
-
-**系统要求**
-- Node.js 18 或更高（推荐 20+）。
-- 可选：`yt-dlp` / `ffmpeg` 系统二进制，用于抓取网络媒体；没有也能正常使用本地文件。
-
-### 第一次打开就能用什么（无需下载任何模型）
-
-界面、数据库、素材浏览、阅读（纯文本）、单词、对话历史、设置，在 `npm install` 之后都能直接用。**装完即可启动，不用等模型下载。**
-
----
-
-## 六、模型会自动安装吗？
-
-**会，而且是"按需下载、缓存后离线"。** 首次用到某个功能时，引擎才自动拉取对应模型包并缓存，之后完全离线可用。
-
-### 三个核心模型（首次使用自动下载）
-
-| # | 用途 | 引擎 | 大小 |
-|---|------|------|------|
-| 1 | 语音识别 STT（Moonshine） | sherpa-onnx（本地） | ≈75 MB（tiny-en-int8） |
-| 2 | 语音合成 TTS 模型（Kokoro） | kokoro-js（本地） | ≈88 MB |
-| 3 | 语音合成 TTS 音色库（Kokoro voices） | kokoro-js（本地） | ≈27 MB |
-
-> 想要更高精度时：Moonshine 另有更大的 `base` 等模型；Kokoro 另有 `fp32` 版。默认 tiny + quantized 已足够日常。
-
-### 用设置页预下载（更省心）
-
-不需要命令行也能准备模型：打开 **设置 → 引擎 → 部署（Deploy）**，可提前拉取 Moonshine（tiny / …）和 Kokoro（quantized / fp32）。首次使用某功能时也会自动下载。
-
-### 下载不成功时：手动安装模型
-
-适用于：网络访问不了模型源，或自动下载总失败。
-
-1. 在 **设置 → 引擎 → 部署（Deploy）** 点击对应模型的部署，应用会把模型缓存到本地；若仍失败，可参考下方目录手动放入。
-2. 解压后你会得到一个**以模型名命名的文件夹**，例如 `kokoro-82m-v1.0-quantized-20250209/`。
-3. 把该文件夹**整体复制**到引擎的模型缓存目录（位于应用的本地数据目录下，例如 macOS 的 `~/Library/Application Support/` 下对应引擎的子目录）。
-4. 重启应用，即可离线使用，无需联网。
-
-> 注意：模型文件夹必须**完整且名字完全匹配**，不要改名、不要只把里面的文件平铺出来。
-
----
-
-## 七、如果"软件本身"下载 / 安装不顺利
-
-Lingutribe 目前以**源码方式**分发（没有预编译的安装包），所以"下载软件"= 拿到仓库源码。以下几种情况都有对策：
-
-### 1. `git clone` 慢或被墙（GitHub 连不上）
-
-- 用 GitHub 代理克隆：
-  ```bash
-  git clone https://ghproxy.com/https://github.com/veritasian/lingutribe.git
-  ```
-- 或一次性给 git 配置代理（之后所有 github.com 都走代理）：
-  ```bash
-  git config --global url."https://ghproxy.com/https://github.com/".insteadOf "https://github.com/"
-  ```
-- 或去 `https://github.com/veritasian/lingutribe` 点 **Code → Download ZIP** 手动下载（网页打不开时，给地址加 `https://ghproxy.com/` 前缀再访问）。
-
-下载到本地后，解压进入目录，照常 `npm install` 即可。
-
-### 2. `npm install` 慢 / 失败（npm 源被墙）
-
-把 npm 源切到国内镜像：
+### 打包桌面安装包（.dmg）
 
 ```bash
-npm config set registry https://registry.npmmirror.com
-npm install
+npm run dist:mac     # → dist-electron/Lingutribe-0.1.0-arm64.dmg
 ```
 
-装完照常 `npm run dev` / `npm run build && npm start`。
-
-### 3. 想要桌面应用（不用命令行）
-
-仓库里没有发布好的 `.dmg` / `.exe`。从源码启动桌面端：
-
-```bash
-npm install
-npm run app
-```
-
-Electron 会拉起同一个本地服务并打开原生窗口。若要制作可分发的安装包，需要额外的打包步骤（如 `electron-builder`），可按需自行配置。
+需要 Xcode Command Line Tools。当前本地构建为**未签名**，首次打开按上面的命令解除 quarantine 即可。
 
 ---
 
-## 八、离线词典（MDict）怎么装
+## 架构
 
-右侧词典面板使用 **MDict 离线词库（`.mdx`）**。本项目**不捆绑任何词库文件**，词库由用户自行提供，属于运行时数据，已排除在仓库之外。
+```mermaid
+flowchart LR
+  UI[React UI<br/>开发 :5173 / 生产 :8787] -->|fetch /api/*| API[Express API<br/>:8787]
+  API --> STT[Moonshine 语音识别<br/>sherpa-onnx]
+  API --> TTS[Kokoro 语音合成<br/>onnxruntime-node]
+  API --> LLM[LLM<br/>Ollama / OpenAI 兼容]
+  API --> DICT[MDict 离线词典<br/>better-sqlite3]
+  API --> DB[(SQLite<br/>LingoLibrary)]
+```
 
-- **放哪**：把你的 `.mdx`（以及配套的 `.mdd`，如果有）放进资料库目录下的 `dictionaries` 文件夹 —— 默认 `~/Documents/LingoLibrary/dictionaries`（本地开发版为 `data/models/Library/dictionaries`）。应用每次查词都会重新扫描该目录，放入新文件**无需重启**。
-- **没有词库也能用**：查不到的词会自动回退到已配置的 LLM（设置 → 引擎 → LLM），所以不装词库也完全可用。
-- **版权提示**：牛津 / 朗文 / 柯林斯 / 韦氏等高质量商业词典均为版权作品，其 `.mdx` 转换物**不得再分发**。请使用你合法拥有的词库，或免费开源词库（如基于 Wiktionary 的 MDict 版本）。
-- **推荐词典下载**：社区维护的 MDict 词典汇总站 [`https://mdx.mdict.org/`](https://mdx.mdict.org/)，可自行挑选你合法拥有或免费开源的词库下载（请遵守上面的版权提示）。
-- 那 564 MB 的 `data/models/Library` 文件夹其实是 **模型缓存（Moonshine + Kokoro）**，不是词典数据。
-
----
-
-## 九、可选：LLM 功能怎么接
-
-AI 导师、语法检查、以及"查不到词时的词典兜底"都依赖 LLM。在 **设置 → 引擎 → LLM** 里配置：
-
-- **Ollama**（本地、免费）：填 `http://localhost:11434`，模型如 `llama3`。
-- **任意 OpenAI 兼容接口**：填 base URL + 模型名 +（可选）API Key。
-
-这些引擎不下载任何本地文件，但需要网络和你的凭据。
+在打包后的应用里，服务端被预编译为 `dist-server/index.mjs`，直接运行在 **Electron 主进程内部**，只监听一个端口（`:8787`），无需额外管理独立服务进程。
 
 ---
 
-## 十、目录结构
+## 引擎与配置
+
+所有引擎在 **设置 → 引擎** 中配置，保存在本地 SQLite。
+
+| 引擎 | 选项 | 说明 |
+|------|------|------|
+| **STT（语音识别）** | 本地 Moonshine（自动选模型） | 离线；首次使用自动下载模型 |
+| **TTS（语音合成）** | 本地 Kokoro，或 OpenAI 兼容 | Kokoro 完全离线；OpenAI 兼容需要 API Key |
+| **LLM（AI 导师）** | Ollama（`http://localhost:11434`），或任意 OpenAI 兼容 base URL | Key 由用户自填，只存在本地 SQLite |
+
+资料库默认在 `~/Documents/LingoLibrary`（单词、笔记、TTS 缓存），首次运行自动创建。
+
+---
+
+## 模型会自动安装吗？
+
+**会，而且是“按需下载、缓存后离线”。** `npm install` 之后即可启动，无需等模型下载。首次用到某功能时引擎才自动拉取模型并缓存，之后完全离线可用：
+
+| 用途 | 引擎 | 大小 |
+|------|------|------|
+| 语音识别 STT（Moonshine） | sherpa-onnx（本地） | ≈75 MB（tiny-en-int8） |
+| 语音合成 TTS（Kokoro） | kokoro-js（本地） | ≈88 MB（quantized） |
+| TTS 音色库（Kokoro voices） | kokoro-js（本地） | ≈27 MB |
+
+可在 **设置 → 引擎 → 部署（Deploy）** 提前拉取模型。
+
+---
+
+## 目录结构
 
 ```
-lingutribe/
+lingutribe/                       ← 统一仓库（引擎 + UI + 桌面端）
 ├── src/
-│   ├── server/        # Express API + better-sqlite3 + Moonshine 引擎
-│   │   ├── index.ts      # 服务入口：启动、设置辅助、健康检查、注册路由
-│   │   ├── db.ts         # SQLite + 资料库路径
-│   │   ├── engines/      # 按引擎拆分：stt / tts / llm / models / http
-│   │   ├── routes/       # 薄 HTTP 层：settings、words、notes、chat、
-│   │   │                 # engines（STT/TTS/LLM 端点）、dict（MDict）、
-│   │   │                 # resources、import（yt-dlp / RSS / Readability）
-│   │   ├── analysis.ts   # 媒体分析（时长、波形、分段）
-│   │   ├── segments.ts   # 词/段计时类型与辅助
-│   │   └── util-ffmpeg.ts# ffmpeg 探测/工具
-│   ├── web/           # React 前端（页面 + 组件）
-│   │   ├── components/ # PlayerView、Transcript、Caption、AudioBar、VocabProfile…
-│   │   ├── pages/      # Resources、Read、Words、Chat、Notes、Settings
-│   │   └── lib/        # coca.ts（词频段）、markdown.ts（Markdown 渲染）、
-│   │                   # segments.ts（计时）、locale.ts
-│   └── shared/        # 共享 TypeScript 类型
-├── electron/          # 桌面端外壳（main.cjs — 打包时内嵌服务端）
-├── docs/              # 用户手册（中文 HTML）
-├── package.json
-└── vite.config.ts
+│   ├── server/                  # Express 引擎（:8787）
+│   │   ├── index.ts             # 服务入口：启动、注册路由
+│   │   ├── engines/             # stt.ts(Moonshine) · tts.ts(Kokoro) · llm.ts · http.ts
+│   │   ├── routes/              # 薄 HTTP 层（resources/words/notes/chat/dict/engines…）
+│   │   ├── db.ts                # SQLite + 资料库路径
+│   │   └── analysis.ts          # 媒体分析（时长、波形、分段）
+│   ├── web/                     # React UI（Vite 根目录）
+│   │   ├── components/          # PlayerView、Transcript、WordPanel、WaveformPlayer…
+│   │   ├── pages/               # Resources、Read、Words、Chat、Notes、Settings
+│   │   └── api.ts               # HTTP 契约（fetch 封装 + 类型）
+│   └── shared/                  # 历史遗留的共享类型
+├── electron/main.cjs            # 桌面端外壳：开发时拉起服务，打包时 import dist-server
+├── data/                        # 已 gitignore：coca-bands.json + 模型缓存（约几百 MB）
+├── docs/                        # 用户手册（中文 HTML）
+├── vite.config.ts               # Vite 根目录 = src/web；把 /api 代理到 :8787
+├── tailwind.config.js · postcss.config.js
+└── package.json                 # 依赖 + 脚本 + electron-builder 配置
 ```
 
-> **不在仓库内**：`node_modules/`、`.venv/`、`dist/`、`dist-electron/`、`data/`（运行时词库 + 模型缓存，约 566 MB）、`.DS_Store`。详见 `.gitignore`。
+UI 与引擎之间**只通过 HTTP 契约解耦**（`fetch('/api/...')`，不写死 host），所以同一份代码在开发、生产、打包后都能运行。
+
+---
 
 ## 许可证
 
-参见仓库 LICENSE 文件。
+本仓库为统一仓库，包含引擎与界面。详见 [`LICENSE`](LICENSE)——本应用为专有软件，并非开源。
