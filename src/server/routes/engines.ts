@@ -30,11 +30,16 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
     try {
       const fp = req.file!.path;
       const settings = readSettings();
+      // Allow a one-off override (e.g. test UI) without changing saved settings.
+      const engine = (req.body.engine || settings.engines.stt.engine) as
+        | "echogarden"
+        | "moonshine";
+      const model = req.body.model || settings.engines.stt.model;
       const result = await transcribeFile(
         fp,
-        settings.engines.stt.model,
+        model,
         req.body.language || "en",
-        settings.engines.stt.engine
+        engine
       );
       res.json(result);
     } catch (e: any) {

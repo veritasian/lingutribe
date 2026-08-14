@@ -73,9 +73,10 @@ async function transcribeWhisper(
 
 /** Moonshine models (sherpa-onnx packaging). English int8 are the smallest and
  *  fastest; v2 multilingual bases exist but English is this app's focus.
- *  `urls` lists download mirrors in priority order — GitHub releases first,
- *  then a Hugging Face mirror (csukuangfj) for networks where GitHub is slow or
- *  blocked. The downloader tries each in turn until one yields a valid archive. */
+ *  `urls` lists download sources in priority order. GitHub releases is the
+ *  canonical host (Hugging Face / ModelScope mirrors for this model 404/401, so
+ *  only GitHub is used). The downloader tries each until one yields a valid
+ *  bzip2 archive. */
 export const MOONSHINE_MODELS: Record<
   string,
   { dir: string; urls: string[] }
@@ -84,14 +85,12 @@ export const MOONSHINE_MODELS: Record<
     dir: "sherpa-onnx-moonshine-tiny-en-int8",
     urls: [
       "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2",
-      "https://huggingface.co/csukuangfj/sherpa-onnx-moonshine-tiny-en-int8/resolve/main/sherpa-onnx-moonshine-tiny-en-int8.tar.bz2",
     ],
   },
   base: {
     dir: "sherpa-onnx-moonshine-base-en-int8",
     urls: [
       "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-moonshine-base-en-int8.tar.bz2",
-      "https://huggingface.co/csukuangfj/sherpa-onnx-moonshine-base-en-int8/resolve/main/sherpa-onnx-moonshine-base-en-int8.tar.bz2",
     ],
   },
 };
@@ -159,6 +158,16 @@ export async function ensureMoonshineModel(model: string): Promise<string> {
         continue;
       }
       await extractTar(tarball, modelDir);
+      // sherpa-onnx release tarballs nest everything under a top-level
+      // <dir>/ folder; flatten it so the model files land directly in modelDir
+      // (which is what transcribeMoonshine expects). No-op if already flat.
+      const nested = path.join(modelDir, dir);
+      if (fs.existsSync(nested) && fs.statSync(nested).isDirectory()) {
+        for (const f of fs.readdirSync(nested)) {
+          fs.renameSync(path.join(nested, f), path.join(modelDir, f));
+        }
+        fs.rmSync(nested, { recursive: true, force: true });
+      }
       const missing = MOONSHINE_FILES.filter(
         (f) => !fs.existsSync(path.join(modelDir, f))
       );
@@ -198,9 +207,11 @@ async function transcribeMoonshine(
   model: string
 ): Promise<TranscribeResult> {
   const modelDir = await ensureMoonshineModel(model); // auto-install on first use
-  const sherpa = await import("sherpa-onnx-node");
+  const sherpaMod = await import("sherpa-onnx-node");
+  // CJS package: the constructor lives on .default when imported via ESM interop.
+  const sherpa = ((sherpaMod as any).default ?? sherpaMod) as any;
 
-  const recognizer = new (sherpa as any).OfflineRecognizer({
+  const recognizer = new sherpa.OfflineRecognizer({
     modelConfig: {
       moonshine: {
         preprocessor: path.join(modelDir, "preprocess.onnx"),
@@ -217,10 +228,11 @@ async function transcribeMoonshine(
 
   const wave = (sherpa as any).readWave(filePath);
   const stream = recognizer.createStream();
-  stream.acceptWaveform(wave.sampleRate, wave.samples);
+  // sherpa-onnx-node's acceptWaveform takes a single {samples, sampleRate} object.
+  stream.acceptWaveform({ sampleRate: wave.sampleRate, samples: wave.samples });
   // Tail padding (0.2s) — recommended by sherpa-onnx for Moonshine.
   const tail = new Float32Array(Math.round(wave.sampleRate * 0.2));
-  stream.acceptWaveform(wave.sampleRate, tail);
+  stream.acceptWaveform({ sampleRate: wave.sampleRate, samples: tail });
   recognizer.decode(stream);
   const result = recognizer.getResult(stream);
 
