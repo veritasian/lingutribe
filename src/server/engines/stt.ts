@@ -1,75 +1,30 @@
-import { recognize } from "echogarden";
 import { execFile } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { curl, friendlyDownloadError } from "./http.js";
+import { curl } from "./http.js";
 
 // ---------------------------------------------------------------------------
-// Speech-to-Text
+// Speech-to-Text — modular engine: Moonshine (sherpa-onnx-node)
 //
-// Two interchangeable backends, selected by settings.engines.stt.engine:
-//   - "echogarden" (Whisper)  — default, broad language coverage, word timeline
-//   - "moonshine"             — faster + smaller for English, no word timeline
-// Both auto-install their model on first use (mirrors Whisper's ensureModel).
+// Moonshine is a small, fast English ASR model. It auto-installs its model on
+// first use (see ensureMoonshineModel). Word-level timestamps are approximated
+// by an even split across tokens (Moonshine does not expose exact timings);
+// Whisper's high-precision word timeline is not part of this engine.
 // ---------------------------------------------------------------------------
 export interface TranscribeResult {
   transcript: string;
   words?: { text: string; start: number; end: number }[];
 }
 
-/** Map UI model names to echogarden WhisperModelName values.
- *  ("large" is not a valid whisper model name — it maps to large-v3-turbo,
- *  matching the STT_PACKAGES download mapping below.) */
-const WHISPER_MODEL_NAMES: Record<string, string> = {
-  tiny: "tiny",
-  base: "base",
-  small: "small",
-  medium: "medium",
-  large: "large-v3-turbo",
-};
-
 export async function transcribeFile(
   filePath: string,
   model = "tiny",
   language = "en",
-  engine: "echogarden" | "moonshine" = "echogarden"
+  engine: "moonshine" = "moonshine"
 ): Promise<TranscribeResult> {
-  if (engine === "moonshine") return transcribeMoonshine(filePath, model);
-  return transcribeWhisper(filePath, model, language);
+  return transcribeMoonshine(filePath, model);
 }
-
-// ---------------------------------------------------------------------------
-// Backend A — echogarden / Whisper
-// ---------------------------------------------------------------------------
-async function transcribeWhisper(
-  filePath: string,
-  model: string,
-  language: string
-): Promise<TranscribeResult> {
-  let result: any;
-  try {
-    result = await recognize(filePath, {
-      engine: "whisper",
-      language,
-      // The model MUST be nested under whisper.* — a top-level "model" key is
-      // silently ignored by echogarden (the selected model would never apply).
-      whisper: { model: (WHISPER_MODEL_NAMES[model] || "tiny") as any },
-    });
-  } catch (e) {
-    throw new Error(friendlyDownloadError(e));
-  }
-  const words = (result.wordTimeline as any[])?.map((w) => ({
-    text: w.text,
-    start: w.startTime ?? w.start,
-    end: w.endTime ?? w.end,
-  }));
-  return { transcript: result.transcript || "", words };
-}
-
-// ---------------------------------------------------------------------------
-// Backend B — Moonshine (sherpa-onnx-node)
-// ---------------------------------------------------------------------------
 
 /** Moonshine models (sherpa-onnx packaging). English int8 are the smallest and
  *  fastest; v2 multilingual bases exist but English is this app's focus.
@@ -119,8 +74,8 @@ export function resolveMoonshineModelDir(model: string): string {
 }
 
 /** Download + extract a Moonshine model if not already present. Safe to call
- *  repeatedly — skips when all required files exist (idempotent, like
- *  echogarden's loadPackage). Tries each mirror in MOONSHINE_MODELS[].urls. */
+ *  repeatedly — skips when all required files exist (idempotent). Tries each
+ *  mirror in MOONSHINE_MODELS[].urls. */
 export async function ensureMoonshineModel(model: string): Promise<string> {
   const key = MOONSHINE_MODELS[model] ? model : "tiny";
   const { dir, urls } = MOONSHINE_MODELS[key];
@@ -239,8 +194,7 @@ async function transcribeMoonshine(
   const transcript: string = result?.text?.trim() || "";
   // Moonshine's Node result exposes {text, tokens} but not reliable per-word
   // timestamps. Fall back to an even per-word split across the utterance so the
-  // read-along UI still highlights progressively. Whisper remains the
-  // high-precision option when exact word timing matters.
+  // read-along UI still highlights progressively.
   const tokens: string[] = Array.isArray(result?.tokens) ? result.tokens : [];
   let words: { text: string; start: number; end: number }[] | undefined;
   if (tokens.length) {
@@ -253,19 +207,4 @@ async function transcribeMoonshine(
     }));
   }
   return { transcript, words };
-}
-
-// ---------------------------------------------------------------------------
-// Model download (echogarden native package manager — guaranteed correct)
-// ---------------------------------------------------------------------------
-const STT_PACKAGES: Record<string, string> = {
-  tiny: "whisper-tiny-20231126",
-  base: "whisper-base-20231126",
-  small: "whisper-small-20231126",
-  medium: "whisper-medium-20231126",
-  large: "whisper-large-v3-turbo-fp16-20231126",
-};
-
-export function sttPackageName(model: string): string {
-  return STT_PACKAGES[model] || STT_PACKAGES.tiny;
 }

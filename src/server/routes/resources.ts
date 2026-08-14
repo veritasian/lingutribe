@@ -135,7 +135,7 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
       settings.engines.stt.model,
       req.body.language || "en"
     );
-    // STT engines (Whisper/echogarden) occasionally loop during silence or
+    // STT engines occasionally loop during silence or
     // "[music]" tags, emitting verbatim repeated word-runs. Collapse those once
     // so the stored transcript/words read like a clean authored caption. Only
     // rebuild the transcript text from words when we actually have word

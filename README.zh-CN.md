@@ -28,11 +28,11 @@ Lingutribe 是一个轻量、可自托管的英语学习助手。你把音频 / 
 - **播放器头部更简洁** — 顶部的居中资源标题已隐藏，头部只保留右侧的操作按钮。
 - **箭头折叠/展开** — 资源列表的折叠开关改为箭头（‹ 收起 / › 展开），不再用面板方块图标。
 - **Transcript 双视图** — *Subtitle*（带时间戳行，点词即查词典）与 *Content*（正文段落，选中文字弹出 **复制 / Ask AI / 朗读** 工具条）。字幕行按固定 ~5–10 秒分块、不重叠；正文合并为 ~25 秒段落。
-- **STT 输出更干净** — Whisper/echogarden 偶发的"循环重复"（如 *…like I have this immense guilt towards I have this like…*）在服务端转写时与客户端展示时自动去重；已有字幕（如 YouTube 自带字幕）的资源不再重复转写。
+- **STT 输出更干净** — Moonshine 偶发的"循环重复"（如 *…like I have this immense guilt towards I have this like…*）在服务端转写时与客户端展示时自动去重；已有字幕（如 YouTube 自带字幕）的资源不再重复转写。
 - **保存的提示词（Saved prompts）** — 设置 → LLM 中提示词可保存历史；在 Ask 对话框输入 `/` 可展开并插入已保存的提示词（名称 + 内容）。
 - **播放器头部** — Transcript / Statistics / Transcribe / Delete 变为图标按钮，与"点击切换倍速"的速度控制一起放在右侧；波形开关、面板关闭均为图标 + tooltip；右侧面板宽度可拖拽并记忆。
 - **侧边栏与筛选** — 展开/折叠改为图标式并统一 hover 圆形样式；COCA 筛选栏固定不动，单词列表在其下方独立滚动。
-- **安装包更小** — 未使用的 `kuromoji`（日语分词）与微软语音 SDK 已从 dmg 中排除（≈240 MB → ≈224 MB）；完全离线的 Whisper/Kokoro/Ollama 技术栈不变。
+- **安装包更小** — 未使用的 `kuromoji`（日语分词）与微软语音 SDK 已从 dmg 中排除（≈240 MB → ≈224 MB）；完全离线的 Moonshine/Kokoro/Ollama 技术栈不变。
 - **字幕体验** — 每行显示 `MM:SS – MM:SS` 时间区间（YouTube 风格），固定行高 + 局部平滑滚动（跟随播放进度）。
 - **COCA 词形还原增强** — 缩略词（`I'm`、`it'll`、`gonna` 等）纳入 1K 区段；新增不规则变化（`went→go`、`children→child`、`men→man`）与更多派生规则。
 
@@ -54,7 +54,7 @@ Lingutribe 把"听、说、读、背、问"整合进一个本地应用：
 
 | 学习痛点 | Lingutribe 怎么做 |
 |----------|-------------------|
-| 听不懂音频 / 视频 | Whisper 本地转写，配词级波形，可拆分、变速、空格播放 |
+| 听不懂音频 / 视频 | Moonshine 本地转写，配词级波形，可拆分、变速、空格播放 |
 | 不会读、发音没反馈 | Kokoro 本地 TTS，点句子即朗读，完全离线 |
 | 生词不认识 | 离线 MDict 词典 + AI 兜底解释 |
 | 没人答疑 / 纠音 | 可接 Ollama 或 OpenAI 兼容接口的 AI 导师 |
@@ -63,7 +63,7 @@ Lingutribe 把"听、说、读、背、问"整合进一个本地应用：
 
 ## 三、功能特性
 
-- **素材导入** — 本地音视频或 URL；Whisper 自动转写、词级波形、拆分合并、变速、空格播放。
+- **素材导入** — 本地音视频或 URL；Moonshine 自动转写、词级波形、拆分合并、变速、空格播放。
 - **阅读跟读** — 粘贴/打开文本或导入新闻链接（Readability 自动提取正文）；整篇朗读，或选中片段用工具条上的 **朗读** 只读该段（Kokoro，本地）。
 - **词典面板** — 选中单词得离线 MDict 释义 + LLM 兜底（语法、提问、词形还原）。
 - **单词管理** — COCA 词频着色与过滤，聚焦高频词。
@@ -77,8 +77,8 @@ Lingutribe 把"听、说、读、背、问"整合进一个本地应用：
 |----|------|
 | 前端 | React + Vite + Tailwind + TypeScript |
 | 后端 | Express + `tsx` + better-sqlite3 |
-| 语音识别（STT） | echogarden（Whisper，本地） |
-| 语音合成（TTS） | Kokoro（本地）/ Fish Audio / OpenAI（可选云端） |
+| 语音识别（STT） | Moonshine（本地，sherpa-onnx） |
+| 语音合成（TTS） | Kokoro（本地）/ OpenAI 兼容（可选云端） |
 | 词典 | MDict 词库（离线）+ LLM 兜底 |
 | 桌面端 | Electron |
 | 媒体抓取 | `yt-dlp` / `curl`（系统二进制） |
@@ -123,50 +123,32 @@ npm run app
 
 ## 六、模型会自动安装吗？
 
-**会，而且是"按需下载、缓存后离线"。** 首次用到某个功能时，echogarden 才从 HuggingFace 拉取对应模型包并缓存，之后完全离线可用。
+**会，而且是"按需下载、缓存后离线"。** 首次用到某个功能时，引擎才自动拉取对应模型包并缓存，之后完全离线可用。
 
-### 三个核心模型（及下载链接）
+### 三个核心模型（首次使用自动下载）
 
-| # | 用途 | 包名 | 大小 |
+| # | 用途 | 引擎 | 大小 |
 |---|------|------|------|
-| 1 | 语音识别 STT（Whisper） | `whisper-tiny-20231126` + 必需的 `whisper-tiktoken-data-20240408` | ≈225 MB + ≈1.6 MB |
-| 2 | 语音合成 TTS 模型（Kokoro） | `kokoro-82m-v1.0-quantized-20250209` | ≈88 MB |
-| 3 | 语音合成 TTS 音色库（Kokoro voices） | `kokoro-82m-v1.0-voices-20250209` | ≈27 MB |
+| 1 | 语音识别 STT（Moonshine） | sherpa-onnx（本地） | ≈75 MB（tiny-en-int8） |
+| 2 | 语音合成 TTS 模型（Kokoro） | kokoro-js（本地） | ≈88 MB |
+| 3 | 语音合成 TTS 音色库（Kokoro voices） | kokoro-js（本地） | ≈27 MB |
 
-> 想要更高精度时：Whisper 还可选 `base` / `small` / `medium`；Kokoro 另有 `fp32` 版。默认 tiny + quantized 已足够日常。
-
-**下载基础地址（二选一）**
-
-- 官方源：`https://huggingface.co/echogarden/echogarden-packages/resolve/main/{包名}.tar.gz`
-- 国内镜像：`https://hf-mirror.com/echogarden/echogarden-packages/resolve/main/{包名}.tar.gz`（把上面域名里的 `huggingface.co` 换成 `hf-mirror.com` 即可，国内更易连通）
-
-**直接可用的四个链接**
-
-- `https://huggingface.co/echogarden/echogarden-packages/resolve/main/whisper-tiny-20231126.tar.gz`
-- `https://huggingface.co/echogarden/echogarden-packages/resolve/main/whisper-tiktoken-data-20240408.tar.gz`
-- `https://huggingface.co/echogarden/echogarden-packages/resolve/main/kokoro-82m-v1.0-quantized-20250209.tar.gz`
-- `https://huggingface.co/echogarden/echogarden-packages/resolve/main/kokoro-82m-v1.0-voices-20250209.tar.gz`
-
-（把链接里的 `huggingface.co` 换成 `hf-mirror.com` 即为国内镜像链接。）
-
-### 下载不成功时：手动安装模型
-
-适用于：网络访问不了 HuggingFace，或自动下载总失败。
-
-1. 用上面的链接（**建议用 `hf-mirror.com` 镜像**）手动下载对应的 `.tar.gz`。
-2. 解压，你会得到一个**以包名命名的文件夹**，例如 `kokoro-82m-v1.0-quantized-20250209/`。
-3. 把该文件夹**整体复制**到 echogarden 的模型包缓存目录：
-   - **macOS**：`~/Library/Application Support/echogarden/packages/`
-   - **Windows**：`C:\Users\<你的用户名>\AppData\Local\echogarden\packages\`
-   - **Linux**：`~/.local/share/echogarden/packages/`
-4. 重启应用，即可离线使用，无需联网。
-
-> 注意：包名文件夹必须**完整且名字完全匹配**（例如 `kokoro-82m-v1.0-quantized-20250209`），不要改名、不要只把里面的文件平铺出来。
-> Whisper 需要把 `whisper-tiny-20231126` 和 `whisper-tiktoken-data-20240408` 两个包都放进去，缺一不可。
+> 想要更高精度时：Moonshine 另有更大的 `base` 等模型；Kokoro 另有 `fp32` 版。默认 tiny + quantized 已足够日常。
 
 ### 用设置页预下载（更省心）
 
-不需要命令行也能准备模型：打开 **设置 → 引擎 → 部署（Deploy）**，可提前拉取 Whisper（tiny / base / …）和 Kokoro（quantized / fp32）。首次使用某功能时也会自动下载。
+不需要命令行也能准备模型：打开 **设置 → 引擎 → 部署（Deploy）**，可提前拉取 Moonshine（tiny / …）和 Kokoro（quantized / fp32）。首次使用某功能时也会自动下载。
+
+### 下载不成功时：手动安装模型
+
+适用于：网络访问不了模型源，或自动下载总失败。
+
+1. 在 **设置 → 引擎 → 部署（Deploy）** 点击对应模型的部署，应用会把模型缓存到本地；若仍失败，可参考下方目录手动放入。
+2. 解压后你会得到一个**以模型名命名的文件夹**，例如 `kokoro-82m-v1.0-quantized-20250209/`。
+3. 把该文件夹**整体复制**到引擎的模型缓存目录（位于应用的本地数据目录下，例如 macOS 的 `~/Library/Application Support/` 下对应引擎的子目录）。
+4. 重启应用，即可离线使用，无需联网。
+
+> 注意：模型文件夹必须**完整且名字完全匹配**，不要改名、不要只把里面的文件平铺出来。
 
 ---
 
@@ -220,7 +202,7 @@ Electron 会拉起同一个本地服务并打开原生窗口。若要制作可�
 - **没有词库也能用**：查不到的词会自动回退到已配置的 LLM（设置 → 引擎 → LLM），所以不装词库也完全可用。
 - **版权提示**：牛津 / 朗文 / 柯林斯 / 韦氏等高质量商业词典均为版权作品，其 `.mdx` 转换物**不得再分发**。请使用你合法拥有的词库，或免费开源词库（如基于 Wiktionary 的 MDict 版本）。
 - **推荐词典下载**：社区维护的 MDict 词典汇总站 [`https://mdx.mdict.org/`](https://mdx.mdict.org/)，可自行挑选你合法拥有或免费开源的词库下载（请遵守上面的版权提示）。
-- 那 564 MB 的 `data/models/Library` 文件夹其实是 **echogarden 的模型缓存（Whisper + Kokoro）**，不是词典数据。
+- 那 564 MB 的 `data/models/Library` 文件夹其实是 **模型缓存（Moonshine + Kokoro）**，不是词典数据。
 
 ---
 
@@ -240,7 +222,7 @@ AI 导师、语法检查、以及"查不到词时的词典兜底"都依赖 LLM�
 ```
 lingutribe/
 ├── src/
-│   ├── server/        # Express API + better-sqlite3 + echogarden 引擎
+│   ├── server/        # Express API + better-sqlite3 + Moonshine 引擎
 │   │   ├── index.ts      # 服务入口：启动、设置辅助、健康检查、注册路由
 │   │   ├── db.ts         # SQLite + 资料库路径
 │   │   ├── engines/      # 按引擎拆分：stt / tts / llm / models / http

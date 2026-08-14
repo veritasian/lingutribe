@@ -2,7 +2,6 @@
 //   import { transcribeFile, chatWithLLM } from "../engines/index.js";
 export {
   transcribeFile,
-  sttPackageName,
   ensureMoonshineModel,
   resolveMoonshineModelDir,
   MOONSHINE_MODELS,
@@ -10,10 +9,8 @@ export {
 } from "./stt.js";
 export {
   synthesizeSpeech,
-  kokoroPackages,
   ensureKokoro,
   getKokoroVoices,
   type KokoroVoice,
 } from "./tts.js";
 export { chatWithLLM, type ChatMessage } from "./llm.js";
-export { ensureModel } from "./models.js";

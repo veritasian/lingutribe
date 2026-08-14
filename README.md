@@ -14,7 +14,7 @@ The two communicate **only over HTTP** (see [How the UI calls this engine](#how-
 | This repo **IS** | This repo is **NOT** |
 |------------------|----------------------|
 | Express REST API (port **8787**) | The React UI (`lingutribe-web`) |
-| STT (Whisper via echogarden) | `vite.config.ts` / Tailwind / the SPA build |
+| STT (Moonshine via sherpa-onnx) | `vite.config.ts` / Tailwind / the SPA build |
 | Local TTS (Kokoro) + cloud TTS | The Electron desktop shell (`electron/` is in the web repo) |
 | Offline MDict dictionary + LLM fallback | Any bundled `dist/` (the UI build) |
 | Import pipeline (file / URL / RSS / Readability) | |
@@ -31,10 +31,9 @@ lingutribe/                       ← this repo (PUBLIC engine)
 │   │   ├── index.ts              ← entry: boots Express, registers routes, listens on :8787
 │   │   ├── db.ts                 ← SQLite + library paths
 │   │   ├── engines/              ← per-engine modules
-│   │   │   ├── stt.ts            ← Whisper transcription
-│   │   │   ├── tts.ts            ← Kokoro / cloud TTS synthesis
+│   │   │   ├── stt.ts            ← Moonshine (sherpa-onnx) transcription
+│   │   │   ├── tts.ts            ← Kokoro (local) / OpenAI-compatible TTS
 │   │   │   ├── llm.ts            ← LLM chat / analyze proxy
-│   │   │   ├── models.ts         ← model ensure/download orchestration
 │   │   │   ├── http.ts           ← shared HTTP helpers
 │   │   │   └── index.ts          ← engine registry
 │   │   ├── routes/              ← thin HTTP layer (one file per resource)
@@ -46,7 +45,7 @@ lingutribe/                       ← this repo (PUBLIC engine)
 │   │   └── util-ffmpeg.ts        ← ffmpeg discovery
 │   └── shared/
 │       └── types.ts             ← (legacy, unused) shared TS types — the UI carries its own
-├── data/                        ← gitignored: coca-bands.json, models/ (echogarden cache), coca-build/
+├── data/                        ← gitignored: coca-bands.json, models/ (model cache), coca-build/
 ├── docs/                        ← user manual (zh)
 ├── package.json                 ← server-only deps + scripts (below)
 └── tsconfig.json
@@ -173,13 +172,13 @@ The API, the database, Resources browsing, Words, Chat history, and Settings all
 run after `npm install`.
 
 ### Speech / TTS models (auto-download on first use)
-- **STT (Whisper)** and **local TTS (Kokoro)** are *not* downloaded during
+- **STT (Moonshine)** and **local TTS (Kokoro)** are *not* downloaded during
   `npm install`.
-- The first time you transcribe audio or generate local speech, echogarden
-  fetches the model package from HuggingFace and caches it. After that, it works
+- The first time you transcribe audio or generate local speech, the engine
+  fetches the model package and caches it. After that, it works
   **offline**.
 - You can also pre-deploy a model from **Settings → Engines → "Deploy"**:
-  - Whisper: `tiny` (≈75 MB) … `large-v3-turbo`.
+  - Moonshine: `tiny-en-int8` (≈75 MB) … larger bases.
   - Kokoro: `82m-v1.0-quantized` (≈80 MB) or `82m-v1.0-fp32`.
 - ⚠️ The **first** model download needs internet access to `huggingface.co`.
 
@@ -197,7 +196,7 @@ excluded from the repo.
   lexicon you legally own, or a free/open one (e.g. Wiktionary-based MDict).
 
 ### Cloud engines (need your own key/endpoint)
-Fish Audio TTS, OpenAI TTS, and OpenAI/Ollama LLM require your own API key or
+OpenAI-compatible TTS and OpenAI/Ollama LLM require your own API key or
 endpoint URL in Settings. They download nothing locally but need network +
 credentials. The LLM key is **user-supplied and stored only in the local
 SQLite settings** — it is never in this source.
@@ -210,8 +209,8 @@ All engines are managed in **Settings → Engines** (persisted server-side). Eac
 engine type (STT / TTS / LLM) supports multiple named configs, reorderable by
 drag-and-drop; the top one is the default.
 
-- **STT:** local Whisper (auto-model) or disabled.
-- **TTS:** local Kokoro (auto-model), Fish Audio, or OpenAI-compatible.
+- **STT:** local Moonshine (auto-model) or disabled.
+- **TTS:** local Kokoro (auto-model) or OpenAI-compatible.
 - **LLM:** Ollama (`http://localhost:11434`) or any OpenAI-compatible base URL +
   model + optional key.
 

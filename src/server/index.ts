@@ -4,7 +4,6 @@ import multer from "multer";
 import fs from "fs";
 import http from "http";
 import path from "path";
-import os from "os";
 import { fileURLToPath } from "url";
 import {
   getDb,
@@ -28,20 +27,6 @@ import { registerImportRoutes } from "./routes/import.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- Keep all local models (Kokoro, Whisper) inside this tool's folder ---
-// echogarden decides where to cache models via getAppDataDir():
-//   - macOS/Linux: falls back to os.homedir() when no APPDATA env exists
-//   - Windows:     honors APPDATA/LOCALAPPDATA BEFORE os.homedir, so overriding
-//                 os.homedir has no effect there
-// We redirect each platform with the mechanism it actually honors, so every
-// model lands under <tool>/data/models regardless of OS.
-// Models live under <tool>/data/models by default, but can be redirected via
-// LINGO_MODELS_DIR (used when packaged so we never write into a read-only bundle).
-const TOOL_MODELS_ROOT = process.env.LINGO_MODELS_DIR
-  ? path.resolve(process.env.LINGO_MODELS_DIR)
-  : path.resolve(__dirname, "..", "..", "data", "models");
-fs.mkdirSync(TOOL_MODELS_ROOT, { recursive: true });
-
 // Route Node's built-in fetch (undici) through an HTTP proxy when one is
 // configured (HTTP(S)_PROXY). The built-in fetch ignores those env vars, so
 // real-site requests (URL import, RSS) time out with "fetch failed" while the
@@ -52,54 +37,11 @@ if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY) {
   setGlobalDispatcher(new EnvHttpProxyAgent());
 }
 
-const realHomedir = os.homedir.bind(os);
+// Local models (Moonshine STT, Kokoro TTS) resolve their own cache dirs under
+// ~/Library/Application Support/lingutribe/models (or LINGUTRIBE_MODELS_DIR),
+// independent of any third-party engine package — no global homedir hook.
 
-// Where echogarden will place its "packages" folder under a given root.
-function echoPackagesDir(root: string): string {
-  if (process.platform === "win32") {
-    // ECHOGARDEN_APPDATA_DIR is honored first; echogarden appends "echogarden".
-    return path.join(root, "echogarden", "packages");
-  }
-  if (process.platform === "darwin") {
-    return path.join(root, "Library", "Application Support", "echogarden", "packages");
-  }
-  return path.join(root, ".config", "echogarden", "packages");
-}
-
-// Where echogarden would have placed packages before this redirect (OS default).
-function oldEchoPackagesDir(): string {
-  const home = realHomedir();
-  if (process.platform === "win32") {
-    const appdata = process.env.LOCALAPPDATA || process.env.APPDATA || home;
-    return path.join(appdata, "echogarden", "packages");
-  }
-  if (process.platform === "darwin") {
-    return path.join(home, "Library", "Application Support", "echogarden", "packages");
-  }
-  return path.join(home, ".config", "echogarden", "packages");
-}
-
-if (process.platform === "win32") {
-  // Windows: set echogarden's own env var (APPDATA would otherwise win).
-  process.env.ECHOGARDEN_APPDATA_DIR = TOOL_MODELS_ROOT;
-} else {
-  // macOS / Linux: no APPDATA env, so a homedir override is respected.
-  os.homedir = () => TOOL_MODELS_ROOT;
-}
-
-// One-time migration: copy models already downloaded to the OS default location.
-const OLD_ECHO = oldEchoPackagesDir();
-const NEW_ECHO = echoPackagesDir(TOOL_MODELS_ROOT);
-if (fs.existsSync(OLD_ECHO) && OLD_ECHO !== NEW_ECHO) {
-  fs.mkdirSync(NEW_ECHO, { recursive: true });
-  for (const name of fs.readdirSync(OLD_ECHO)) {
-    const src = path.join(OLD_ECHO, name);
-    const dst = path.join(NEW_ECHO, name);
-    if (!fs.existsSync(dst)) {
-      try { fs.cpSync(src, dst, { recursive: true }); } catch { /* ignore */ }
-    }
-  }
-}
+// (echogarden model-cache redirection removed — engines manage their own model dirs)
 
 // --- Locate ffmpeg (platform-aware) so audio/video import works everywhere ---
 // Implementation lives in util-ffmpeg.ts; keep this alias for any callers that
@@ -132,14 +74,13 @@ const DEFAULT_SETTINGS = {
   libraryPath: getLibraryPath(),
   languages: { learning: "en", native: "zh" },
   engines: {
-    stt: { engine: "echogarden", model: "tiny" },
+    stt: { engine: "moonshine", model: "tiny" },
     tts: {
       engine: "kokoro",
       voice: "",
       language: "en",
       kokoroVoice: "Heart",
       kokoroModel: "82m-v1.0-quantized",
-      fishModel: "s2.1-pro-free",
       maleVoice: "",
       femaleVoice: "",
       saveAudio: false,
@@ -220,11 +161,10 @@ function buildTtsConfig(h: any, live: any) {
     maleVoice: h.maleVoice ?? live.maleVoice,
     femaleVoice: h.femaleVoice ?? live.femaleVoice,
     kokoroModel: h.kokoroModel ?? live.kokoroModel,
-    fishModel: h.fishModel ?? live.fishModel,
+    kokoroVoice: h.kokoroVoice ?? live.kokoroVoice,
     model: h.model ?? live.model,
   };
   if (engine === "kokoro") resolved.kokoroModel = h.model ?? h.kokoroModel ?? live.kokoroModel;
-  else if (engine === "fish") resolved.fishModel = h.model ?? h.fishModel ?? live.fishModel;
   return resolved;
 }
 
