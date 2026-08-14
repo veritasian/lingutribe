@@ -3,6 +3,9 @@
 export {
   transcribeFile,
   sttPackageName,
+  ensureMoonshineModel,
+  resolveMoonshineModelDir,
+  MOONSHINE_MODELS,
   type TranscribeResult,
 } from "./stt.js";
 export {

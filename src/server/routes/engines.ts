@@ -9,6 +9,8 @@ import {
   ensureKokoro,
   getKokoroVoices,
   sttPackageName,
+  ensureMoonshineModel,
+  MOONSHINE_MODELS,
   type ChatMessage,
 } from "../engines/index.js";
 
@@ -31,7 +33,8 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
       const result = await transcribeFile(
         fp,
         settings.engines.stt.model,
-        req.body.language || "en"
+        req.body.language || "en",
+        settings.engines.stt.engine
       );
       res.json(result);
     } catch (e: any) {
@@ -116,6 +119,11 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
 
   app.post("/api/models/ensure", async (req, res) => {
     try {
+      const engine: string = req.body.engine || "echogarden";
+      if (engine === "moonshine") {
+        const dir = await ensureMoonshineModel(req.body.model || "tiny");
+        return res.json({ ok: true, engine: "moonshine", dir });
+      }
       const pkg = sttPackageName(req.body.model || "tiny");
       await ensureModel(pkg);
       res.json({ ok: true, package: pkg });
@@ -142,13 +150,39 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
     }
   });
 
+  // Available STT engines + their models — drives the UI picker.
+  app.get("/api/engines/stt/options", (_req, res) => {
+    res.json({
+      engines: [
+        {
+          id: "echogarden",
+          label: "Whisper (echogarden)",
+          models: ["tiny", "base", "small", "medium", "large"],
+        },
+        {
+          id: "moonshine",
+          label: "Moonshine (sherpa-onnx)",
+          models: Object.keys(MOONSHINE_MODELS),
+        },
+      ],
+      defaultEngine: "echogarden",
+    });
+  });
+
   // Quick engine tests — try a real run and report success/failure.
   app.post("/api/engines/stt/test", async (req, res) => {
     try {
       const settings = readSettings();
-      const pkg = sttPackageName(settings.engines.stt.model);
+      // Allow overriding with the on-screen selection (unsaved) like TTS does.
+      const engine: string = req.body?.engine || settings.engines.stt.engine;
+      const model: string = req.body?.model || settings.engines.stt.model;
+      if (engine === "moonshine") {
+        await ensureMoonshineModel(model);
+        return res.json({ ok: true, engine: "moonshine", model });
+      }
+      const pkg = sttPackageName(model);
       await ensureModel(pkg);
-      res.json({ ok: true, model: settings.engines.stt.model });
+      res.json({ ok: true, model });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
