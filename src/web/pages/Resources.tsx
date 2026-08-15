@@ -8,6 +8,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconPlus,
+  IconAlign,
 } from "../components/Icon";
 
 type Tab = "audio" | "video";
@@ -28,6 +29,12 @@ export default function Resources() {
   const [mode, setMode] = useState<"file" | "url">("file");
   const [urlInput, setUrlInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Align modal — lets the user align the audio to a known/corrected
+  // transcript (or just the existing one) for precise word timing.
+  const [alignOpen, setAlignOpen] = useState(false);
+  const [alignText, setAlignText] = useState("");
+  const [alignLang, setAlignLang] = useState("en");
 
   // Sync the local tab to the route (left-nav selection drives the URL).
   useEffect(() => {
@@ -101,6 +108,40 @@ export default function Resources() {
     await api.deleteResource(r.id);
     if (active?.id === r.id) setActive(null);
     await load();
+  }
+
+  // Open the align dialog pre-filled with the resource's current transcript.
+  function openAlign(r: Resource) {
+    const existing =
+      typeof r.transcript === "string"
+        ? r.transcript
+        : (r.transcript as any) || "";
+    setAlignText(existing || "");
+    setAlignLang("en");
+    setAlignOpen(true);
+  }
+
+  async function runAlign() {
+    if (!active) return;
+    const text = alignText.trim();
+    if (!text) {
+      setMsg("Enter a transcript to align against.");
+      return;
+    }
+    setBusy(true);
+    setMsg("Aligning transcript to audio… (first run downloads eSpeak)");
+    try {
+      const res: any = await api.alignResource(active.id, text, alignLang);
+      const wc = res.words?.length ?? 0;
+      setMsg(`Aligned ✓ — ${wc} words with precise timing`);
+      setAlignOpen(false);
+      await load();
+      setActive({ ...active, transcript: res.transcript, words: res.words });
+    } catch (err: any) {
+      setMsg(`Align error: ${err.message}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onImportUrl() {
@@ -235,10 +276,90 @@ export default function Resources() {
             resource={active}
             busy={busy}
             onTranscribe={() => transcribe(active)}
+            onAlign={() => openAlign(active)}
             onDelete={() => remove(active)}
           />
         )}
       </div>
+
+      {/* Align dialog — align audio to a known/corrected transcript */}
+      {alignOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onMouseDown={() => !busy && setAlignOpen(false)}
+        >
+          <div
+            className="bg-background border rounded-xl shadow-xl w-[min(640px,92vw)] max-h-[86vh] flex flex-col overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3 border-b flex items-center gap-2">
+              <IconAlign size={18} />
+              <h3 className="text-[15px] font-semibold">Align transcript to audio</h3>
+              <button
+                className="ml-auto icon-btn"
+                disabled={busy}
+                onClick={() => setAlignOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-5 py-3 text-xs text-muted-foreground border-b">
+              Forced alignment maps each word of the text below to its exact
+              moment in the audio, giving precise click-to-seek and karaoke
+              highlighting. Edit the text if you have a cleaner script than the
+              current transcript.
+            </div>
+            <textarea
+              className="textarea m-5 flex-1 min-h-[180px] resize-none font-mono text-[13px] leading-6"
+              value={alignText}
+              disabled={busy}
+              placeholder="Paste or edit the transcript to align…"
+              onChange={(e) => setAlignText(e.target.value)}
+            />
+            <div className="px-5 pb-3 flex items-center gap-3">
+              <label className="text-xs text-muted-foreground flex items-center gap-2">
+                Language
+                <select
+                  className="select"
+                  style={{ width: "auto" }}
+                  value={alignLang}
+                  disabled={busy}
+                  onChange={(e) => setAlignLang(e.target.value)}
+                >
+                  <option value="en">English (en)</option>
+                  <option value="fr">French (fr)</option>
+                  <option value="de">German (de)</option>
+                  <option value="es">Spanish (es)</option>
+                  <option value="it">Italian (it)</option>
+                  <option value="pt">Portuguese (pt)</option>
+                  <option value="ja">Japanese (ja)</option>
+                  <option value="zh">Chinese (zh)</option>
+                  <option value="ko">Korean (ko)</option>
+                  <option value="ru">Russian (ru)</option>
+                </select>
+              </label>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => setAlignOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary inline-flex items-center gap-1"
+                  disabled={busy || !alignText.trim()}
+                  onClick={runAlign}
+                >
+                  {busy ? "Aligning…" : "Align"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

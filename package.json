@@ -1,10 +1,11 @@
 {
   "name": "lingutribe",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
-  "description": "Local-first language-learning app — offline STT (Moonshine/sherpa-onnx), TTS (Kokoro), MDict dictionary and an optional LLM tutor. Unified engine + React UI + Electron desktop shell in one repo.",
+  "license": "UNLICENSED",
+  "description": "Local-first English learning workstation — offline Whisper STT (echogarden), Kokoro TTS, offline MDict dictionaries with word-band analysis, notes, and an optional LLM tutor. Unified Express + React + Electron repo.",
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx watch src/server/index.ts",
@@ -21,7 +22,9 @@
     "@mozilla/readability": "^0.6.0",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
+    "echogarden": "^2.10.2",
     "express": "^4.21.2",
+    "ffmpeg-static": "^5.3.0",
     "https-proxy-agent": "^9.1.0",
     "jsdom": "^26.0.0",
     "kokoro-js": "^1.2.1",
@@ -67,11 +70,17 @@
       "electron/**",
       "dist-server/**",
       "node_modules/**",
+      "!node_modules/onnxruntime-node/bin/napi-v3/linux/**",
+      "!node_modules/onnxruntime-node/bin/napi-v3/win32/**",
+      "!node_modules/onnxruntime-node/bin/napi-v3/darwin/x64/**",
+      "!node_modules/onnxruntime-web/**",
       "package.json",
       {
         "from": "data",
         "to": "data",
-        "filter": ["coca-bands.json"]
+        "filter": [
+          "coca-bands.json"
+        ]
       }
     ],
     "asar": false,

@@ -309,6 +309,16 @@ export function IconRead(p: P) {
   );
 }
 
+/* Closed book — used for the Dictionary settings category. */
+export function IconBook(p: P) {
+  return (
+    <Svg {...p}>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </Svg>
+  );
+}
+
 export function IconPause(p: P) {
   return (
     <Svg {...p}>
@@ -331,6 +341,18 @@ export function IconSend(p: P) {
     <Svg {...p}>
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </Svg>
+  );
+}
+
+// Forced-alignment: a playhead (vertical) lined up with transcript rows.
+export function IconAlign(p: P) {
+  return (
+    <Svg {...p}>
+      <line x1="12" y1="3" x2="12" y2="21" />
+      <line x1="6" y1="8" x2="18" y2="8" />
+      <line x1="6" y1="12" x2="15" y2="12" />
+      <line x1="6" y1="16" x2="18" y2="16" />
     </Svg>
   );
 }

@@ -5,10 +5,10 @@ import {
   transcribeFile,
   synthesizeSpeech,
   chatWithLLM,
+  ensureModel,
   ensureKokoro,
   getKokoroVoices,
-  ensureMoonshineModel,
-  MOONSHINE_MODELS,
+  sttPackageName,
   type ChatMessage,
 } from "../engines/index.js";
 
@@ -28,15 +28,11 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
     try {
       const fp = req.file!.path;
       const settings = readSettings();
-      // Allow a one-off override (e.g. test UI) without changing saved settings.
-      const engine = (req.body.engine || settings.engines.stt.engine) as
-        | "moonshine";
       const model = req.body.model || settings.engines.stt.model;
       const result = await transcribeFile(
         fp,
         model,
-        req.body.language || "en",
-        engine
+        req.body.language || "en"
       );
       res.json(result);
     } catch (e: any) {
@@ -50,9 +46,9 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
       const resolved = resolveTts(settings);
       const tts: any = { ...resolved, ...req.body };
       // The generic settings "voice" field is openai-specific (legacy values
-      // like "en" must not leak into Kokoro). For other engines only an
-      // explicitly requested voice may win; otherwise male/female voices are
-      // picked inside synthesizeSpeech.
+      // like "en" break kokoro). For other engines only an explicitly
+      // requested voice may win; otherwise male/female voices are picked inside
+      // synthesizeSpeech.
       const baseEngine = resolved.engine;
       if (req.body.voice == null && baseEngine !== "openai") {
         tts.voice = undefined;
@@ -121,13 +117,14 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
 
   app.post("/api/models/ensure", async (req, res) => {
     try {
-      const engine: string = req.body.engine || "moonshine";
-      if (engine === "kokoro") {
-        await ensureKokoro(req.body.model || "82m-v1.0-quantized");
-        return res.json({ ok: true, engine: "kokoro" });
+      let engine: string = req.body.engine || "echogarden";
+      if (engine !== "echogarden") {
+        // Moonshine was removed; fall back to the only supported STT engine.
+        engine = "echogarden";
       }
-      const dir = await ensureMoonshineModel(req.body.model || "tiny");
-      res.json({ ok: true, engine: "moonshine", dir });
+      const pkg = sttPackageName(req.body.model || "tiny");
+      await ensureModel(pkg);
+      res.json({ ok: true, package: pkg });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -156,12 +153,12 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
     res.json({
       engines: [
         {
-          id: "moonshine",
-          label: "Moonshine (sherpa-onnx)",
-          models: Object.keys(MOONSHINE_MODELS),
+          id: "echogarden",
+          label: "Whisper (echogarden)",
+          models: ["tiny", "base", "small", "medium", "large"],
         },
       ],
-      defaultEngine: "moonshine",
+      defaultEngine: "echogarden",
     });
   });
 
@@ -170,14 +167,15 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
     try {
       const settings = readSettings();
       // Allow overriding with the on-screen selection (unsaved) like TTS does.
-      const engine: string = req.body?.engine || settings.engines.stt.engine;
+      let engine: string = req.body?.engine || settings.engines.stt.engine;
       const model: string = req.body?.model || settings.engines.stt.model;
-      if (engine === "moonshine") {
-        await ensureMoonshineModel(model);
-        return res.json({ ok: true, engine: "moonshine", model });
+      if (engine !== "echogarden") {
+        // Moonshine was removed; fall back to the only supported STT engine.
+        engine = "echogarden";
       }
-      await ensureMoonshineModel(model);
-      res.json({ ok: true, engine: "moonshine", model });
+      const pkg = sttPackageName(model);
+      await ensureModel(pkg);
+      res.json({ ok: true, model });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -197,7 +195,6 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
         apiKey: t.apiKey || undefined,
         model: t.model || undefined,
         kokoroModel: (t.kokoroModel || "82m-v1.0-quantized") as any,
-        kokoroVoice: t.kokoroVoice || undefined,
         maleVoice: t.maleVoice || undefined,
         femaleVoice: t.femaleVoice || undefined,
         save: false,

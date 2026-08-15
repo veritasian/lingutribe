@@ -29,58 +29,97 @@ export default function WaveformPlayer({
   const totalW = Math.max(1, Math.round((duration || 1) * DEFAULT_PPS));
 
   useEffect(() => {
-    if (!waveMountRef.current || !mediaRef.current) return;
+    const media = mediaRef.current;
+    if (!waveMountRef.current || !media) return;
     setReady(false);
 
-    const ws = WaveSurfer.create({
-      container: waveMountRef.current,
-      media: mediaRef.current,
-      height: DEFAULT_WAVE_H,
-      // enjoy-style: thin, dense bars with a soft grey, follow theme via currentColor.
-      waveColor: "rgba(127, 137, 145, 0.55)",
-      progressColor: "hsl(var(--primary))",
-      barWidth: 1, // thinner
-      barGap: 1, // small gap
-      barRadius: 0, // no rounded tops — cleaner look
-      cursorWidth: 1,
-      cursorColor: "hsl(var(--primary))",
-      normalize: true,
-      fillParent: true,
-    });
-    wsRef.current = ws;
+    let cancelled = false;
+    let ws: WaveSurfer | null = null;
+    let metaHandler: (() => void) | null = null;
+    let fallback: ReturnType<typeof setTimeout> | null = null;
 
-    // Keep the horizontal playhead in view as the media plays.
-    const followPlayhead = (t: number) => {
-      const sc = scrollRef.current;
-      const w = wsRef.current;
-      if (!sc || !w) return;
-      if (!w.isPlaying()) return;
-      const dur = w.getDuration() || 1;
-      const total = sc.scrollWidth || 1;
-      const x = (t / dur) * total;
-      const view = sc.clientWidth;
-      if (total <= view) return;
-      const margin = 60;
-      let target = sc.scrollLeft;
-      if (x < sc.scrollLeft + margin) target = Math.max(0, x - margin);
-      else if (x > sc.scrollLeft + view - margin)
-        target = Math.min(total - view, x - view + margin);
-      if (target !== sc.scrollLeft) sc.scrollLeft = target;
+    const build = () => {
+      if (cancelled || wsRef.current || !waveMountRef.current) return;
+      const w = WaveSurfer.create({
+        container: waveMountRef.current,
+        media,
+        height: DEFAULT_WAVE_H,
+        // enjoy-style: thin, dense bars with a soft grey, follow theme via currentColor.
+        waveColor: "rgba(127, 137, 145, 0.55)",
+        progressColor: "hsl(var(--primary))",
+        barWidth: 1, // thinner
+        barGap: 1, // small gap
+        barRadius: 0, // no rounded tops — cleaner look
+        cursorWidth: 1,
+        cursorColor: "hsl(var(--primary))",
+        normalize: true,
+        fillParent: true,
+      });
+      ws = w;
+      wsRef.current = w;
+      // Lock the canvas width to the known duration immediately so the playhead
+      // math starts from a sane base even before `ready` fires.
+      if (isFinite(media.duration) && media.duration > 0) setDuration(media.duration);
+
+      // Keep the horizontal playhead in view as the media plays.
+      const followPlayhead = (t: number) => {
+        const sc = scrollRef.current;
+        const wv = wsRef.current;
+        if (!sc || !wv) return;
+        if (!wv.isPlaying()) return;
+        const dur = wv.getDuration() || 1;
+        const total = sc.scrollWidth || 1;
+        const x = (t / dur) * total;
+        const view = sc.clientWidth;
+        if (total <= view) return;
+        const margin = 60;
+        let target = sc.scrollLeft;
+        if (x < sc.scrollLeft + margin) target = Math.max(0, x - margin);
+        else if (x > sc.scrollLeft + view - margin)
+          target = Math.min(total - view, x - view + margin);
+        if (target !== sc.scrollLeft) sc.scrollLeft = target;
+      };
+
+      w.on("timeupdate", (t: number) => followPlayhead(t));
+      // Higher-frequency tick for smoother follow.
+      w.on("audioprocess", (t: number) => followPlayhead(t));
+
+      w.on("ready", () => {
+        setReady(true);
+        setDuration(w.getDuration() || 0);
+      });
+
+      w.on("error", (e: any) => console.error("wavesurfer error", e));
     };
 
-    ws.on("timeupdate", (t: number) => followPlayhead(t));
-    // Higher-frequency tick for smoother follow.
-    ws.on("audioprocess", (t: number) => followPlayhead(t));
-
-    ws.on("ready", () => {
-      setReady(true);
-      setDuration(ws.getDuration() || 0);
-    });
-
-    ws.on("error", (e: any) => console.error("wavesurfer error", e));
+    // WaveSurfer positions the playhead from `media.currentTime / media.duration`.
+    // If the <audio> hasn't resolved its duration yet (hidden element, no
+    // preload), that ratio is NaN and the cursor renders at the center (~50%).
+    // Wait for metadata — or a seeded analysis duration — before building so the
+    // playhead always starts at 0.
+    if (isFinite(media.duration) && media.duration > 0) {
+      build();
+    } else if (initialDuration && initialDuration > 0) {
+      setDuration(initialDuration);
+      build();
+    } else {
+      metaHandler = () => build();
+      media.addEventListener("loadedmetadata", metaHandler);
+      // Nudge metadata fetch for elements that may not auto-load.
+      try {
+        media.load();
+      } catch {
+        /* ignore */
+      }
+      // Build anyway if metadata is slow to arrive (e.g. codec edge cases).
+      fallback = setTimeout(() => build(), 1500);
+    }
 
     return () => {
-      ws.destroy();
+      cancelled = true;
+      if (metaHandler) media.removeEventListener("loadedmetadata", metaHandler);
+      if (fallback) clearTimeout(fallback);
+      ws?.destroy();
       wsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

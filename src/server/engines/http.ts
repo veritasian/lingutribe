@@ -26,7 +26,7 @@ export function curl(args: string[]): Promise<{ stdout: Buffer; code: number }> 
   });
 }
 
-/** Turn cryptic model-download errors into an actionable message. */
+/** Turn echogarden's cryptic download errors into an actionable message. */
 export function friendlyDownloadError(e: any): string {
   const msg = String(e?.message || e);
   if (/status code (40[0-9]|50[0-9])|ENOTFOUND|ECONNREFUSED|fetch failed|ETIMEDOUT|network|certificate/i.test(msg)) {

@@ -42,8 +42,8 @@ export type EngineKind = "stt" | "tts" | "llm";
 
 export interface EngineSettings {
   stt: {
-    engine: "moonshine"; // Moonshine (sherpa-onnx)
-    model: string; // e.g. "tiny", "base"
+    engine: "echogarden"; // whisper via echogarden
+    model: string; // e.g. "tiny", "base", "small"
   };
   tts: {
     engine: "kokoro" | "openai";
@@ -78,7 +78,7 @@ export interface ModelInfo {
   id: string;
   label: string;
   kind: EngineKind;
-  // the model/package identifier used by the engine's ensure-model step
+  // for echogarden: the package name it downloads
   packageName?: string;
   local: boolean; // already present on disk
 }

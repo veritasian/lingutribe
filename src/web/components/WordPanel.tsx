@@ -54,6 +54,16 @@ export default function WordPanel({
   const [analyzing, setAnalyzing] = useState(false);
   const [tab, setTab] = useState<"dict" | "grammar" | "ask">("dict");
   const [added, setAdded] = useState(false);
+  // The dictionary selected in Settings for offline lookups (null = auto).
+  const [activeDict, setActiveDict] = useState<string | null>(null);
+
+  // Load the active-dictionary preference once so lookups target it.
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => setActiveDict(s.activeDictionary || null))
+      .catch(() => {});
+  }, []);
 
   // Feature 1: LLM fallback definition when no local MDict entry exists.
   const [llmDef, setLlmDef] = useState<string | null>(null);
@@ -112,7 +122,7 @@ export default function WordPanel({
       setError(null);
       setLookup(null);
       api
-        .dictLookup(data.text)
+        .dictLookup(data.text, activeDict)
         .then((r) => {
           setLookup(r);
           // Feature 1: no local entry → ask the LLM for a concise definition.

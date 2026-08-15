@@ -24,13 +24,20 @@ function dictsDir(): string {
   return path.join(getLibraryPath(), "dictionaries");
 }
 
-// Re-scan only when the directory's contents/mtime change, so a dictionary
-// dropped in after the server started is picked up without a restart.
+// Re-scan only when the dictionary files change, so a dictionary dropped in
+// (or overwritten in place) after the server started is picked up without a
+// restart. Key on per-file mtime+size, not just directory mtime — tools that
+// truncate-and-rewrite a file don't bump the directory's own mtime.
 function dirKey(dir: string): string {
   try {
-    const mtime = fs.statSync(dir).mtimeMs;
-    const files = fs.readdirSync(dir).sort().join("|");
-    return `${mtime}:${files}`;
+    const files = fs.readdirSync(dir).sort();
+    const sig = files
+      .map((f) => {
+        const s = fs.statSync(path.join(dir, f));
+        return `${f}:${s.mtimeMs}:${s.size}`;
+      })
+      .join("|");
+    return sig;
   } catch {
     return "";
   }
@@ -49,9 +56,16 @@ function loadDicts(): LoadedDict[] {
   }
   if (!fs.existsSync(dir)) return dictCache;
   const files = fs.readdirSync(dir);
-  const mdds = files
-    .filter((f) => f.toLowerCase().endsWith(".mdd"))
-    .map((f) => new Mdict(path.join(dir, f)));
+  // Companion resources (audio/images/css). Guard construction so one corrupt
+  // .mdd only disables audio for that dictionary — never the whole pipeline.
+  const mdds: any[] = [];
+  for (const f of files.filter((f) => f.toLowerCase().endsWith(".mdd"))) {
+    try {
+      mdds.push(new Mdict(path.join(dir, f)));
+    } catch (err) {
+      console.error("[mdict] failed to load .mdd", f, err);
+    }
+  }
   for (const m of files.filter((f) => f.toLowerCase().endsWith(".mdx"))) {
     try {
       const reader = new Mdict(path.join(dir, m));
@@ -523,8 +537,15 @@ function tryVariants(dicts: any[], word: string): any | null {
   return null;
 }
 
-function lookupWord(word: string) {
-  const dicts = loadDicts();
+function lookupWord(word: string, dict?: string | null) {
+  let dicts = loadDicts();
+  // When a specific dictionary is chosen, restrict the search to it. If the
+  // title doesn't resolve to a loaded dictionary (e.g. it was removed), fall
+  // back to searching everything rather than erroring out.
+  if (dict) {
+    const filtered = dicts.filter((d) => d.title === dict);
+    if (filtered.length) dicts = filtered;
+  }
   // Exact headword match first (as typed / lowercase / Title-case).
   const exact = tryVariants(dicts, word);
   if (exact) return exact;
@@ -554,17 +575,39 @@ app.get("/api/dict/list", (_req, res) => {
   res.json({ dictionaries: dicts.map((d) => d.title), dir: dictsDir() });
 });
 
+// Offline dictionary readiness test. Mirrors what the Settings → Dictionary
+// "Test install" button (api.dictStatus) expects: confirms the dictionaries
+// folder is readable and reports how many .mdx files loaded successfully.
+app.get("/api/dict/test", (_req, res) => {
+  try {
+    const dicts = loadDicts();
+    const dir = dictsDir();
+    const titles = dicts.map((d) => d.title);
+    res.json({ ok: dicts.length > 0, dir, count: dicts.length, titles });
+  } catch (e: any) {
+    res
+      .status(500)
+      .json({ ok: false, dir: dictsDir(), count: 0, titles: [], error: e.message });
+  }
+});
+
 app.get("/api/dict/lookup", (req, res) => {
   const word = String(req.query.word || "").trim();
   if (!word) return res.status(400).json({ error: "word required" });
-  const r = lookupWord(word);
-  if (!r.found) {
-    return res.json({
-      ...r,
-      message: "No local dictionary entry. Drop a .mdx file into " + dictsDir(),
-    });
+  const dict = req.query.dict ? String(req.query.dict) : null;
+  try {
+    const r = lookupWord(word, dict);
+    if (!r.found) {
+      return res.json({
+        ...r,
+        message: "No local dictionary entry. Drop a .mdx file into " + dictsDir(),
+      });
+    }
+    res.json(r);
+  } catch (e: any) {
+    console.error("[mdict] lookup error", word, e);
+    res.status(500).json({ error: "dictionary lookup failed: " + e.message });
   }
-  res.json(r);
 });
 
 // LLM fallback for words with no local MDict entry. Returns a concise,

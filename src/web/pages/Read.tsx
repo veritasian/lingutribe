@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { api, type Resource } from "../api";
 import VocabProfile from "../components/VocabProfile";
 import WordPanel, { type WordPanelData } from "../components/WordPanel";
+import NoteEditor from "../components/NoteEditor";
 import { useCoca } from "../lib/coca";
 import { renderMarkdown } from "../lib/markdown";
-import { IconPlus, IconVolume, IconPause, IconCopy, IconChat, IconPlay } from "../components/Icon";
+import { IconPlus, IconVolume, IconPause, IconCopy, IconChat, IconPlay, IconNotes } from "../components/Icon";
 
 /** Strip HTML tags for TTS. */
 function stripHtml(html: string): string {
@@ -57,6 +58,8 @@ export default function Read() {
   const [sentIdx, setSentIdx] = useState(-1);
   const sentencesRef = useRef<string[]>([]);
   const [showAudio, setShowAudio] = useState(false);
+  // Inline note editor (below content), toggled from the header Note button.
+  const [showNote, setShowNote] = useState(false);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [dirty, setDirty] = useState(false);
 
@@ -344,6 +347,14 @@ export default function Read() {
                     <IconVolume size={15} /> Read aloud
                   </button>
                 )}
+                <button
+                  className={`btn btn-secondary inline-flex items-center gap-1 ${showNote ? "ring-1 ring-primary" : ""}`}
+                  onClick={() => setShowNote((v) => !v)}
+                  title="Note"
+                  aria-pressed={showNote}
+                >
+                  <IconNotes size={15} /> Note
+                </button>
               </div>
             </div>
 
@@ -392,6 +403,16 @@ export default function Read() {
             <div className={`px-6 py-2 border-t shrink-0 ${showAudio ? "" : "hidden"}`}>
               <audio ref={audioRef} controls className="w-full h-8" onEnded={onAudioEnded} />
             </div>
+
+            {/* Inline note editor — appears below content when toggled */}
+            {showNote && active && (
+              <NoteEditor
+                key={active.id}
+                resourceId={active.id}
+                autoTitle={active.name}
+                onClose={() => setShowNote(false)}
+              />
+            )}
           </div>
         )}
       </div>

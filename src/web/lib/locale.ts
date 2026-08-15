@@ -6,6 +6,7 @@ const DICT: Record<string, Record<string, string>> = {
   en: {
     audio: "Audio", video: "Video", read: "Read",
     words: "Words", chat: "Chat", settings: "Settings",
+    notes: "Notes",
     resources: "Resources", transcript: "Transcript", layout: "Layout",
     content: "Content", save: "Save", delete: "Delete",
     confirm: "Confirm", test: "Test", import: "Import",
@@ -19,6 +20,7 @@ const DICT: Record<string, Record<string, string>> = {
   zh: {
     audio: "音频", video: "视频", read: "阅读",
     words: "词汇", chat: "对话", settings: "设置",
+    notes: "笔记",
     resources: "资源", transcript: "文本", layout: "分析",
     content: "内容", save: "保存", delete: "删除",
     confirm: "确认", test: "测试", import: "导入",

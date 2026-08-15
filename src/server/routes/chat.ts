@@ -1,12 +1,12 @@
 import express from "express";
 import { getDb, genId } from "../db.js";
 
-export function registerChatRoutes(app: express.Express, ctx: { db: ReturnType<typeof getDb>; now: () => number }) {
-  const { db, now } = ctx;
+export function registerChatRoutes(app: express.Express, ctx: { now: () => number }) {
+  const { now } = ctx;
 // --- Ask-AI chat history (persisted per thread, e.g. one thread per article) ---
 app.get("/api/chat", (req, res) => {
   const thread = String(req.query.thread || "global");
-  const messages = db
+  const messages = getDb()
     .prepare("SELECT id, role, content, createdAt FROM chat_messages WHERE thread=? ORDER BY createdAt ASC")
     .all(thread);
   res.json({ messages });
@@ -18,7 +18,7 @@ app.post("/api/chat", (req, res) => {
     return res.status(400).json({ error: "thread, role, content required" });
   }
   const row = { id: genId(), thread, role, content, createdAt: now() };
-  db.prepare(
+  getDb().prepare(
     "INSERT INTO chat_messages(id, thread, role, content, createdAt) VALUES(@id, @thread, @role, @content, @createdAt)"
   ).run(row);
   res.json(row);
@@ -26,7 +26,7 @@ app.post("/api/chat", (req, res) => {
 
 // Delete a single chat message (used by the Ask AI / Chat copy-delete buttons).
 app.delete("/api/chat/:id", (req, res) => {
-  db.prepare("DELETE FROM chat_messages WHERE id=?").run(req.params.id);
+  getDb().prepare("DELETE FROM chat_messages WHERE id=?").run(req.params.id);
   res.json({ ok: true });
 });
 }

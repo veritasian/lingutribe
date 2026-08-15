@@ -209,41 +209,136 @@ export function collapseRepetition(words: WordHit[]): WordHit[] {
 }
 
 /**
- * Group word-level timestamps into fixed-length subtitle chunks of
- * ~`minSec`–`maxSec` seconds. Unlike buildSegments (which re-splits by
- * punctuation/pauses and can create overlapping rows), this yields clean,
- * non-overlapping, time-ordered chunks — one subtitle line per ~5–10s as the
- * UI asks for.
+ * Subtitle (字幕) segmentation tuned for Whisper STT word timelines.
+ *
+ * Rules (per product spec):
+ *   1. Max speech duration: a cue is capped at MAX_SPEECH_DUR_S of speech span
+ *      (8–10s) — long utterances are split so each line stays readable.
+ *   2. Merge short cues: any cue whose speech span is below MIN_SPEECH_DUR_S
+ *      (4000ms) is folded into the NEXT cue — the short fragment becomes the
+ *      START (opening words) of the next subtitle segment, rather than a
+ *      trailing tail on the previous one. Falls back to the previous cue only
+ *      when the next is already near the max duration.
+ *   3. Silence splitting: a silence gap longer than SILENCE_SPLIT_S (9000ms)
+ *      between two words forces a new cue; shorter gaps are NOT breaks and are
+ *      absorbed into the surrounding cue (rule 2 then merges tiny fragments).
+ *
+ * Unlike the old fixed-length chunker, this respects natural pauses, so the
+ * caption lines line up with how a person actually paused while speaking.
  */
-export function chunkWordsByTime(
+export const MAX_SPEECH_DUR_S = 10; // rule 1: 8–10s cap
+export const MIN_SPEECH_DUR_S = 4; // rule 2: 4000ms
+export const SILENCE_SPLIT_S = 9; // rule 3: 9000ms
+
+export function buildSubtitles(
   words: WordHit[],
-  minSec = 5,
-  maxSec = 10
+  opts?: {
+    maxSpeechDur?: number;
+    minSpeechDur?: number;
+    silenceSplit?: number;
+  }
 ): Segment[] {
+  const maxSpeechDur = opts?.maxSpeechDur ?? MAX_SPEECH_DUR_S;
+  const minSpeechDur = opts?.minSpeechDur ?? MIN_SPEECH_DUR_S;
+  const silenceSplit = opts?.silenceSplit ?? SILENCE_SPLIT_S;
   if (!words || !words.length) return [];
-  const out: Segment[] = [];
-  let start = 0;
+
+  // Pass 1 — greedy split on a long silence or the max speech duration.
+  const raw: Segment[] = [];
+  let curStart = 0;
   for (let i = 0; i < words.length; i++) {
+    const w = words[i];
     const isLast = i === words.length - 1;
-    const segStart = words[start].start;
-    const dur = words[i].end - segStart;
     const next = words[i + 1];
-    const nextExceeds = next ? next.end - segStart > maxSec : false;
-    if (isLast || (dur >= minSec && nextExceeds)) {
-      const slice = words.slice(start, i + 1);
-      out.push({
-        index: out.length,
-        number: out.length + 1,
-        text: slice.map((w) => w.text).join(" ").trim(),
-        startTime: segStart,
-        endTime: words[i].end,
-        wordStartIdx: start,
-        wordEndIdx: i,
-      });
-      start = i + 1;
+    const gap = next ? next.start - w.end : Infinity;
+    const span = w.end - words[curStart].start;
+
+    let endHere = isLast;
+    if (!isLast) {
+      if (gap > silenceSplit) endHere = true; // rule 3: long silence → new cue
+      else if (span >= maxSpeechDur) endHere = true; // rule 1: cap speech span
+      // gaps ≤ silenceSplit are intentionally NOT breaks → merged into the cue
+    }
+    if (endHere) {
+      raw.push(makeSeg(words, curStart, i, raw.length));
+      curStart = i + 1;
+    }
+  }
+
+  // Pass 2 — merge cues shorter than minSpeechDur into an adjacent cue.
+  return renumber(mergeShortCues(raw, minSpeechDur, maxSpeechDur));
+}
+
+function makeSeg(
+  words: WordHit[],
+  start: number,
+  end: number,
+  index: number
+): Segment {
+  const slice = words.slice(start, end + 1);
+  return {
+    index,
+    number: index + 1,
+    text: slice.map((w) => w.text).join(" ").trim(),
+    startTime: slice[0].start,
+    endTime: slice[slice.length - 1].end,
+    wordStartIdx: start,
+    wordEndIdx: end,
+  };
+}
+
+function joinSeg(a: Segment, b: Segment): Segment {
+  return {
+    index: a.index,
+    number: a.number,
+    text: `${a.text} ${b.text}`.trim(),
+    startTime: a.startTime,
+    endTime: b.endTime,
+    wordStartIdx: a.wordStartIdx,
+    wordEndIdx: b.wordEndIdx,
+  };
+}
+
+function mergeShortCues(
+  segs: Segment[],
+  minDur: number,
+  maxDur: number
+): Segment[] {
+  if (segs.length <= 1) return segs;
+  const out: Segment[] = [];
+  let i = 0;
+  while (i < segs.length) {
+    const cur = segs[i];
+    const curDur = cur.endTime - cur.startTime;
+    if (curDur >= minDur || i === segs.length - 1) {
+      out.push(cur);
+      i++;
+      continue;
+    }
+    const prev = out[out.length - 1];
+    const next = segs[i + 1];
+    // Prefer merging the short cue INTO the NEXT cue so it becomes the START
+    // (opening words) of that next segment — the natural reading for a brief
+    // lead-in after a split. Fall back to the previous cue only when the next
+    // is already near the max duration.
+    if (next.endTime - cur.startTime <= maxDur) {
+      // Fold cur into segs[i+1] as its opening; skip past cur.
+      segs[i + 1] = joinSeg(cur, next);
+      i++;
+    } else if (prev && cur.endTime - prev.startTime <= maxDur) {
+      out[out.length - 1] = joinSeg(prev, cur);
+      i++;
+    } else {
+      // Neither neighbour fits — keep as-is (rare; slight min violation).
+      out.push(cur);
+      i++;
     }
   }
   return out;
+}
+
+function renumber(segs: Segment[]): Segment[] {
+  return segs.map((s, i) => ({ ...s, index: i, number: i + 1 }));
 }
 
 

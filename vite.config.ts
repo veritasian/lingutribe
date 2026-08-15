@@ -31,7 +31,7 @@ export default defineConfig({
       // of proxying it — otherwise the "/api" prefix hijacked that module and
       // blanked the dev page.
       "/api": {
-        target: "http://localhost:8787",
+        target: `http://localhost:${process.env.LINGO_API_PORT || 8787}`,
         changeOrigin: true,
         bypass: (req) => {
           // Vite appends a ?t=<timestamp> cache-buster to module URLs in dev

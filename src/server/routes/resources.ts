@@ -3,7 +3,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { getDb, genId, typeDir, resolveResourceFile } from "../db.js";
-import { transcribeFile } from "../engines/index.js";
+import { transcribeFile, alignFile } from "../engines/index.js";
 import { collapseRepetition } from "../segments.js";
 import {
   readAnalysisCache,
@@ -16,17 +16,16 @@ import {
 } from "../analysis.js";
 
 interface ResourcesCtx {
-  db: ReturnType<typeof getDb>;
   now: () => number;
   readSettings: () => any;
   upload: any;
 }
 
 export function registerResourcesRoutes(app: express.Express, ctx: ResourcesCtx) {
-  const { db, now, readSettings, upload } = ctx;
+  const { now, readSettings, upload } = ctx;
 // --- Resources ---
 app.get("/api/resources", (_req, res) => {
-  const rows = db
+  const rows = getDb()
     .prepare("SELECT * FROM resources ORDER BY createdAt DESC")
     .all();
   res.json(rows);
@@ -59,7 +58,7 @@ app.post("/api/resources", upload.single("file"), (req, res) => {
       createdAt: now(),
       updatedAt: now(),
     };
-    db.prepare(
+    getDb().prepare(
       `INSERT INTO resources(id,type,name,filename,relativePath,size,duration,mimeType,transcript,note,createdAt,updatedAt)
        VALUES(@id,@type,@name,@filename,@relativePath,@size,@duration,@mimeType,@transcript,@note,@createdAt,@updatedAt)`
     ).run(row);
@@ -70,13 +69,13 @@ app.post("/api/resources", upload.single("file"), (req, res) => {
 });
 
 app.get("/api/resources/:id", (req, res) => {
-  const row = db.prepare("SELECT * FROM resources WHERE id=?").get(req.params.id);
+  const row = getDb().prepare("SELECT * FROM resources WHERE id=?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "not found" });
   res.json(row);
 });
 
 app.get("/api/resources/:id/file", (req, res) => {
-  const row = db.prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
+  const row = getDb().prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
   if (!row) return res.status(404).json({ error: "not found" });
   const fp = resolveResourceFile(row.relativePath);
   if (!fp) return res.status(404).json({ error: "file missing" });
@@ -84,7 +83,7 @@ app.get("/api/resources/:id/file", (req, res) => {
 });
 
 app.delete("/api/resources/:id", (req, res) => {
-  const row = db.prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
+  const row = getDb().prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
   if (row) {
     const fp = resolveResourceFile(row.relativePath);
     try {
@@ -92,21 +91,21 @@ app.delete("/api/resources/:id", (req, res) => {
     } catch {
       /* ignore */
     }
-    db.prepare("DELETE FROM resources WHERE id=?").run(req.params.id);
+    getDb().prepare("DELETE FROM resources WHERE id=?").run(req.params.id);
   }
   res.json({ ok: true });
 });
 
 app.put("/api/resources/:id", (req, res) => {
   const b = req.body;
-  db.prepare(
+  getDb().prepare(
     "UPDATE resources SET transcript=?, words=?, note=?, updatedAt=? WHERE id=?"
   ).run(b.transcript ?? "", b.words ?? "", b.note ?? "", now(), req.params.id);
   res.json({ ok: true });
 });
 
 app.post("/api/resources/:id/transcribe", async (req, res) => {
-  const row = db.prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
+  const row = getDb().prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
   if (!row) return res.status(404).json({ error: "not found" });
   const fp = resolveResourceFile(row.relativePath);
   if (!fp) return res.status(404).json({ error: "file missing" });
@@ -135,7 +134,7 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
       settings.engines.stt.model,
       req.body.language || "en"
     );
-    // STT engines occasionally loop during silence or
+    // STT engines (Whisper/echogarden) occasionally loop during silence or
     // "[music]" tags, emitting verbatim repeated word-runs. Collapse those once
     // so the stored transcript/words read like a clean authored caption. Only
     // rebuild the transcript text from words when we actually have word
@@ -147,7 +146,7 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
     const transcript = rawWords.length
       ? words.map((w: any) => w.text).join(" ")
       : (result.transcript || "");
-    db.prepare("UPDATE resources SET transcript=?, words=?, updatedAt=? WHERE id=?").run(
+    getDb().prepare("UPDATE resources SET transcript=?, words=?, updatedAt=? WHERE id=?").run(
       transcript,
       JSON.stringify(words),
       now(),
@@ -193,6 +192,95 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
 });
 
 /**
+ * POST /api/resources/:id/align
+ *
+ * Forced alignment: align the resource's audio against a *known* transcript to
+ * produce precise per-word timestamps. This is more accurate than Whisper's
+ * free-form word timeline when the correct text is already available, and it is
+ * the only way to get clickable word timings for a resource that has a
+ * transcript but no word-level data.
+ *
+ * Body:
+ *   - transcript?: string  Known/corrected text to align against. If omitted,
+ *                          the resource's stored transcript is used.
+ *   - language?:  string   ISO-639-1 code (default "en").
+ *
+ * On success, stores the aligned `words` (and normalized `transcript`) and
+ * regenerates the analysis cache so the player reloads with new timings.
+ */
+app.post("/api/resources/:id/align", async (req, res) => {
+  const row = getDb().prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: "not found" });
+  const fp = resolveResourceFile(row.relativePath);
+  if (!fp) return res.status(404).json({ error: "file missing" });
+
+  // Prefer a transcript supplied by the caller (a known/corrected script),
+  // otherwise fall back to the one already stored on the resource.
+  const supplied = (req.body.transcript || "").toString().trim();
+  const existing = (row.transcript || "").toString().trim();
+  const transcript = supplied || existing;
+  if (!transcript) {
+    return res.status(400).json({
+      error: "No transcript to align. Transcribe the audio first, or provide one in the request body.",
+    });
+  }
+  const language = (req.body.language || "en").toString().trim() || "en";
+
+  try {
+    const result = await alignFile(fp, transcript, language);
+    const rawWords = (result.words || []) as { text: string; start: number; end: number }[];
+    const words = rawWords.length ? rawWords : [];
+    const outTranscript = words.length
+      ? words.map((w) => w.text).join(" ")
+      : (result.transcript || transcript);
+
+    getDb().prepare("UPDATE resources SET transcript=?, words=?, updatedAt=? WHERE id=?").run(
+      outTranscript,
+      JSON.stringify(words),
+      now(),
+      req.params.id
+    );
+
+    // Regenerate the analysis cache (segments/peaks) so the player reloads
+    // with the new word timings instead of a stale cache keyed by file hash.
+    try {
+      const fpStat = await fingerprintFile(fp);
+      const segs = buildSegmentsFromWords(words);
+      let peaks: number[] = [];
+      let duration = 0;
+      try {
+        const out = await computePeaks(fp);
+        peaks = out.peaks;
+        duration = out.duration;
+      } catch (pe) {
+        try { duration = await probeDuration(fp); } catch { /* ignore */ }
+        console.warn("[analysis] peaks failed:", (pe as Error).message);
+      }
+      const cache: AnalysisCache = {
+        version: 3,
+        resourceId: req.params.id,
+        md5: fpStat,
+        createdAt: new Date().toISOString(),
+        duration: duration || (segs[segs.length - 1]?.endTime ?? 0),
+        durationProbedAt: Date.now(),
+        transcript: outTranscript,
+        words,
+        segments: segs,
+        peaks,
+        peaksPerSec: 100,
+      };
+      await writeAnalysisCache(cache);
+    } catch (e: any) {
+      console.warn("[analysis] cache write failed:", e.message);
+    }
+
+    res.json({ transcript: outTranscript, words, aligned: true, method: "dtw" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * GET /api/resources/:id/analysis
  *
  * Returns the pre-computed analysis (peaks, segments, transcript, duration)
@@ -204,7 +292,7 @@ app.post("/api/resources/:id/transcribe", async (req, res) => {
  * regenerates the cache synchronously (skipping peaks if ffmpeg fails).
  */
 app.get("/api/resources/:id/analysis", async (req, res) => {
-  const row = db.prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
+  const row = getDb().prepare("SELECT * FROM resources WHERE id=?").get(req.params.id) as any;
   if (!row) return res.status(404).json({ error: "not found" });
   const fp = resolveResourceFile(row.relativePath);
   if (!fp) return res.status(404).json({ error: "file missing" });

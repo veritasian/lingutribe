@@ -25,3 +25,7 @@ DEV-SUMMARY.md
 
 # ── Local WorkBuddy memory / dev logs (not source, never push) ──
 .workbuddy/
+
+# ── Local backups (never push) ─────────────────
+src.bak-*/
+build-backup.*

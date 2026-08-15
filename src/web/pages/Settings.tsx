@@ -2,18 +2,20 @@
 // UI and handlers to dedicated section components under ./settings/.
 import { useEffect, useState, type ReactNode } from "react";
 import { api, type Settings, type DiskUsage } from "../api";
-import { IconSettings, IconMic, IconVolume, IconRobot } from "../components/Icon";
+import { IconSettings, IconMic, IconVolume, IconRobot, IconBook } from "../components/Icon";
 import SystemSection from "./settings/SystemSection";
 import SttSection from "./settings/SttSection";
 import TtsSection from "./settings/TtsSection";
 import LlmSection from "./settings/LlmSection";
+import DictSection from "./settings/DictSection";
 
-type Cat = "system" | "stt" | "tts" | "llm";
+type Cat = "system" | "stt" | "tts" | "llm" | "dict";
 
 const CATS: { id: Cat; label: string; icon: ReactNode }[] = [
   { id: "system", label: "System", icon: <IconSettings size={18} /> },
   { id: "stt", label: "STT", icon: <IconMic size={18} /> },
   { id: "tts", label: "TTS", icon: <IconVolume size={18} /> },
+  { id: "dict", label: "Dictionary", icon: <IconBook size={18} /> },
   { id: "llm", label: "LLM", icon: <IconRobot size={18} /> },
 ];
 
@@ -89,6 +91,14 @@ export default function Settings() {
               patchSettings={patchSettings}
               savedCat={savedCat}
               onSaved={() => flash("tts")}
+            />
+          )}
+          {cat === "dict" && (
+            <DictSection
+              settings={settings}
+              patchSettings={patchSettings}
+              savedCat={savedCat}
+              onSaved={() => flash("dict")}
             />
           )}
           {cat === "llm" && (

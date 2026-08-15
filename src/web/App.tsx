@@ -5,6 +5,7 @@ import Words from "./pages/Words";
 import Chat from "./pages/Chat";
 import Read from "./pages/Read";
 import Settings from "./pages/Settings";
+import Notes from "./pages/Notes";
 import {
   IconAudio,
   IconVideo,
@@ -12,6 +13,7 @@ import {
   IconWords,
   IconChat,
   IconSettings,
+  IconNotes,
   IconPanelLeft,
   IconShieldCheck,
 } from "./components/Icon";
@@ -23,6 +25,7 @@ const NAV_ITEMS: { to: string; key: string; icon: ReactNode }[] = [
   { to: "/resources/video", key: "video", icon: <IconVideo size={18} /> },
   { to: "/read", key: "read", icon: <IconRead size={18} /> },
   { to: "/words", key: "words", icon: <IconWords size={18} /> },
+  { to: "/notes", key: "notes", icon: <IconNotes size={18} /> },
   { to: "/chat", key: "chat", icon: <IconChat size={18} /> },
   { to: "/settings", key: "settings", icon: <IconSettings size={18} /> },
 ];
@@ -131,7 +134,7 @@ export default function App() {
           <Route path="/resources/:tab" element={<Resources />} />
           <Route path="/read" element={<Read />} />
           <Route path="/words" element={<Words />} />
-          <Route path="/notes" element={<Navigate to="/chat" replace />} />
+          <Route path="/notes" element={<Notes />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

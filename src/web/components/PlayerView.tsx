@@ -13,6 +13,7 @@ import AudioBar from "./AudioBar";
 import Transcript from "./Transcript";
 import VocabProfile from "./VocabProfile";
 import WordPanel, { type WordPanelData } from "./WordPanel";
+import NoteEditor from "./NoteEditor";
 import {
   useCoca,
   useVisibleBands,
@@ -24,20 +25,24 @@ import {
   IconList,
   IconChart,
   IconMic,
+  IconAlign,
   IconTrash,
+  IconNotes,
   IconPanelLeft,
   IconChevronDown,
 } from "./Icon";
-import { chunkWordsByTime, collapseRepetition, type Segment } from "../lib/segments";
+import { buildSubtitles, collapseRepetition, type Segment } from "../lib/segments";
 
 export default function PlayerView({
   resource,
   onTranscribe,
+  onAlign,
   onDelete,
   busy,
 }: {
   resource: Resource;
   onTranscribe?: () => void;
+  onAlign?: () => void;
   onDelete?: () => void;
   busy?: boolean;
 }) {
@@ -81,7 +86,7 @@ export default function PlayerView({
   // `transcript`. Collapse those once so every view (subtitle, content, vocab,
   // AI) sees the clean text — matching what a native authored caption looks
   // like. From the collapsed words we build:
-  //   • subtitle lines  → fixed ~5–10s time chunks (no overlapping rows)
+  //   • subtitle lines  → silence-aware cues (≤10s speech, merge <4s, split on >9s silence)
   //   • content/paragraphs → 25s merges (handled inside Transcript)
   const collapsedWords: WordHit[] = useMemo(
     () => collapseRepetition(words),
@@ -97,7 +102,7 @@ export default function PlayerView({
     [collapsedWords, resource.transcript]
   );
   const segments: Segment[] = useMemo(
-    () => chunkWordsByTime(collapsedWords, 5, 10),
+    () => buildSubtitles(collapsedWords),
     [collapsedWords]
   );
 
@@ -212,6 +217,8 @@ export default function PlayerView({
   const [playerTab, setPlayerTab] = useState<"transcript" | "layout">("transcript");
   // Video subtitles visibility (toggle to hide captions, show only video).
   const [showSubs, setShowSubs] = useState(true);
+  // Inline note editor (below content), toggled from the header Note button.
+  const [showNote, setShowNote] = useState(false);
 
   // Right slide-in panel width — draggable, persisted.
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -293,6 +300,15 @@ export default function PlayerView({
             >
               <IconChart size={16} />
             </button>
+            <button
+              className={`icon-btn ${showNote ? "ring-1 ring-primary" : ""}`}
+              onClick={() => setShowNote((v) => !v)}
+              title="Note"
+              aria-label="Note"
+              aria-pressed={showNote}
+            >
+              <IconNotes size={16} />
+            </button>
             {onTranscribe && (
               <button
                 className="icon-btn"
@@ -302,6 +318,21 @@ export default function PlayerView({
                 aria-label={words.length > 0 ? "Re-transcribe" : "Transcribe"}
               >
                 <IconMic size={16} />
+              </button>
+            )}
+            {onAlign && (
+              <button
+                className="icon-btn"
+                disabled={busy || !transcriptClean.trim()}
+                onClick={onAlign}
+                title={
+                  transcriptClean.trim()
+                    ? "Align transcript to audio for precise word timing"
+                    : "Add or transcribe a transcript first"
+                }
+                aria-label="Align transcript to audio"
+              >
+                <IconAlign size={16} />
               </button>
             )}
             {onDelete && (
@@ -335,6 +366,7 @@ export default function PlayerView({
               key={resource.id}
               ref={audioRef}
               src={`/api/resources/${resource.id}/file`}
+              preload="auto"
               style={{ display: "none" }}
             />
             <AudioBar mediaRef={audioRef} />
@@ -475,6 +507,16 @@ export default function PlayerView({
               )}
             </div>
           </div>
+        )}
+
+        {/* Inline note editor — appears below content when toggled */}
+        {showNote && (
+          <NoteEditor
+            key={resource.id}
+            resourceId={resource.id}
+            autoTitle={resource.name}
+            onClose={() => setShowNote(false)}
+          />
         )}
       </div>
 

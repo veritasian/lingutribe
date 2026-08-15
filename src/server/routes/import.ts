@@ -18,7 +18,6 @@ import {
 } from "../analysis.js";
 
 interface ImportCtx {
-  db: ReturnType<typeof getDb>;
   now: () => number;
   upload: any;
   ffmpegPath: string | null;
@@ -69,7 +68,7 @@ function extractArticle(html: string, pageUrl: string): { html: string; title: s
 }
 
 export function registerImportRoutes(app: express.Express, ctx: ImportCtx) {
-  const { db, now, upload, ffmpegPath } = ctx;
+  const { now, upload, ffmpegPath } = ctx;
 // --- URL import (video link / podcast link) ---
 // Pull media + subtitles directly when available (no STT needed). Falls
 // back to STT later via the Transcribe button when no subtitle exists.
@@ -322,7 +321,7 @@ app.post("/api/import", async (req, res) => {
       createdAt: now(),
       updatedAt: now(),
     };
-    db.prepare(
+    getDb().prepare(
       `INSERT INTO resources(id,type,name,filename,relativePath,size,duration,mimeType,transcript,words,note,createdAt,updatedAt)
        VALUES(@id,@type,@name,@filename,@relativePath,@size,@duration,@mimeType,@transcript,@words,@note,@createdAt,@updatedAt)`
     ).run(row);
@@ -424,7 +423,7 @@ app.post("/api/import/text", upload.single("file"), async (req, res) => {
       transcript: content, words: "", note: "",
       createdAt: now(), updatedAt: now(),
     };
-    db.prepare(
+    getDb().prepare(
       `INSERT INTO resources(id,type,name,filename,relativePath,size,duration,mimeType,transcript,words,note,createdAt,updatedAt)
        VALUES(@id,@type,@name,@filename,@relativePath,@size,@duration,@mimeType,@transcript,@words,@note,@createdAt,@updatedAt)`
     ).run(row);

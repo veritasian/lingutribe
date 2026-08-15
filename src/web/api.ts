@@ -8,7 +8,15 @@ async function req<T = any>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(t || `HTTP ${res.status}`);
+    // Prefer the structured { error } message over the raw HTML/JSON body.
+    let msg = t || `HTTP ${res.status}`;
+    try {
+      const j = JSON.parse(t);
+      if (j && typeof j.error === "string") msg = j.error;
+    } catch {
+      /* not JSON — keep the raw body */
+    }
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -72,6 +80,8 @@ export interface Settings {
   ttsHistory?: { id: number; ts: string; engine: string; voice: string; model?: string; maleVoice?: string; femaleVoice?: string; baseUrl?: string; apiKey?: string }[];
   defaultTtsId?: number;
   defaultLlmId?: number;
+  // Which offline MDict dictionary to use for lookups. null => auto (first match).
+  activeDictionary?: string | null;
 }
 export interface DiskUsage {
   libraryPath: string;
@@ -139,6 +149,14 @@ export const api = {
     req(`/api/resources/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
   transcribeResource: (id: string, language?: string) =>
     req(`/api/resources/${id}/transcribe`, { method: "POST", body: JSON.stringify({ language }) }),
+  // Forced alignment: align the resource audio to a known transcript to get
+  // precise per-word timestamps. `transcript` is optional — when omitted the
+  // server uses the resource's stored transcript.
+  alignResource: (id: string, transcript?: string, language?: string) =>
+    req<{ transcript: string; words: WordHit[]; aligned: boolean; method: string }>(
+      `/api/resources/${id}/align`,
+      { method: "POST", body: JSON.stringify({ transcript: transcript || undefined, language: language || undefined }) }
+    ),
   /** Pre-computed analysis cache: peaks, segments, transcript, duration.
    *  Returns null when the server has no cache yet (e.g. never transcribed). */
   getAnalysis: async (id: string) => {
@@ -162,8 +180,9 @@ export const api = {
     if (payload.name) fd.append("name", payload.name);
     return req<Resource>("/api/import/text", { method: "POST", body: fd });
   },
-  // Offline dictionary lookup via the MDict engine (no LLM)
-  dictLookup: (word: string) =>
+  // Offline dictionary lookup via the MDict engine (no LLM).
+  // `dict` optionally restricts the lookup to a specific installed dictionary.
+  dictLookup: (word: string, dict?: string | null) =>
     req<{
       word: string;
       found: boolean;
@@ -171,7 +190,11 @@ export const api = {
       text: string | null;
       dictTitle: string | null;
       message?: string;
-    }>(`/api/dict/lookup?word=${encodeURIComponent(word)}`),
+    }>(
+      `/api/dict/lookup?word=${encodeURIComponent(word)}${
+        dict ? "&dict=" + encodeURIComponent(dict) : ""
+      }`
+    ),
   analyze: (text: string) =>
     req<{ content: string }>("/api/llm/analyze", {
       method: "POST",
@@ -200,7 +223,8 @@ export const api = {
   updateWord: (id: string, w: Partial<Word>) => req(`/api/words/${id}`, { method: "PUT", body: JSON.stringify(w) }),
   deleteWord: (id: string) => req(`/api/words/${id}`, { method: "DELETE" }),
   // notes
-  listNotes: () => req<Note[]>("/api/notes"),
+  listNotes: (resourceId?: string) =>
+    req<Note[]>(resourceId ? `/api/notes?resourceId=${encodeURIComponent(resourceId)}` : "/api/notes"),
   createNote: (n: Partial<Note>) => req<Note>("/api/notes", { method: "POST", body: JSON.stringify(n) }),
   updateNote: (id: string, n: Partial<Note>) => req(`/api/notes/${id}`, { method: "PUT", body: JSON.stringify(n) }),
   deleteNote: (id: string) => req(`/api/notes/${id}`, { method: "DELETE" }),
@@ -240,6 +264,30 @@ export const api = {
       body: JSON.stringify(cfg ? { config: cfg } : {}),
     }),
   getKokoroVoices: () => req<KokoroVoice[]>("/api/tts/voices"),
+  // COCA frequency bands readiness + word-membership test.
+  cocaTest: (word?: string) =>
+    req<{
+      ok: boolean;
+      words?: number;
+      path?: string;
+      source?: string;
+      word?: string;
+      found?: boolean;
+      rank?: number | null;
+      band?: string | null;
+      error?: string;
+    }>("/api/coca/test" + (word ? `?word=${encodeURIComponent(word)}` : "")),
+  // Offline dictionary install-status test.
+  dictStatus: () =>
+    req<{ ok: boolean; dir: string; count: number; titles: string[]; error?: string }>(
+      "/api/dict/test"
+    ),
+  // Reveal a folder in the OS file manager (desktop app).
+  revealFolder: (dir: string) =>
+    req<{ ok: boolean; dir: string; method: string; error?: string }>("/api/system/reveal", {
+      method: "POST",
+      body: JSON.stringify({ dir }),
+    }),
 };
 
 export const fmtBytes = (n: number) => {

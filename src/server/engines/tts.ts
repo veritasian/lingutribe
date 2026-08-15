@@ -1,15 +1,13 @@
+import { synthesize } from "echogarden";
+import { encodeRawAudioToWave } from "echogarden/dist/audio/AudioUtilities.js";
+import { loadPackage } from "echogarden/dist/utilities/PackageManager.js";
 import fs from "fs";
 import path from "path";
 import { ttsDir } from "../db.js";
-import { curl } from "./http.js";
-import { synthesizeKokoro, ensureKokoro, getKokoroVoices, type KokoroVoice } from "./kokoro.js";
+import { curl, friendlyDownloadError } from "./http.js";
 
 // ---------------------------------------------------------------------------
-// Text-to-Speech (modular engines):
-//   - "openai": OpenAI-compatible TTS cloud API (OpenAI + self-hosted: CosyVoice,
-//               GPT-SoVITS, XTTS, F5-TTS, Bark, …)
-//   - "kokoro": local Kokoro (onnx + kokoro-js) — see engines/kokoro.ts
-// Both are independent engine implementations; neither depends on echogarden.
+// Text-to-Speech (Kokoro locally via echogarden; optional OpenAI endpoint)
 // ---------------------------------------------------------------------------
 export async function synthesizeSpeech(
   text: string,
@@ -20,7 +18,7 @@ export async function synthesizeSpeech(
     baseUrl?: string;
     apiKey?: string;
     model?: string;
-    kokoroModel?: string; // label only; kokoro.ts uses the local official model
+    kokoroModel?: "82m-v1.0-fp32" | "82m-v1.0-quantized";
     kokoroVoice?: string;
     maleVoice?: string;
     femaleVoice?: string;
@@ -30,30 +28,17 @@ export async function synthesizeSpeech(
     save?: boolean;
   }
 ): Promise<{ url?: string; dataUrl?: string }> {
-  // Voice resolution.
-  // Kokoro: the user configures male/female voice selects (the real UI
-  // mechanism), so those MUST win. The generic `voice` field is a language
-  // label ("en") and must never be used as a Kokoro voice name — doing so
-  // makes findVoice() fall back to the first candidate (Heart) and ignore the
-  // selection. kokoroVoice is only a single-voice fallback when no male/female
-  // is set.
-  // OpenAI-compatible: named voices (alloy/onyx/…) live in `voice`, or
-  // male/female as a fallback.
+  // Voice resolution: an explicit voice (from the Read page / default saved
+  // config) wins; otherwise pick randomly between male/female voices.
   const pickVoice = (): string | undefined => {
-    if (opts.engine === "kokoro") {
-      const cands = [opts.maleVoice, opts.femaleVoice].filter(Boolean) as string[];
-      if (cands.length) return cands[Math.floor(Math.random() * cands.length)];
-      if (opts.kokoroVoice) return opts.kokoroVoice;
-      return undefined;
-    }
     if (opts.voice) return opts.voice;
     const cands = [opts.maleVoice, opts.femaleVoice].filter(Boolean) as string[];
-    return cands.length ? cands[Math.floor(Math.random() * cands.length)] : undefined;
+    if (!cands.length) return undefined;
+    return cands[Math.floor(Math.random() * cands.length)];
   };
 
-  // OpenAI-compatible returns MP3; local Kokoro returns WAV.
-  const ext = opts.engine === "openai" ? "mp3" : "wav";
-  const mime = ext === "mp3" ? "audio/mpeg" : "audio/wav";
+  const ext = "wav";
+  const mime = "audio/wav";
   const outName = `tts-${Date.now()}.${ext}`;
 
   // Helper: persist to the tts folder (when saving) or return inline dataUrl.
@@ -85,19 +70,79 @@ export async function synthesizeSpeech(
     return finish(stdout);
   }
 
+  // Local Kokoro (neural, onnx) via echogarden — downloads model + voices on first use.
   if (opts.engine === "kokoro") {
-    // Local Kokoro (neural, onnx) — standalone, no echogarden.
-    // synthesizeKokoro returns a ready 16-bit PCM WAV Buffer.
-    const wav = await synthesizeKokoro(text, {
-      voice: pickVoice() || opts.kokoroVoice,
-      language: opts.language || "en",
-      model: opts.kokoroModel || "82m-v1.0-quantized",
-    });
-    return finish(wav);
+    const picked = pickVoice() || opts.kokoroVoice;
+    // echogarden needs the full voice id (e.g. "en-US-Heart"); bare base names
+    // like "Heart" are rejected with "No matching voice found". Only pass a
+    // full id, otherwise let echogarden select its English default.
+    const voiceArg = picked && picked.includes("-") ? picked : undefined;
+    let result: any;
+    try {
+      result = await synthesize(text, {
+        engine: "kokoro",
+        voice: voiceArg,
+        language: opts.language || "en",
+        kokoro: { model: opts.kokoroModel || "82m-v1.0-quantized", provider: "cpu" },
+      });
+    } catch (e) {
+      throw new Error(friendlyDownloadError(e));
+    }
+    // synthesize() returns { audio: RawAudio, timeline, language, voice }
+    // where RawAudio = { audioChannels: Float32Array[], sampleRate }.
+    const wavBuffer = encodeRawAudioToWave(result.audio, 16);
+    return finish(Buffer.from(wavBuffer));
   }
 
-  throw new Error(`Unknown TTS engine: ${opts.engine}. Supported: kokoro, openai.`);
+  // Local espeak was removed — Kokoro is the local neural engine.
+  // (Fallback: treat anything else as Kokoro.)
+  const result: any = await synthesize(text, {
+    engine: "kokoro",
+    language: opts.language || "en",
+    voice: pickVoice() || opts.kokoroVoice || "Heart",
+    kokoro: { model: opts.kokoroModel || "82m-v1.0-quantized", provider: "cpu" },
+  });
+  const wavBuffer = encodeRawAudioToWave(result.audio, 16);
+  return finish(Buffer.from(wavBuffer));
 }
 
 // --- Kokoro (neural TTS, fully local) ---
-export { ensureKokoro, getKokoroVoices, type KokoroVoice };
+const KOKORO_MODELS: Record<string, string> = {
+  "82m-v1.0-fp32": "kokoro-82m-v1.0-fp32",
+  "82m-v1.0-quantized": "kokoro-82m-v1.0-quantized",
+};
+const KOKORO_VOICES_PACKAGE = "kokoro-82m-v1.0-voices";
+
+export function kokoroPackages(model: string): string[] {
+  return [
+    KOKORO_MODELS[model] || KOKORO_MODELS["82m-v1.0-quantized"],
+    KOKORO_VOICES_PACKAGE,
+  ];
+}
+
+/** Download the Kokoro model + voices packages (one-time, then offline). */
+export async function ensureKokoro(model: string): Promise<string[]> {
+  const pkgs = kokoroPackages(model);
+  try {
+    for (const pkg of pkgs) await loadPackage(pkg);
+  } catch (e) {
+    throw new Error(friendlyDownloadError(e));
+  }
+  return pkgs;
+}
+
+export interface KokoroVoice {
+  name: string;
+  languages: string[];
+  gender: string;
+}
+
+/** List available Kokoro voices (name is what echogarden's synthesize expects). */
+export async function getKokoroVoices(): Promise<KokoroVoice[]> {
+  const mod: any = await import("echogarden/dist/synthesis/KokoroTTS.js");
+  return (mod.voiceList as any[]).map((v) => ({
+    name: v.name,
+    languages: v.languages || ["en"],
+    gender: v.gender,
+  }));
+}

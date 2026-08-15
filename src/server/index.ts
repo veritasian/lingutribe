@@ -1,9 +1,10 @@
 import express from "express";
-import cors from "cors";
 import multer from "multer";
 import fs from "fs";
 import http from "http";
 import path from "path";
+import os from "os";
+import { execFile } from "child_process";
 import { fileURLToPath } from "url";
 import {
   getDb,
@@ -27,6 +28,20 @@ import { registerImportRoutes } from "./routes/import.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Keep all local models (Kokoro, Whisper) inside this tool's folder ---
+// echogarden decides where to cache models via getAppDataDir():
+//   - macOS/Linux: falls back to os.homedir() when no APPDATA env exists
+//   - Windows:     honors APPDATA/LOCALAPPDATA BEFORE os.homedir, so overriding
+//                 os.homedir has no effect there
+// We redirect each platform with the mechanism it actually honors, so every
+// model lands under <tool>/data/models regardless of OS.
+// Models live under <tool>/data/models by default, but can be redirected via
+// LINGO_MODELS_DIR (used when packaged so we never write into a read-only bundle).
+const TOOL_MODELS_ROOT = process.env.LINGO_MODELS_DIR
+  ? path.resolve(process.env.LINGO_MODELS_DIR)
+  : path.resolve(__dirname, "..", "..", "data", "models");
+fs.mkdirSync(TOOL_MODELS_ROOT, { recursive: true });
+
 // Route Node's built-in fetch (undici) through an HTTP proxy when one is
 // configured (HTTP(S)_PROXY). The built-in fetch ignores those env vars, so
 // real-site requests (URL import, RSS) time out with "fetch failed" while the
@@ -37,11 +52,54 @@ if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY) {
   setGlobalDispatcher(new EnvHttpProxyAgent());
 }
 
-// Local models (Moonshine STT, Kokoro TTS) resolve their own cache dirs under
-// ~/Library/Application Support/lingutribe/models (or LINGUTRIBE_MODELS_DIR),
-// independent of any third-party engine package — no global homedir hook.
+const realHomedir = os.homedir.bind(os);
 
-// (echogarden model-cache redirection removed — engines manage their own model dirs)
+// Where echogarden will place its "packages" folder under a given root.
+function echoPackagesDir(root: string): string {
+  if (process.platform === "win32") {
+    // ECHOGARDEN_APPDATA_DIR is honored first; echogarden appends "echogarden".
+    return path.join(root, "echogarden", "packages");
+  }
+  if (process.platform === "darwin") {
+    return path.join(root, "Library", "Application Support", "echogarden", "packages");
+  }
+  return path.join(root, ".config", "echogarden", "packages");
+}
+
+// Where echogarden would have placed packages before this redirect (OS default).
+function oldEchoPackagesDir(): string {
+  const home = realHomedir();
+  if (process.platform === "win32") {
+    const appdata = process.env.LOCALAPPDATA || process.env.APPDATA || home;
+    return path.join(appdata, "echogarden", "packages");
+  }
+  if (process.platform === "darwin") {
+    return path.join(home, "Library", "Application Support", "echogarden", "packages");
+  }
+  return path.join(home, ".config", "echogarden", "packages");
+}
+
+if (process.platform === "win32") {
+  // Windows: set echogarden's own env var (APPDATA would otherwise win).
+  process.env.ECHOGARDEN_APPDATA_DIR = TOOL_MODELS_ROOT;
+} else {
+  // macOS / Linux: no APPDATA env, so a homedir override is respected.
+  os.homedir = () => TOOL_MODELS_ROOT;
+}
+
+// One-time migration: copy models already downloaded to the OS default location.
+const OLD_ECHO = oldEchoPackagesDir();
+const NEW_ECHO = echoPackagesDir(TOOL_MODELS_ROOT);
+if (fs.existsSync(OLD_ECHO) && OLD_ECHO !== NEW_ECHO) {
+  fs.mkdirSync(NEW_ECHO, { recursive: true });
+  for (const name of fs.readdirSync(OLD_ECHO)) {
+    const src = path.join(OLD_ECHO, name);
+    const dst = path.join(NEW_ECHO, name);
+    if (!fs.existsSync(dst)) {
+      try { fs.cpSync(src, dst, { recursive: true }); } catch { /* ignore */ }
+    }
+  }
+}
 
 // --- Locate ffmpeg (platform-aware) so audio/video import works everywhere ---
 // Implementation lives in util-ffmpeg.ts; keep this alias for any callers that
@@ -50,8 +108,40 @@ const ffmpegPath = findFfmpeg();
 
 const PORT = Number(process.env.PORT) || 8787;
 const app = express();
-app.use(cors());
 app.use(express.json({ limit: "50mb" }));
+
+// Restrict CORS to the app itself: the dev Vite port, the API port, and the
+// packaged Electron app (which sends no Origin, or Origin: null from file://).
+// Any other origin — e.g. a random webpage the user has open — gets no CORS
+// headers, so the browser blocks it from reading responses. This is the
+// standard defense against CSRF / DNS-rebinding on a localhost server.
+function isLocalOrigin(origin: string | undefined): boolean {
+  if (!origin || origin === "null") return true; // same-origin / Electron file://
+  try {
+    const u = new URL(origin);
+    const h = u.hostname;
+    if (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]") return true;
+    // Private / LAN ranges (dev over the local network).
+    if (/^(10\.|192\.168\.)/.test(h)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    if (isLocalOrigin(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    }
+  }
+  if (req.method === "OPTIONS") return res.status(204).end();
+  next();
+});
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -65,8 +155,6 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 },
 });
 
-const db = getDb();
-
 // ---------------------------------------------------------------------------
 // Settings (persisted as JSON in the settings table)
 // ---------------------------------------------------------------------------
@@ -74,7 +162,7 @@ const DEFAULT_SETTINGS = {
   libraryPath: getLibraryPath(),
   languages: { learning: "en", native: "zh" },
   engines: {
-    stt: { engine: "moonshine", model: "tiny" },
+    stt: { engine: "echogarden", model: "tiny" },
     tts: {
       engine: "kokoro",
       voice: "",
@@ -98,10 +186,13 @@ const DEFAULT_SETTINGS = {
   },
   // Persisted record of confirmed LLM configurations (so they don't disappear).
   llmHistory: [] as { id: number; ts: string; engine: string; baseUrl: string; model: string }[],
+  // Which offline MDict dictionary to use for word lookups. null => auto
+  // (first dictionary that contains the word).
+  activeDictionary: null as string | null,
 };
 
 function readSettings() {
-  const row = db.prepare("SELECT value FROM settings WHERE key='app'").get() as
+  const row = getDb().prepare("SELECT value FROM settings WHERE key='app'").get() as
     | { value: string }
     | undefined;
   const base = DEFAULT_SETTINGS;
@@ -116,7 +207,7 @@ function readSettings() {
 }
 
 function writeSettings(s: any) {
-  db.prepare(
+  getDb().prepare(
     "INSERT INTO settings(key, value) VALUES('app', ?) ON CONFLICT(key) DO UPDATE SET value=?"
   ).run(JSON.stringify(s), JSON.stringify(s));
   if (s.libraryPath && s.libraryPath !== getLibraryPath()) {
@@ -161,7 +252,6 @@ function buildTtsConfig(h: any, live: any) {
     maleVoice: h.maleVoice ?? live.maleVoice,
     femaleVoice: h.femaleVoice ?? live.femaleVoice,
     kokoroModel: h.kokoroModel ?? live.kokoroModel,
-    kokoroVoice: h.kokoroVoice ?? live.kokoroVoice,
     model: h.model ?? live.model,
   };
   if (engine === "kokoro") resolved.kokoroModel = h.model ?? h.kokoroModel ?? live.kokoroModel;
@@ -223,20 +313,65 @@ app.get("/api/coca/bands", (_req, res) => {
   }
 });
 
+// COCA readiness + word-membership test. With no `word` query it reports
+// whether the frequency bands file is present and how many headwords it has.
+// With `?word=xyz` it reports whether that word (headword form) exists in the
+// bands, plus its rank and frequency band. This powers the Settings → COCA
+// "Test" button. Note: this endpoint checks the raw headword form; the full
+// client-side lemmatizer (contractions, suffix stripping) runs in the web UI.
+app.get("/api/coca/test", (req, res) => {
+  try {
+    const fp = path.resolve(__dirname, "..", "..", "data", "coca-bands.json");
+    const data = JSON.parse(fs.readFileSync(fp, "utf-8"));
+    const ranks: Record<string, number> = data.ranks || {};
+    const thresholds: Record<string, number> = data.band_thresholds || {};
+    const out: any = {
+      ok: true,
+      words: Object.keys(ranks).length,
+      source: data.source || null,
+      path: fp,
+    };
+    const raw = String(req.query.word || "").trim();
+    if (raw) {
+      const w = raw.toLowerCase().replace(/[^a-z']/g, "");
+      const rank = w ? ranks[w] : undefined;
+      let band: string | null = null;
+      if (rank != null) {
+        if (rank <= (thresholds["1k"] || 1000)) band = "1k";
+        else if (rank <= (thresholds["3k"] || 3000)) band = "3k";
+        else if (rank <= (thresholds["5k"] || 5000)) band = "5k";
+        else if (rank <= (thresholds["6k"] || 6000)) band = "6k";
+        else band = "above";
+      }
+      out.word = raw;
+      out.found = rank != null;
+      out.rank = rank ?? null;
+      out.band = band;
+    }
+    res.json(out);
+  } catch (e: any) {
+    res
+      .status(500)
+      .json({ ok: false, error: "COCA bands not built: " + e.message });
+  }
+});
+
 // ── Route modules (thin HTTP layer) — business logic lives in engines/,
 // analysis.ts, db.ts; these only parse/validate and call it. ─────────────
 registerSettingsRoutes(app, { readSettings, writeSettings, dirSize });
-registerWordsRoutes(app, { db, now });
-registerNotesRoutes(app, { db, now });
-registerChatRoutes(app, { db, now });
+registerWordsRoutes(app, { now });
+registerNotesRoutes(app, { now });
+registerChatRoutes(app, { now });
 registerEngineRoutes(app, { readSettings, resolveLlm, resolveTts, buildTtsConfig, upload });
 registerDictRoutes(app, { readSettings, resolveLlm });
-registerResourcesRoutes(app, { db, now, readSettings, upload });
-registerImportRoutes(app, { db, now, upload, ffmpegPath });
+registerResourcesRoutes(app, { now, readSettings, upload });
+registerImportRoutes(app, { now, upload, ffmpegPath });
 
+// Serve saved TTS audio. Re-resolve ttsDir() per request so a library-path
+// change takes effect without a restart (express.static caches its root).
 app.use(
   "/api/audio",
-  express.static(ttsDir())
+  (req, res, next) => express.static(ttsDir())(req, res, next)
 );
 // Dev live-mirror: when started via `npm run dev` (LINGO_DEV=1), proxy the SPA
 // to the Vite dev server so :8787 shows the SAME live UI as :5173 — no manual
@@ -267,6 +402,41 @@ if (process.env.LINGO_DEV === "1" && process.env.LINGO_SERVE_LIVE !== "0") {
     proxy.end();
   });
 }
+// --- Reveal a folder in the OS file manager (Settings → Dictionary) --------
+// The desktop shell (electron/main.cjs) spawns the server as a separate
+// process in dev, but imports it into the Electron main process when packaged.
+// Either way, opening the folder via the platform file manager is the
+// simplest cross-mode approach. execFile (no shell) keeps the caller-supplied
+// dir from being interpreted as a command.
+app.post("/api/system/reveal", (req, res) => {
+  const dir = String(req.body?.dir || "").trim();
+  if (!dir || !path.isAbsolute(dir)) {
+    return res.status(400).json({ ok: false, error: "Missing or invalid folder path" });
+  }
+  if (!fs.existsSync(dir)) {
+    // Create it so the user actually has a folder to drop .mdx files into.
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: "Cannot create folder: " + e.message });
+    }
+  }
+  const platform = os.platform();
+  const [cmd, args] =
+    platform === "darwin"
+      ? ["open", [dir]]
+      : platform === "win32"
+      ? ["explorer", [dir]]
+      : ["xdg-open", [dir]];
+  execFile(cmd, args, (err) => {
+    if (err) {
+      res.status(500).json({ ok: false, dir, method: cmd, error: err.message });
+    } else {
+      res.json({ ok: true, dir, method: cmd });
+    }
+  });
+});
+
 // Built SPA lives in <project>/dist. The relative path differs between
 // source (src/server → ../../dist) and the bundled server (dist-server →
 // ../dist, or Resources/app/dist-server → ../dist in the packaged app), so

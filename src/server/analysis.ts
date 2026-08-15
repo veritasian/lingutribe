@@ -104,16 +104,10 @@ const DEFAULT_PEAKS_PER_SEC = 100;
 const PEAK_SAMPLE_RATE = 8000; // 8 kHz is plenty for waveform display
 
 /**
- * Run an async function with a hard timeout; if the timeout wins, reject.
+ * Compute duration in seconds using ffprobe-style invocation. Resolves as soon
+ * as ffmpeg prints the "Duration:" line and kills the process — decoding the
+ * whole file just to read a header would otherwise block on hours-long audio.
  */
-function withTimeout<T>(p: Promise<T>, ms: number, tag: string): Promise<T> {
-  return Promise.race<T>([
-    p,
-    new Promise<T>((_res, rej) => setTimeout(() => rej(new Error(`${tag} timeout ${ms}ms`)), ms)),
-  ]);
-}
-
-/** Compute duration in seconds using ffprobe-style invocation. */
 export async function probeDuration(filePath: string): Promise<number> {
   const ff = findFfmpeg();
   if (!ff) return 0;
@@ -129,19 +123,33 @@ export async function probeDuration(filePath: string): Promise<number> {
       { stdio: ["ignore", "pipe", "pipe"] }
     );
     let stderr = "";
-    p.stderr.on("data", (c) => (stderr += c.toString()));
-    p.on("close", () => {
+    let done = false;
+    const finish = (sec: number) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      p.kill(); // no need to finish decoding just for a duration probe
+      resolve(sec);
+    };
+    // Hard cap so an unreadable/corrupt file can't hang the request.
+    const timeout = setTimeout(() => finish(0), 15_000);
+    p.stderr.on("data", (c: Buffer) => {
+      stderr += c.toString();
       // "Duration: HH:MM:SS.xx"
       const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
-      if (!m) return resolve(0);
-      const sec = +m[1] * 3600 + +m[2] * 60 + +m[3];
-      resolve(sec);
+      if (m) finish(+m[1] * 3600 + +m[2] * 60 + +m[3]);
     });
-    p.on("error", () => resolve(0));
+    p.on("close", () => finish(0));
+    p.on("error", () => finish(0));
   });
 }
 
-/** Decode audio to raw mono float32 samples (8 kHz), compute peaks. */
+/** Decode audio to raw mono float32 samples (8 kHz), compute peaks.
+ *
+ *  Streams: peaks are computed incrementally as chunks arrive so memory stays
+ *  constant regardless of file length, and the ffmpeg child is killed on
+ *  timeout so a stuck decode can't leak processes.
+ */
 export async function computePeaks(
   filePath: string,
   peaksPerSec: number = DEFAULT_PEAKS_PER_SEC
@@ -149,7 +157,7 @@ export async function computePeaks(
   const ff = findFfmpeg();
   if (!ff) return { peaks: [], duration: 0 };
   const samplesPerPeak = Math.max(1, Math.floor(PEAK_SAMPLE_RATE / peaksPerSec));
-  const work = new Promise<{ peaks: number[]; duration: number }>((resolve, reject) => {
+  return new Promise<{ peaks: number[]; duration: number }>((resolve, reject) => {
     const args = [
       "-i", filePath,
       "-f", "f32le",
@@ -160,36 +168,44 @@ export async function computePeaks(
       "-",
     ];
     const p = spawn(ff, args, { stdio: ["ignore", "pipe", "pipe"] });
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
+    const peaks: number[] = [];
+    let carry = Buffer.alloc(0);
+    let totalSamples = 0;
+    const timeout = setTimeout(() => {
+      if (!p.killed) p.kill("SIGKILL");
+      reject(new Error("computePeaks timeout 90s"));
+    }, 90_000);
     p.stdout.on("data", (c: Buffer) => {
-      chunks.push(c);
-      totalBytes += c.length;
+      carry = Buffer.concat([carry, c]);
+      const samples = Math.floor(carry.length / 4);
+      const usable = Math.floor(samples / samplesPerPeak) * samplesPerPeak;
+      if (usable >= samplesPerPeak) {
+        for (let s = 0; s < usable; s += samplesPerPeak) {
+          let max = 0;
+          for (let j = 0; j < samplesPerPeak; j++) {
+            const v = Math.abs(carry.readFloatLE((s + j) * 4));
+            if (v > max) max = v;
+          }
+          peaks.push(max > 1 ? 1 : max); // clamp (some encoders overshoot)
+        }
+        totalSamples += usable;
+      }
+      carry = carry.subarray(usable * 4);
     });
     p.stderr.on("data", (c: Buffer) => process.stderr.write(c));
-    p.on("error", reject);
+    p.on("error", (e) => {
+      clearTimeout(timeout);
+      reject(e);
+    });
     p.on("close", (code) => {
+      clearTimeout(timeout);
       if (code !== 0 && code !== null) {
         return reject(new Error(`ffmpeg exit ${code}`));
       }
-      const buf = Buffer.concat(chunks);
-      const total = buf.length / 4; // f32le = 4 bytes/sample
-      const peaks: number[] = [];
-      for (let i = 0; i + samplesPerPeak <= total; i += samplesPerPeak) {
-        let max = 0;
-        const end = i + samplesPerPeak;
-        for (let j = i; j < end; j++) {
-          const v = buf.readFloatLE(j * 4);
-          const av = v < 0 ? -v : v;
-          if (av > max) max = av;
-        }
-        peaks.push(max > 1 ? 1 : max); // clamp (some encoders overshoot)
-      }
-      const duration = total / PEAK_SAMPLE_RATE;
+      const duration = totalSamples / PEAK_SAMPLE_RATE;
       resolve({ peaks, duration });
     });
   });
-  return withTimeout(work, 90_000, "computePeaks");
 }
 
 export function buildSegmentsFromWords(words: WordEntry[]): Segment[] {

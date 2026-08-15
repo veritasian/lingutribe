@@ -67,16 +67,28 @@ export default function Notes() {
       </div>
 
       <div className="flex-1 scroll p-6 max-w-3xl">
-        <input
-          className="input text-lg font-semibold mb-3"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            className="input text-lg font-semibold flex-1"
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          {active && (
+            <button
+              className="btn btn-ghost px-3"
+              title="Delete note"
+              aria-label="Delete note"
+              onClick={() => remove(active.id)}
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <textarea
           className="textarea"
           rows={20}
-          placeholder="Write your notes… link a resource id if you like."
+          placeholder="Write your notes in Markdown…"
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />
