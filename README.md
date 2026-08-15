@@ -175,7 +175,7 @@ lingutribe/
 │   └── shared/                 # shared types
 ├── electron/main.cjs           # desktop shell: spawns dev server or imports dist-server
 ├── data/                       # gitignored: coca-bands.json + model cache
-├── lingutribe-docs/            # architecture reports + user manual (zh)
+├── lingutribe-docs/            # user manual (zh)
 ├── vite.config.ts              # Vite root = src/web; proxies /api → :8787
 ├── tailwind.config.js · postcss.config.js
 └── package.json                # deps + scripts + electron-builder config

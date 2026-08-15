@@ -167,7 +167,7 @@ lingutribe/
 │   └── shared/                 # 共享类型
 ├── electron/main.cjs           # 桌面壳：开发时拉起 dev server，打包后 import dist-server
 ├── data/                       # gitignored：coca-bands.json + 模型缓存
-├── lingutribe-docs/            # 架构文档 + 用户手册（zh）
+├── lingutribe-docs/            # 用户手册（zh）
 ├── vite.config.ts              # Vite 根目录 = src/web；/api → :8787 代理
 ├── tailwind.config.js · postcss.config.js
 └── package.json                # 依赖 + 脚本 + electron-builder 配置

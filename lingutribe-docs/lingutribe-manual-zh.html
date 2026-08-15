@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Lingutribe 使用说明书 · 本地语言工作室</title>
+<title>Lingutribe 使用手册 · 操作说明</title>
 <style>
   :root{
     --bg:#ffffff; --panel:#f7f8fa; --panel-2:#eef1f5; --border:#e3e7ee;
@@ -41,7 +41,7 @@
   nav.side .group a:hover{background:var(--panel-2); text-decoration:none;}
   nav.side .group a.active{background:var(--brand-soft); color:var(--brand); font-weight:600;}
 
-  main{flex:1; min-width:0; padding:38px 56px 90px; max-width:980px;}
+  main{flex:1; min-width:0; padding:38px 56px 90px; max-width:900px;}
   main h1{font-size:30px; margin:0 0 6px; line-height:1.25;}
   main .sub{color:var(--muted); margin:0 0 26px;}
   main h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--border); scroll-margin-top:18px;}
@@ -78,41 +78,27 @@
 <div class="layout">
   <!-- ============ LEFT SIDEBAR ============ -->
   <nav class="side" id="sidebar">
-    <div class="brand">Lingutribe 使用说明书<small>本地语言工作室 · Local Language Studio</small></div>
+    <div class="brand">Lingutribe 使用手册<small>本地英语学习工具 · 操作说明</small></div>
     <input class="search" id="navSearch" placeholder="搜索章节…" />
     <div class="group">
       <div class="gt">入门</div>
-      <a href="#overview">产品定位与理念</a>
-      <a href="#start">快速开始</a>
-      <a href="#ui">界面总览</a>
-      <a href="#library">资料库结构</a>
+      <a href="#what">这是什么</a>
+      <a href="#install">安装与启动</a>
+      <a href="#ui">界面一览</a>
     </div>
     <div class="group">
-      <div class="gt">核心功能</div>
-      <a href="#resources">资源页（音频 / 视频）</a>
-      <a href="#read">阅读页（Read）</a>
-      <a href="#seltoolbar">划词工具条（复制 / Ask AI / 朗读）</a>
-      <a href="#readability">新闻 URL 导入（Readability 清洗）</a>
-      <a href="#dictionary">离线词典</a>
-      <a href="#askai">Ask AI 与对话</a>
-      <a href="#grammar">语法分析</a>
-      <a href="#coca">COCA 词频</a>
+      <div class="gt">日常学习</div>
+      <a href="#audio">听音频 / 看视频</a>
+      <a href="#read">阅读文章</a>
+      <a href="#dict">查单词</a>
+      <a href="#notes">记笔记</a>
       <a href="#words">生词本</a>
-      <a href="#notes">笔记（Notes）</a>
+      <a href="#ai">AI 助手</a>
     </div>
     <div class="group">
-      <div class="gt">设置与引擎</div>
-      <a href="#settings">设置总览</a>
-      <a href="#stt">语音识别 STT</a>
-      <a href="#tts">语音合成 TTS</a>
-      <a href="#llm">大语言模型 LLM</a>
-      <a href="#engines-rule">引擎分离与默认规则</a>
-    </div>
-    <div class="group">
-      <div class="gt">运维与排查</div>
-      <a href="#run">启动 / 停止 / 部署</a>
-      <a href="#faq">常见问题排查</a>
-      <a href="#notimpl">未实现功能说明</a>
+      <div class="gt">设置与帮助</div>
+      <a href="#settings">设置</a>
+      <a href="#faq">常见问题</a>
     </div>
   </nav>
 
@@ -124,453 +110,187 @@
       <button id="themeBtn">🌗 切换主题</button>
     </div>
 
-    <h1>Lingutribe 使用说明书</h1>
-    <p class="sub">版本 <code>v0.1.2</code>（2026-08-15 更新）· 前端 React+TypeScript(Vite) · 后端 Node/Express（默认端口 8787）· 本地优先、可离线运行 · 已提供 macOS 桌面安装包（dmg）</p>
+    <h1>Lingutribe 使用手册</h1>
+    <p class="sub">版本 <code>v0.1.2</code>（2026-08-15）· 面向使用者的操作说明</p>
 
-    <div class="note"><b>阅读提示：</b>本说明覆盖 Lingutribe 的全部已实现功能与操作细节。左侧为分类目录，点击章节可跳转；右侧正文随滚动自动高亮当前章节。文档中的端点路径、配置名、默认值均取自当前代码，可直接对照使用。</div>
-
-    <div class="tip"><b>v0.1.2 更新内容（2026-08-15）：</b>新增<strong>笔记（Notes）</strong>功能（第十四章）——Apple 备忘录式列表 + Markdown 编辑器，播放器与阅读器内联笔记自动保存；离线词典支持<strong>多词典选择</strong>（设置中指定用哪本解读，第九章）与 <strong>Reveal folder</strong> 一键打开词典目录；字幕<strong>断句优化</strong>（语音段最长 10 秒、短句自动并入下一段开头、9 秒静音切分，第五章 5.4）；STT 引擎<strong>稳定化为纯 Whisper</strong>（echogarden），移除了不稳定的旧引擎；本地 API 增加 CORS 白名单与词典容错；改库路径后无需重启即可生效。</div>
-
-    <!-- ============ 概述 ============ -->
-    <h2 id="overview">一、产品定位与理念</h2>
-    <p>Lingutribe 是一款<strong>本地优先（local-first）</strong>的语言学习工具，定位为"本地语言工作室"。它把<strong>听（音频/视频）、读（文章）、查（词典）、练（AI 对话与语法）、记（生词本与词频）</strong>整合在一个桌面/网页应用里，目标是让你在<strong>不依赖云端账号、数据留在自己机器</strong>的前提下完成外语沉浸学习。</p>
-    <ul>
-      <li><span class="tag">隐私</span> 词典查询、本地 TTS（Kokoro）、本地 STT（Whisper）全部在本地运行，不联网。</li>
-      <li><span class="tag">可选云端</span> 仅当你主动配置 DeepSeek / OpenAI 等云端 LLM（或云端 TTS）时，才会向对应服务商发起请求。</li>
-      <li><span class="tag">本地存储</span> 所有资料、设置、对话记录都保存在你本机的"资料库"目录（默认 <code>~/Documents/LingoLibrary</code>，打包版为 <code>~/Library/Application Support/Lingutribe/library</code>）下的 SQLite 数据库与子文件夹中。</li>
-      <li><span class="tag">可选桌面壳</span> 提供 Electron 桌面壳与 macOS 安装包，本质仍是启动本地后端 + 打开浏览器窗口，端口固定 8787。</li>
-    </ul>
-
-    <h3>技术架构速览</h3>
+    <!-- ============ 这是什么 ============ -->
+    <h2 id="what">一、这是什么</h2>
+    <p>Lingutribe 是一个装在你电脑上的<strong>英语学习工具</strong>。它把听、读、查词、记笔记、积累生词、AI 答疑放在同一个软件里，全程在本地运行，<strong>不依赖网络和账号</strong>。</p>
     <table>
-      <tr><th>层</th><th>技术</th><th>说明</th></tr>
-      <tr><td>前端</td><td>React 18 + TypeScript + Vite</td><td>单页应用（SPA），构建产物在 <code>dist/</code>，由后端直接托管</td></tr>
-      <tr><td>后端</td><td>Node + Express（开发用 tsx 运行 <code>src/server/index.ts</code>；打包后为 <code>dist-server/index.mjs</code>）</td><td>REST API + 静态托管，默认端口 <code>8787</code>。代码已模块化：<code>routes/</code>（路由层）、<code>engines/</code>（STT/TTS/LLM 引擎层）、<code>db.ts</code>（数据层）</td></tr>
-      <tr><td>数据库</td><td>better-sqlite3（WAL）</td><td>资源、生词、笔记/对话、设置、聊天消息均存于资料库目录</td></tr>
-      <tr><td>语音</td><td>echogarden（Whisper / Kokoro）</td><td>本地语音识别与合成，模型首次使用从 HuggingFace 下载</td></tr>
-      <tr><td>网页清洗</td><td>jsdom + @mozilla/readability</td><td>新闻 URL 导入时自动提取正文，去除广告/导航/侧栏/页脚（见第八章）</td></tr>
-      <tr><td>桌面壳</td><td>Electron 33</td><td>开发模式子进程启动后端并打开窗口；已打包为 macOS dmg（v0.1.2 测试版，未签名，见第二十章）</td></tr>
+      <tr><th>想做的事</th><th>用它怎么做</th></tr>
+      <tr><td>听懂英语音频 / 视频</td><td>导入材料 → 自动转出字幕 → 边听边看，点词查义</td></tr>
+      <tr><td>读懂英语文章</td><td>导入文章 → 点击生词查看释义 → 选中一段可复制 / 提问 / 朗读</td></tr>
+      <tr><td>查单词</td><td>任何单词一点即出解释（离线词典，装过词典文件后无需联网）</td></tr>
+      <tr><td>记笔记</td><td>边学边记，自动保存，随时回看</td></tr>
+      <tr><td>积累生词</td><td>查过的词一键加入生词本，按词频上色方便复习</td></tr>
+      <tr><td>问 AI</td><td>遇到不懂的句子，选中后让 AI 结合上下文讲解</td></tr>
     </table>
+    <div class="note"><b>关于隐私：</b>你的音频、文章、笔记、生词都保存在<strong>自己电脑上</strong>，不会上传到任何地方。只有你主动配置云端 AI 时，相关内容才会发给对应服务商。</div>
 
-    <!-- ============ 快速开始 ============ -->
-    <h2 id="start">二、快速开始</h2>
-    <h3>1. 环境要求（源码运行）</h3>
+    <!-- ============ 安装与启动 ============ -->
+    <h2 id="install">二、安装与启动</h2>
+    <h3>1. 安装</h3>
+    <ol>
+      <li>下载安装包：<code>Lingutribe-0.1.2-arm64.dmg</code>。</li>
+      <li>双击打开，把 <strong>Lingutribe</strong> 图标拖进"应用程序"文件夹。</li>
+    </ol>
+    <h3>2. 首次打开</h3>
     <ul>
-      <li><strong>Node.js</strong>：建议 18+（项目已用 22.x 验证）。</li>
-      <li><strong>ffmpeg</strong>：用于导入/转码与字幕处理。应用会自动在 <code>/opt/homebrew/bin</code>、<code>/usr/local/bin</code>、<code>/usr/bin</code> 或 <code>PATH</code> 中查找；缺失时 URL 导入与部分转写会失败。</li>
-      <li><strong>yt-dlp</strong>（可选）：用于从 URL 导入视频/播客音频。未安装时仍可导入 RSS/文本类资源。</li>
+      <li>在"应用程序"里找到 Lingutribe，<strong>右键 → 打开</strong>；如果系统提示"无法验证开发者"，选<strong>仍然打开</strong>即可。</li>
+      <li>之后应用会正常启动，出现主界面，无需安装任何其他软件。</li>
     </ul>
-    <h3>2. 安装与启动（源码）</h3>
-    <pre><code># 进入项目目录
-cd /Users/andy/WorkBuddy/lingutribe
-
-# 安装依赖（仅首次）
-npm install
-
-# 生产模式：构建前端 + 启动后端（端口 8787）
-npm run build
-npm run start
-
-# 或开发模式（热更新，同时跑 server + web）
-npm run dev
-
-# 桌面壳（可选）
-npm run app</code></pre>
-    <p>启动后浏览器打开 <code>http://localhost:8787/</code> 即可使用。开发模式下后端会把它上面的网页请求<strong>实时代理到 Vite（5173）</strong>，因此只访问 8787 一个地址就能看到热更新界面。Electron 模式会自动等待后端健康检查（最多 30 秒）后打开窗口。</p>
-
-    <h3>3. 桌面安装包（dmg）</h3>
-    <ul>
-      <li>macOS（Apple Silicon）测试版安装包：<code>Lingutribe-0.1.2-arm64.dmg</code>。下载后双击挂载，把 <code>Lingutribe.app</code> 拖入"应用程序"文件夹。</li>
-      <li><span class="tag gray">注意</span> 当前为<strong>未签名测试版</strong>，首次打开可能被 Gatekeeper 拦截（提示"无法验证开发者"）。解决：右键 <code>Lingutribe.app</code> → 选「打开」，或在终端执行 <code>xattr -dr com.apple.quarantine /Applications/Lingutribe.app</code> 后正常打开。</li>
-      <li>打包版<strong>无需安装 Node/ffmpeg/yt-dlp</strong>：ffmpeg 随包携带；模型与资料库自动写入 <code>~/Library/Application Support/Lingutribe/</code>（模型目录 <code>models/</code>、资料库 <code>library/</code>），不会写入只读的应用包。</li>
-    </ul>
-
-    <h3>4. 默认引擎一览</h3>
-    <table>
-      <tr><th>能力</th><th>默认引擎</th><th>默认地址 / 模型</th><th>是否需联网</th></tr>
-      <tr><td>STT 语音识别</td><td>本地 Whisper</td><td><code>tiny/base/small/medium/large</code></td><td>否（模型本地）</td></tr>
-      <tr><td>TTS 语音合成</td><td>本地 Kokoro</td><td><code>82m-v1.0-quantized</code></td><td>否</td></tr>
-      <tr><td>LLM 大模型</td><td>Ollama（本地）</td><td><code>http://localhost:11434/v1</code> · 模型 <code>qwen3:0.6b</code></td><td>否（若用本地 Ollama）</td></tr>
-    </table>
-    <div class="tip"><b>首次运行建议：</b>进入"设置 → STT"与"设置 → TTS"，分别点击<strong>「Deploy locally / 部署本地」</strong>，下载 Whisper 与 Kokoro 模型（约 80MB 起）。之后语音识别与语音合成可完全离线，无需任何 API Key 或费用。</div>
+    <div class="tip"><b>提示：</b>首次使用语音识别 / 朗读时，应用会自动下载所需模型（一次约几十到几百 MB），下载完成后即可完全离线使用。</div>
 
     <!-- ============ 界面 ============ -->
-    <h2 id="ui">三、界面总览</h2>
-    <p>左侧为导航栏（可折叠，状态保存在 <code>localStorage["lingo-sidebar"]</code>）。页面入口：</p>
+    <h2 id="ui">三、界面一览</h2>
+    <p>打开应用后，左侧是导航栏，点一下即可切换功能：</p>
     <table>
-      <tr><th>入口</th><th>路由</th><th>用途</th></tr>
-      <tr><td>资源（音频 / 视频）</td><td><code>/resources/audio</code> · <code>/resources/video</code></td><td>导入/播放/转写音视频</td></tr>
-      <tr><td>阅读</td><td><code>/read</code></td><td>导入/朗读文章（只读 + Markdown 展示）</td></tr>
-      <tr><td>生词</td><td><code>/words</code></td><td>生词本管理</td></tr>
-      <tr><td>笔记</td><td><code>/notes</code></td><td>笔记列表 + Markdown 编辑器（Apple 备忘录式，见第十四章）</td></tr>
-      <tr><td>对话</td><td><code>/chat</code></td><td>自由 AI 对话</td></tr>
-      <tr><td>设置</td><td><code>/settings</code></td><td>引擎 / 外观 / 存储配置</td></tr>
+      <tr><th>入口</th><th>用途</th></tr>
+      <tr><td><strong>音频</strong></td><td>导入并学习英语音频（播客、演讲等）</td></tr>
+      <tr><td><strong>视频</strong></td><td>导入并学习英语视频</td></tr>
+      <tr><td><strong>阅读</strong></td><td>导入并精读英语文章</td></tr>
+      <tr><td><strong>生词</strong></td><td>查看和管理你收藏的生词</td></tr>
+      <tr><td><strong>笔记</strong></td><td>查看和管理你的笔记</td></tr>
+      <tr><td><strong>对话</strong></td><td>与 AI 自由聊天</td></tr>
+      <tr><td><strong>设置</strong></td><td>外观、语言、语音识别、朗读、词典、AI 模型等</td></tr>
     </table>
-    <h3>外观与语言</h3>
+    <p>右侧是主要内容区；查词、AI 讲解会以面板形式出现在最右侧。</p>
+
+    <!-- ============ 听音频 / 看视频 ============ -->
+    <h2 id="audio">四、听音频 / 看视频</h2>
+    <h3>1. 导入材料</h3>
     <ul>
-      <li><strong>主题</strong>：设置 → 系统 → 外观，可选<code>浅色 / 深色 / 跟随系统</code>，存于 <code>lingo-theme</code>。</li>
-      <li><strong>界面语言</strong>：设置中可切换 <code>中文 / English</code>（存于 <code>lingo-ui-lang</code>），切换后应用会重新加载。</li>
-      <li><strong>学习语言 / 母语</strong>：设置中可填（默认学习语言 <code>en</code>、母语 <code>zh</code>）。这两个值会替换语法/词典提示词模板里的 <code>{L}</code>（学习语言）与 <code>{N}</code>（母语）占位符。</li>
+      <li><strong>本地文件</strong>：点"上传"，选择电脑上的音频或视频文件（单个最大 500MB）。</li>
+      <li><strong>网址</strong>：粘贴视频 / 播客链接，应用会自动下载。</li>
+      <li>导入成功后，材料会出现在左侧列表中，点击即可打开。</li>
+    </ul>
+    <h3>2. 转字幕</h3>
+    <ul>
+      <li>打开材料后，点工具栏的<strong>"转写"</strong>按钮，稍等片刻，字幕就会出现在下方。</li>
+      <li>字幕按句自动分段，句子不会碎成零散片段。</li>
+    </ul>
+    <h3>3. 学习</h3>
+    <ul>
+      <li><strong>播放 / 暂停</strong>：按 <kbd>空格</kbd>。</li>
+      <li><strong>语速</strong>：工具栏可调 <strong>0.5× – 2×</strong>。</li>
+      <li><strong>点词跳转</strong>：点击字幕里的任意单词，播放会跳到那个位置，并弹出词典解释。</li>
+      <li><strong>波形图</strong>：拖动可定位；可缩放、可折叠。</li>
+    </ul>
+    <div class="tip"><b>边看边记：</b>点播放器右上角的<strong>笔记本图标</strong>，内容下方会出现笔记框，输入的内容会自动保存（见"记笔记"）。</div>
+
+    <!-- ============ 阅读文章 ============ -->
+    <h2 id="read">五、阅读文章</h2>
+    <h3>1. 导入文章</h3>
+    <ul>
+      <li><strong>本地文件</strong>：上传 <code>.txt</code> 或 <code>.md</code> 文本。</li>
+      <li><strong>网址</strong>：粘贴新闻 / 博客链接，应用会自动提取正文（去掉广告和杂项）。</li>
+    </ul>
+    <h3>2. 阅读与操作</h3>
+    <ul>
+      <li><strong>点单词查义</strong>：单击任意单词，右侧弹出词典解释。</li>
+      <li><strong>选中一段</strong>：浮出<strong>复制 / 问 AI / 朗读</strong>三个按钮——可复制、可让 AI 讲解这段、可只朗读这一小段。</li>
+      <li><strong>朗读全文</strong>：点顶部 <strong>Read aloud</strong>，应用朗读整篇文章，逐句高亮。</li>
     </ul>
 
-    <!-- ============ 资料库 ============ -->
-    <h2 id="library">四、资料库（Library）结构</h2>
-    <p>所有用户数据保存在"资料库"根目录，源码运行版默认 <code>~/Documents/LingoLibrary</code>，可在<strong>设置 → 系统 → 存储</strong>中修改 <code>libraryPath</code>（打包版默认 <code>~/Library/Application Support/Lingutribe/library</code>）。结构如下：</p>
-    <pre><code>~/Documents/LingoLibrary/
-├── audio/            # 导入的音频资源文件
-├── video/            # 导入的视频资源文件
-├── read/             # 导入的文本/文章资源
-├── tts/              # 保存的 TTS 音频（开启"保存到磁盘"时）
-├── dictionaries/     # 用户放入的离线词典 .mdx（及发音包 .mdd）
-├── data/
-│   └── models/       # Whisper / Kokoro 模型缓存（重定向至此，不落系统默认目录）
-└── (SQLite 库)       # resources / words / notes / settings / chat_messages 等表</code></pre>
+    <!-- ============ 查单词 ============ -->
+    <h2 id="dict">六、查单词</h2>
+    <h3>1. 基本用法</h3>
     <ul>
-      <li><strong>磁盘用量</strong>：设置 → 系统 → 存储 会显示总空间、已用、剩余，以及各资源类型占用字节（来自 <code>GET /api/disk</code>）。</li>
-      <li><strong>改库路径</strong>：修改 <code>libraryPath</code> 并保存；新路径若不存在会自动创建所需子目录。已有数据不会自动迁移，需自行移动文件。</li>
+      <li>在字幕或文章里<strong>单击任意单词</strong>，右侧即显示：音标、释义（按词性分组）、例句。</li>
+      <li>如果词典里没有这个变形词（如 running），会自动尝试还原成原形（run）再查。</li>
     </ul>
+    <h3>2. 安装词典（可选，但推荐）</h3>
+    <ul>
+      <li>词典文件是 <code>.mdx</code> 格式（发音包是 <code>.mdd</code>），装好后查词完全离线。</li>
+      <li>进入<strong>设置 → 词典</strong>，点 <strong>Reveal folder</strong> 直接打开词典目录，把 <code>.mdx</code> 文件放进去即可。</li>
+      <li>放好后点 <strong>Test install</strong>，确认应用识别到了词典。</li>
+    </ul>
+    <h3>3. 多本词典怎么选</h3>
+    <ul>
+      <li>装了多本词典时，到<strong>设置 → 词典</strong>下拉选择<strong>用哪本解读</strong>；选"自动"则由应用按顺序找第一个能查到的。</li>
+      <li>查询结果下方会标注来自哪本词典。</li>
+    </ul>
+    <div class="tip"><b>没有本地词典也能用：</b>查不到的词，应用会自动请 AI 给一个简洁的双语解释（需先配置 AI 模型）。</div>
 
-    <!-- ============ 资源页 ============ -->
-    <h2 id="resources">五、资源页（音频 / 视频）</h2>
-    <p>路径 <code>/resources/audio</code> 与 <code>/resources/video</code>，用于导入并学习音视频材料。</p>
-
-    <h3>5.1 导入材料</h3>
+    <!-- ============ 记笔记 ============ -->
+    <h2 id="notes">七、记笔记</h2>
+    <h3>1. 笔记页</h3>
     <ul>
-      <li><strong>本地文件</strong>：点击上传，单个文件上限 500MB（<code>express.json</code> 上限 50MB，媒体走 <code>multer</code> 大文件通道）。</li>
-      <li><strong>URL 导入</strong>：粘贴视频/播客链接，后端用 <code>yt-dlp</code> 下载；可用时自动抓取字幕。失败回退到 RSS/直链。</li>
-      <li>导入后在左侧列表中显示，点击进入播放/学习视图。</li>
+      <li>左侧点<strong>"笔记"</strong>：左边是笔记列表（按创建时间排列），右边是编辑区。</li>
+      <li>点 <strong>+ New</strong> 新建；顶部写<strong>标题</strong>，正文支持 Markdown 排版；点 <strong>Save</strong> 保存；列表项悬停可删除。</li>
     </ul>
-
-    <h3>5.2 转写（Transcribe）</h3>
+    <h3>2. 边学边记（推荐）</h3>
     <ul>
-      <li>资源头部有 <strong>Transcribe / Re-transcribe</strong> 按钮：调用本地 Whisper 生成逐字稿，结果含<strong>时间轴</strong>（每个词有起止时间）。</li>
-      <li>转写结果保存在资源的 <code>transcript</code> 字段（可编辑后 PUT 回 <code>/api/resources/:id</code>）。</li>
-      <li>若未安装 ffmpeg 或 Whisper 模型未部署，转写会失败——请先完成"部署本地"步骤。</li>
-    </ul>
-
-    <h3>5.3 播放器与波形</h3>
-    <ul>
-      <li><strong>播放 / 暂停</strong>：按 <kbd>空格</kbd> 切换（在输入框/可编辑区时不触发）。</li>
-      <li><strong>语速</strong>：0.5×–2× 调节。</li>
-      <li><strong>波形面板</strong>：可缩放（20–600 像素/秒）、<strong>自动滚动</strong>开关、<strong>音高</strong>显示（用 Pitchfinder YIN 估算基频 F0 画在波形上）、<strong>区域（Regions）</strong>：拖拽创建、编辑模式下双击删除；高度可调并记忆。波形区域可用<strong>箭头按钮折叠/展开</strong>。</li>
-      <li><strong>视频分屏</strong>：视频资源支持拖拽分隔条调整画面/字幕比例，比例记忆。</li>
-      <li><strong>自动滚动</strong>与<strong>波形显隐</strong>状态均会本地记忆。</li>
-    </ul>
-
-    <h3>5.4 逐字稿（Transcript）</h3>
-    <ul>
-      <li><strong>布局切换</strong>：<code>Flow</code>（段落流式）与 <code>Subtitle</code>（一句一行），状态存于 <code>lingo-transcript-view</code>。</li>
-      <li><strong>点击单词</strong>：在右侧面板打开词典；若该词有时间戳，点击会<strong>跳转到对应播放位置</strong>。</li>
-      <li><strong>划词浮层</strong>：在 Flow 模式选中文本，浮出 <strong>Ask AI / Copy</strong> 按钮（资源页浮层；阅读页另有 <strong>Read</strong> 朗读按钮，见第七章）。</li>
-      <li><strong>COCA 词频着色</strong>：单词按词频带染色（见第十二章），高频/低频一目了然。</li>
-      <li><strong>字幕断句优化</strong>（v0.1.2）：字幕分段按三条规则自动生成——① 语音段最长 <strong>10 秒</strong>；② 不足 <strong>4 秒</strong>的短句自动并入相邻字幕段（作为下一段的开头）；③ 静音超过 <strong>9 秒</strong>强制切分，小于该值尝试并入相邻段。长音频的字幕因此更整齐、不碎句。</li>
-    </ul>
-
-    <h3>5.5 词汇档案（Layout 标签）</h3>
-    <ul>
-      <li>资源视图的 <strong>Layout</strong> 标签展示<strong>词汇难度档案（VocabProfile）</strong>：总词数、去重词数、停用词占比、以及<strong>难度评分</strong>（高频前 3k 词 + 停用词占比越高越简单）。</li>
-      <li>下方按 COCA 词频带列出单词，点击单词可查词典。</li>
-      <li>该标签内还有 <strong>COCA 词频带过滤</strong>开关，可显示/隐藏指定词频带。</li>
-    </ul>
-
-    <!-- ============ 阅读页 ============ -->
-    <h2 id="read">六、阅读页（Read）</h2>
-    <p>路径 <code>/read</code>，用于导入并精读文章。</p>
-    <ul>
-      <li><strong>导入</strong>：支持导入本地文本文件（<code>.txt / .md / .markdown</code>）或粘贴网页 URL；<strong>URL 导入会自动清洗出正文</strong>（Mozilla Readability，见第八章），生成 <code>read</code> 类型资源。</li>
-      <li><strong>只读 + Markdown 展示</strong>：文章正文<strong>不可编辑</strong>（避免误改），以 <strong>Markdown 排版</strong>渲染——支持标题、段落、列表、表格、代码块、引用等；换行与段落间距自动优化。</li>
-      <li><strong>划词工具条</strong>：选中任意文本，浮出 <strong>复制 / Ask AI / 朗读</strong> 三个按钮（见第七章）。</li>
-      <li><strong>朗读（Read aloud）</strong>：工具栏 <strong>Read aloud</strong> 按钮朗读整篇文章；朗读时按句子<strong>逐句高亮</strong>（CSS Custom Highlight API），上方显示进度条与"第 N 句 / 共 M 句"。</li>
-      <li><strong>点击单词查词典</strong>：单击任意单词，右侧打开词典面板。</li>
-      <li><strong>Layout 标签</strong>：同资源页，展示词汇难度档案与词频过滤。</li>
-    </ul>
-
-    <!-- ============ 划词工具条 ============ -->
-    <h2 id="seltoolbar">七、划词工具条（复制 / Ask AI / 朗读）</h2>
-    <p>在阅读页或资源页逐字稿中<strong>选中文本</strong>，会弹出一个跟随选区的浮动工具条：</p>
-    <table>
-      <tr><th>按钮</th><th>作用</th></tr>
-      <tr><td><strong>Copy</strong></td><td>把选中的文本复制到系统剪贴板</td></tr>
-      <tr><td><strong>Ask AI</strong></td><td>右侧切到 Ask AI 标签，自动带入选中文本与所在文章上下文（见第十章）</td></tr>
-      <tr><td><strong>Read</strong>（仅阅读页）</td><td>用默认 TTS 引擎<strong>朗读选中的文本</strong>——只读这一小段，不朗读全文</td></tr>
-    </table>
-    <ul>
-      <li><strong>出现条件</strong>：选中至少 2 个字符的文本（单词单击不触发，单击是查词典）。</li>
-      <li><strong>智能定位</strong>：工具条默认显示在选区下方；若底部空间不足会<strong>自动翻转到选区上方</strong>，并防止超出屏幕左右边缘。</li>
-      <li><strong>自动关闭</strong>：点击工具条外部、页面滚动或窗口缩放时自动收起。</li>
-      <li><strong>朗读实现</strong>：朗读走实时合成（<code>save:false</code>，音频仅在内存、不落盘），支持"选中即读"；资源页逐字稿浮层为 <strong>Ask AI / Copy</strong> 两个按钮（无 Read）。</li>
-    </ul>
-
-    <!-- ============ 新闻 URL 导入 ============ -->
-    <h2 id="readability">八、新闻 URL 导入（Readability 清洗）</h2>
-    <p>从阅读页以 URL 导入新闻/博客文章时，后端用 <strong>Mozilla Readability</strong> 自动提取正文：</p>
-    <ul>
-      <li><strong>原理</strong>：Readability 按<strong>文本密度</strong>（正文长度 vs 标签数量）与<strong>标点密度</strong>给页面 DOM 节点打分，挑选最"像正文"的子树——<strong>广告、导航栏、侧边栏、页脚、评论、推荐位等噪音被自动剔除</strong>。</li>
-      <li><strong>护栏</strong>：若提取出的正文过短（不是真正的文章页面，如门户首页），会自动回退用<strong>原始 HTML</strong>导入，避免"导入了个空壳"。</li>
-      <li><strong>标题</strong>：依次使用 Readability 提取的标题 → 页面 <code>&lt;title&gt;</code> → 域名，保证资源名合理。</li>
-      <li><strong>段落结构保留</strong>：正文按段落、标题、列表等块级结构转换为纯文本（块之间自动空行），导入后仍是分段的可读文章，而不是一大坨文字。</li>
-      <li>本地文件（<code>.txt / .md</code>）导入不走 Readability，原样入库。</li>
-    </ul>
-
-    <!-- ============ 词典 ============ -->
-    <h2 id="dictionary">九、离线词典（Dictionary）</h2>
-    <p>Lingutribe 的词典查询<strong>100% 离线</strong>，基于 MDict 格式。</p>
-    <h3>9.1 放入词典</h3>
-    <ul>
-      <li>将 <code>.mdx</code> 词典文件（可选配套发音包 <code>.mdd</code>）放入资料库的 <code>dictionaries/</code> 目录：<code>~/Documents/LingoLibrary/dictionaries</code>。</li>
-      <li>后端每次查询会扫描该目录，新增/删除词典立即生效，无需重启。</li>
-      <li>若查不到词，词典面板会提示：<code>No local dictionary entry. Drop a .mdx file into …/dictionaries</code>。</li>
-    </ul>
-    <h3>9.2 查询与展示</h3>
-    <ul>
-      <li>在逐字稿/文章中<strong>点击任意单词</strong>即打开词典面板（右侧）。</li>
-      <li>结果以<strong>牛津式卡片</strong>呈现：单词、音标、按词性（POS）分组，每组最多 2 条释义（英+中）+ 最多 2 个例句。已清理 <code>★</code> 与冗余 HTML。</li>
-      <li><strong>发音音频</strong>：若 <code>.mdx</code> 配有 <code>.mdd</code> 发音包，词典面板可播放发音；无发音包则返回 404（不影响文字查询）。</li>
-      <li><strong>词形还原</strong>：查不到原词时，会尝试还原词形（含不规则动词表）再查，例如 <code>running → run</code>。</li>
-    </ul>
-    <h3>9.3 LLM 兜底</h3>
-    <div class="tip"><b>查不到时自动用大模型：</b>当本地词典返回 <code>found:false</code>，词典面板会<strong>自动调用大模型</strong>生成简洁双语释义（2 个解读 + 词性 + 2 个例句，控制在 150 词内，词典风格）。提示词默认模板支持 <code>{WORD}</code>/<code>{L}</code>/<code>{N}</code> 占位符，可在设置中覆盖。</div>
-    <h3>9.4 词典设置（多词典选择 / 打开目录）</h3>
-    <ul>
-      <li>路径 <strong>设置 → 词典（Dictionary）</strong>：列出已安装的词典，并提供 <strong>Test install</strong>（检测）与 <strong>Reveal folder</strong>（在文件管理器中打开词典目录，一键直达）两个按钮。</li>
-      <li><strong>多词典选择</strong>：装了多个 <code>.mdx</code> 时，可下拉指定<strong>用哪本词典解读单词</strong>；选择 <strong>Auto</strong>（默认）则依次搜索所有词典、取第一个能查到的结果。</li>
-      <li>查询结果卡片会标注来源词典名（<code>— 词典标题</code>），方便确认用的是哪一本。</li>
-    </ul>
-    <h3>9.5 加入生词本</h3>
-    <ul>
-      <li>词典面板有 <strong>"+ Add to Words"</strong> 按钮，一键把当前词加入生词本（见第十三章）。</li>
-    </ul>
-
-    <!-- ============ Ask AI ============ -->
-    <h2 id="askai">十、Ask AI 与对话</h2>
-    <p>Lingutribe 提供两种与本地大模型对话的入口，二者都依赖你在"设置 → LLM"中配置并默认的模型。<strong>AI 回复一律以 Markdown 渲染</strong>（标题/段落/列表/表格/代码块/加粗/链接等，见 <code>lib/markdown.ts</code>），不再是"一大段纯文本"。渲染前对内容做 HTML 转义，杜绝 XSS。</p>
-    <h3>10.1 右侧 Ask AI 标签（划词提问）</h3>
-    <ul>
-      <li>入口为右侧面板的第三个标签（位于 Dictionary、Grammar 之后）。</li>
-      <li>在资源页（音频/视频）或阅读页<strong>选中文本</strong> → 浮出工具条 → 点 <strong>Ask AI</strong> → 右侧切到 Ask AI，并自动带入选中文本与所在文章上下文。</li>
-      <li>系统提示词会包含<strong>文章上下文</strong>（最多约 4000 字符）+ 你的选中内容，使回答贴合材料。</li>
-      <li><strong>对话持久化</strong>：每个材料/文章的对话按 <code>thread</code> 隔离，存于 <code>chat_messages</code> 表。音视频按资源 id 为 thread，阅读按文章 id 为 thread。下次打开同一材料，历史仍在。</li>
-      <li><strong>消息操作</strong>：每条 AI 回复右上角有<strong>复制 / 删除</strong>按钮。</li>
-    </ul>
-    <h3>10.2 独立对话页（Chat）</h3>
-    <ul>
-      <li>路径 <code>/chat</code>，自由聊天，不绑定具体材料。</li>
-      <li>每条对话以 <code>notes</code> 行存储，<code>body</code> 为消息数组（<code>{role, content}</code>）。</li>
-      <li><strong>Markdown 渲染</strong>：AI 回复按 Markdown 排版显示（代码块、表格、列表均支持）。</li>
-      <li>每条消息可<strong>复制 / 删除</strong>（删除仅从记录移除，不影响模型）。</li>
-      <li><kbd>Enter</kbd> 发送，<kbd>Shift</kbd>+<kbd>Enter</kbd> 换行。</li>
-      <li>系统上下文由"学习语言/母语"设置构建。</li>
-    </ul>
-
-    <!-- ============ 语法 ============ -->
-    <h2 id="grammar">十一、语法分析（Grammar）</h2>
-    <ul>
-      <li>右侧面板的 <strong>Grammar 标签</strong> 提供 <strong>"Analyze with AI"</strong> 按钮。</li>
-      <li>对<strong>单个词</strong>：分析其所在上下文句子；对<strong>划选文本</strong>：分析整段选区。</li>
-      <li>后端 <code>POST /api/llm/analyze</code> 使用默认语法提示词，分三部分输出：<strong>句子结构 / 语法 / 词汇短语</strong>；提示词中的 <code>{L}</code>/<code>{N}</code> 由语言设置替换。</li>
-      <li><strong>自定义提示词</strong>：设置 → LLM → 语法提示词文本框，可编辑并"保存提示词"。</li>
-    </ul>
-
-    <!-- ============ COCA ============ -->
-    <h2 id="coca">十二、COCA 词频</h2>
-    <p>COCA（Corpus of Contemporary American English）词频数据用于评估文章难度与重点词汇。</p>
-    <ul>
-      <li>数据来自 <code>data/coca-bands.json</code>（Nation &amp; Crabbe BNC/COCA 25k 词表，取前 10k 频段，共 <strong>10,006</strong> 个词头），含每个词的<strong>排名</strong>与<strong>词频带阈值</strong>。</li>
-      <li>词频带划分与配色：
-        <table>
-          <tr><th>词频带</th><th>含义</th><th>颜色</th></tr>
-          <tr><td>1k</td><td>最高频前 1000</td><td style="color:var(--ok)">绿</td></tr>
-          <tr><td>3k</td><td>前 3000</td><td style="color:#65a30d">黄绿</td></tr>
-          <tr><td>5k</td><td>前 5000</td><td style="color:var(--brand)">蓝</td></tr>
-          <tr><td>6k</td><td>前 6000</td><td style="color:#eab308">黄</td></tr>
-          <tr><td>6k+</td><td>6000 以外（低频/生词）</td><td style="color:var(--err)">红</td></tr>
-        </table>
-      </li>
-      <li><strong>词形还原</strong>：查询排名时按"缩写→前缀→后缀→剥离"逐级尝试（有深度限制），并内置<strong>不规则动词表</strong>。</li>
-      <li><strong>显示位置</strong>：逐字稿单词染色、词汇档案难度评分、词典面板头部"COCA {band}（真实排名）"徽标、生词本过滤。</li>
-      <li><strong>过滤</strong>：逐字稿/词汇档案中的<strong>词频带过滤开关</strong>可控制显示哪些带，偏好存于 <code>localStorage["lingo-coca-bands"]</code>。</li>
+      <li>在音频 / 视频 / 阅读界面，点顶部<strong>笔记本图标</strong>，内容下方会出现一个笔记框。</li>
+      <li>这个笔记<strong>自动关联当前材料</strong>：下次打开同一材料，笔记还在；输入停止约半秒后自动保存，无需手动操作。</li>
+      <li>它也会同时出现在"笔记"页列表里。</li>
     </ul>
 
     <!-- ============ 生词本 ============ -->
-    <h2 id="words">十三、生词本（Words）</h2>
+    <h2 id="words">八、生词本</h2>
     <ul>
-      <li>路径 <code>/words</code>，网格展示生词卡片，按 COCA 词频带染色。</li>
-      <li><strong>增删</strong>：词典面板"+ Add to Words"加入；页面内可手动添加/删除。</li>
-      <li><strong>搜索与过滤</strong>：搜索框 + 按词频带（band）过滤的筛选条。</li>
-      <li><strong>点击卡片</strong>：打开仅词典视图查词。</li>
-      <li><strong>复习字段</strong>：生词表含 <code>level</code>（0=新词，越高越熟）与 <code>reviewedAt</code>，即<strong>间隔重复（spaced repetition）的数据库骨架已存在</strong>，但目前<strong>尚未构建复习/训练界面与逻辑</strong>（见"未实现功能"）。</li>
+      <li><strong>收藏生词</strong>：在词典面板点<strong>"+ Add to Words"</strong>，或到生词页手动添加。</li>
+      <li><strong>查看</strong>：左侧点"生词"，生词按卡片展示，颜色表示词频（见下）。</li>
+      <li><strong>筛选</strong>：可以搜索，或按词频颜色筛选。</li>
+      <li><strong>复习</strong>：点任意生词卡片，会再次打开词典解释。</li>
     </ul>
+    <h3>词频颜色是什么意思</h3>
+    <table>
+      <tr><th>颜色</th><th>含义</th></tr>
+      <tr><td><span style="color:var(--ok)">绿色</span></td><td>最高频的词（前 1000），最常用</td></tr>
+      <tr><td><span style="color:#65a30d">黄绿</span></td><td>前 3000</td></tr>
+      <tr><td><span style="color:var(--brand)">蓝色</span></td><td>前 5000</td></tr>
+      <tr><td><span style="color:#eab308">黄色</span></td><td>前 6000</td></tr>
+      <tr><td><span style="color:var(--err)">红色</span></td><td>6000 以外（低频 / 生僻）</td></tr>
+    </table>
+    <p>看文章时越偏红的词越值得记——它们是更高阶的词汇。</p>
 
-    <!-- ============ 笔记 ============ -->
-    <h2 id="notes">十四、笔记（Notes）</h2>
-    <p>v0.1.2 新增。笔记以 <strong>Markdown</strong> 正文存于本地 SQLite（<code>notes</code> 表），界面风格类似 Apple 备忘录：左侧列表 + 右侧编辑器。</p>
-    <h3>14.1 笔记页</h3>
+    <!-- ============ AI ============ -->
+    <h2 id="ai">九、AI 助手</h2>
     <ul>
-      <li>路径 <code>/notes</code>（左侧导航"笔记"）：左侧为<strong>笔记列表</strong>（按创建时间倒序，列表项即笔记标题），右侧为编辑器（顶部<strong>标题 + 删除</strong>按钮，正文为 Markdown 文本框）。</li>
-      <li><strong>新建</strong>：点 <code>+ New</code> 开始新笔记；<strong>保存</strong>：点 <code>Save</code> 写入数据库。</li>
-      <li>列表项悬停可删除该笔记。</li>
-    </ul>
-    <h3>14.2 内联笔记（播放器 / 阅读器）</h3>
-    <ul>
-      <li>音频 / 视频播放器顶部工具栏、以及阅读页顶部"Read aloud"旁的<strong>笔记本图标</strong>，点击后在<strong>内容区下方</strong>展开一个内联笔记编辑区。</li>
-      <li>该笔记<strong>自动关联当前资源</strong>（<code>resourceId</code>）：首次打开自动创建（默认标题为资源名），之后再打开直接载入已有内容。</li>
-      <li><strong>自动保存</strong>：停止输入约 0.6 秒后自动写入数据库，无需手动保存；关闭/切换资源时也会刷新未保存内容。</li>
-      <li>内联笔记会<strong>同步出现在</strong> <code>/notes</code> 列表中——两者读写的是同一份数据。</li>
+      <li><strong>结合上下文提问</strong>：阅读 / 看视频时，选中一句不懂的话，点<strong>Ask AI</strong>，AI 会结合整篇材料解释。</li>
+      <li><strong>自由聊天</strong>：左侧点"对话"，可与 AI 自由交流、练口语表达等。</li>
+      <li><strong>使用前提</strong>：AI 需要先配置一个模型（见"设置"）。默认使用本机 AI（需电脑上装好 Ollama）；也可以配置 DeepSeek、OpenAI 等在线模型。</li>
     </ul>
 
     <!-- ============ 设置 ============ -->
-    <h2 id="settings">十五、设置总览</h2>
-    <p>路径 <code>/settings</code>，左侧分类：<strong>系统 / STT / TTS / 词典 / LLM</strong>。界面语言可在此切换中/英，切换后重载应用。</p>
+    <h2 id="settings">十、设置</h2>
+    <p>左侧点"设置"，按类别配置：</p>
     <table>
-      <tr><th>分类</th><th>可配置项</th></tr>
-      <tr><td>系统</td><td>外观（浅/深/跟随）、界面语言、学习语言、母语、资料库路径、磁盘用量</td></tr>
-      <tr><td>STT</td><td>Whisper 模型、部署本地、保存、测试、历史</td></tr>
-      <tr><td>TTS</td><td>引擎（Kokoro/OpenAI）、各引擎参数字段、保存TTS音频、保存/测试、配置列表</td></tr>
-      <tr><td>词典</td><td>检测安装（Test install）、Reveal folder 打开词典目录、选择当前使用的词典（Auto/指定）</td></tr>
-      <tr><td>LLM</td><td>引擎（Ollama/OpenAI）、地址/模型/Key、确认、测试、语法提示词、配置列表</td></tr>
+      <tr><th>类别</th><th>能做什么</th></tr>
+      <tr><td><strong>系统</strong></td><td>界面外观（浅色 / 深色 / 跟随系统）、界面语言（中文 / English）、学习语言与母语</td></tr>
+      <tr><td><strong>语音识别</strong></td><td>选择识别精度（模型越大越准、越慢），可提前部署模型</td></tr>
+      <tr><td><strong>朗读</strong></td><td>选择音色（男声 / 女声）和朗读引擎（本地音色或在线音色）</td></tr>
+      <tr><td><strong>词典</strong></td><td>检测已安装词典、一键打开词典目录、选择用哪本词典</td></tr>
+      <tr><td><strong>AI 模型</strong></td><td>配置模型地址、模型名和密钥（本机 Ollama 或在线模型）</td></tr>
     </table>
 
-    <!-- ============ STT ============ -->
-    <h2 id="stt">十六、语音识别 STT</h2>
+    <!-- ============ 常见问题 ============ -->
+    <h2 id="faq">十一、常见问题</h2>
+    <h3>首次打开被系统拦截</h3>
     <ul>
-      <li><strong>引擎</strong>：本地 Whisper（通过 echogarden），<strong>无需任何 API Key</strong>，与 LLM/TTS 完全隔离。</li>
-      <li><strong>模型</strong>：<code>tiny / base / small / medium / large</code>。选 <code>large</code> 实际映射到 <code>large-v3-turbo</code>。模型越大越准但越慢。</li>
-      <li><strong>部署本地</strong>：点击"Deploy locally"触发 <code>/api/models/ensure</code> 下载对应 Whisper 包（首次从 HuggingFace 下载）。</li>
-      <li><strong>保存 / 测试</strong>：保存把配置追加进 <code>sttHistory</code>；测试调用 <code>/api/engines/stt/test</code> 校验模型是否已就位。</li>
-      <li><strong>历史配置</strong>：点击加载、✕ 删除。<strong>STT 无拖拽排序</strong>（单一本地引擎，通常无需多配置）。</li>
+      <li>在"应用程序"里对 Lingutribe <strong>右键 → 打开</strong>，然后点<strong>仍然打开</strong>即可。</li>
     </ul>
-
-    <!-- ============ TTS ============ -->
-    <h2 id="tts">十七、语音合成 TTS</h2>
-    <p>TTS 提供两种引擎，可在设置中切换：</p>
-    <h3>17.1 Kokoro（本地，推荐，免费离线）</h3>
+    <h3>词典查不到词</h3>
     <ul>
-      <li>神经网络 onnx 模型，<strong>完全本地</strong>，输出 WAV，<strong>不消耗任何费用或账号</strong>。</li>
-      <li>模型：<code>82m-v1.0-quantized</code>（约 80MB，默认）/ <code>82m-v1.0-fp32</code>（约 330MB，更高质量）。</li>
-      <li>男声/女声：从 <code>GET /api/tts/voices</code> 按性别+英语筛选（声音需用完整 id，如 <code>en-US-Heart</code>）。</li>
-      <li><strong>部署本地</strong>："Deploy locally" 下载 Kokoro 模型+声音，并<strong>自动将其注册为默认 TTS 配置</strong>。</li>
+      <li>确认 <code>.mdx</code> 文件放进了词典目录（设置 → 词典 → Reveal folder 可直接打开）；放好后点 <strong>Test install</strong> 确认识别。</li>
+      <li>装了多本词典时，到<strong>设置 → 词典</strong>选择用哪本。</li>
     </ul>
-    <h3>17.2 OpenAI 兼容（通用）</h3>
+    <h3>转字幕失败 / 朗读不出声</h3>
     <ul>
-      <li>填写 <strong>Base URL + API Key + 模型 + 男声/女声名字</strong>，适配 OpenAI 及多数自托管/开源 TTS（CosyVoice、GPT-SoVITS、XTTS、F5-TTS、Bark 等，均暴露 <code>/v1/audio/speech</code>）。</li>
-      <li>输出 WAV。</li>
+      <li>先到<strong>设置 → 语音识别 / 朗读</strong>，确认模型已就绪（首次使用会自动下载；可点按钮提前部署）。</li>
     </ul>
-    <h3>17.3 TTS 配置列表与默认规则</h3>
+    <h3>我的资料会丢吗</h3>
     <ul>
-      <li>每个引擎可"保存"为一个<strong>配置项</strong>，带自己的 <strong>Base URL / API Key / 模型 / 男声 / 女声</strong>。</li>
-      <li><strong>拖拽排序</strong>：列表项可拖动；<strong>排在第一位 = 默认</strong>（带"Default"徽标）。</li>
-      <li><strong>点击配置</strong>：会把该配置的全部字段（含 URL/Key）载入表单——切换引擎配置时表单不再串用别的配置的值。</li>
-      <li><strong>保存到磁盘</strong>：勾选后 TTS 音频写入资料库 <code>tts/</code> 目录（否则仅实时返回，不落盘）。</li>
-      <li><strong>测试</strong>：点击 Test 用<strong>当前表单配置</strong>（所见即所测）调用 <code>/api/engines/tts/test</code>（实时合成、不保存）。</li>
+      <li>所有数据（音频、文章、笔记、生词、设置）都存在<strong>你自己电脑上</strong>。卸载应用不会删除这些数据。</li>
     </ul>
-
-    <!-- ============ LLM ============ -->
-    <h2 id="llm">十八、大语言模型 LLM</h2>
-    <p>LLM 驱动 Ask AI、语法分析、词典兜底与对话页。提供两种引擎：</p>
-    <h3>17.1 Ollama（本地）</h3>
+    <h3>AI 不回答</h3>
     <ul>
-      <li>默认 <code>baseUrl = http://localhost:11434/v1</code>，模型如 <code>qwen3:0.6b</code>。<strong>需你本地启动 Ollama 且监听该地址</strong>（注意默认端口是 11434，不是 8080）。</li>
-      <li>本地运行无需 API Key。</li>
-    </ul>
-    <h3>17.2 OpenAI 兼容（云端，如 DeepSeek）</h3>
-    <ul>
-      <li>填写 <strong>Base URL + 模型 + API Key</strong>，适配 OpenAI、DeepSeek 等。</li>
-      <li>例如 DeepSeek：Base URL <code>https://api.deepseek.com/v1</code>，模型 <code>deepseek-chat</code>（或你账号支持的模型名）。</li>
-    </ul>
-    <h3>17.3 LLM 配置列表与默认规则</h3>
-    <ul>
-      <li>"<strong>Confirm</strong>" 把当前表单保存为一个配置项，并置为默认（<strong>最新保存的 = 默认</strong>）。</li>
-      <li><strong>拖拽排序</strong>：列表项可拖动，<strong>第一位 = 默认</strong>；点击加载，✕ 删除。</li>
-      <li><strong>每配置自带 Key</strong>：保存时会把当前 API Key 一起存入该配置。点击某配置时，<strong>Base URL、模型、API Key 都会一起载入表单</strong>——切换 gemma/deepseek 等不同模型，Key 不再串用。</li>
-      <li>列表项显示 <code>🔑 API key saved</code>（该配置自带 Key）或 <code>🔓 no API key</code>（无自带 Key，使用表单里的 Key）。</li>
-      <li><strong>测试</strong>：Test 用<strong>当前表单配置</strong>发送 "hi" 调用 <code>/api/engines/llm/test</code>，返回预览文本。</li>
-    </ul>
-
-    <!-- ============ 引擎分离规则 ============ -->
-    <h2 id="engines-rule">十九、引擎分离与默认规则（重要）</h2>
-    <ul>
-      <li><strong>三类引擎严格分离</strong>：STT（<code>engines.stt</code>，本地 Whisper，无 Key、无列表）、TTS（<code>ttsHistory</code> + <code>defaultTtsId</code>）、LLM（<code>llmHistory</code> + <code>defaultLlmId</code>）各自独立，互不影响。</li>
-      <li><strong>默认 = 列表第一项</strong>：TTS/LLM 的默认配置由列表"第一位"决定（<code>defaultTtsId</code>/<code>defaultLlmId</code> 标记激活项），真实调用经 <code>resolveTts</code>/<code>resolveLlm</code> 取值。</li>
-      <li><strong>凭证不串用</strong>：<code>resolveLlm</code> 仅使用<strong>该配置自己存的 Key</strong>（<code>h.apiKey ?? undefined</code>），<strong>绝不回退到共享的 live 字段</strong>。因此默认模型只会用自己配置的 Key，不会被上一个模型的 Key 污染。</li>
-      <li><strong>所见即所测</strong>：设置页的 Test 按钮发送<strong>当前表单里的配置</strong>，服务端测试端点接受可选 <code>config</code> 体——你屏幕上看到什么，就测什么。</li>
-      <li><strong>词典离线</strong>：本地词典查询（MDict）完全不联网，不涉及任何 Key。</li>
-    </ul>
-
-    <!-- ============ 启动停止 ============ -->
-    <h2 id="run">二十、启动 / 停止 / 部署</h2>
-    <h3>常用命令（源码运行）</h3>
-    <pre><code>npm run build     # 构建前端到 dist/
-npm run start     # 启动后端（端口 8787，可用 PORT 覆盖）
-npm run dev       # 开发模式：后端 + 前端热更新（8787 live-mirror 5173）
-npm run app       # Electron 桌面壳（开发模式）
-npm run dist:mac  # 一键打包 macOS dmg（build + build:server + rebuild + electron-builder）
-npm run typecheck # 类型检查（tsc --noEmit）</code></pre>
-    <h3>停止与重启</h3>
-    <pre><code># 停止（释放 8787 端口）
-pkill -9 -f "tsx src/server/index.ts"
-lsof -ti tcp:8787 | xargs -r kill -9
-
-# 重启
-nohup npm run start >/tmp/lingo-server.log 2>&1 &</code></pre>
-    <h3>健康检查</h3>
-    <pre><code>curl http://localhost:8787/api/health   # 返回 {"ok":true}</code></pre>
-    <h3>桌面安装包说明</h3>
-    <ul>
-      <li><strong>打包原理</strong>：后端用 esbuild 打成单文件 <code>dist-server/index.mjs</code>，Electron 壳直接 <code>import</code> 它——<strong>运行时不需要 npm / tsx / Node 环境</strong>；原生模块（better-sqlite3、onnxruntime）在打包时已按 Electron 的 ABI 重建。</li>
-      <li><strong>数据目录</strong>：打包版自动把模型与资料库重定向到 <code>~/Library/Application Support/Lingutribe/</code>（<code>models/</code> 与 <code>library/</code>），ffmpeg 随包携带。</li>
-      <li><strong>单实例</strong>：重复打开会聚焦已有窗口；后端已在 8787 运行时，仅打开窗口、不重复启动。</li>
-      <li><strong>未签名提示</strong>：测试版未签名，Gatekeeper 可能拦截，右键"打开"或执行 <code>xattr -dr com.apple.quarantine</code> 解决（见第二章）。正式版将做 Developer ID 签名 + 公证。</li>
-    </ul>
-    <div class="tip"><b>Electron 两种模式：</b>开发模式（<code>npm run app</code>）把 <code>npm run start</code> 作为子进程拉起；打包模式壳直接 import 预编译的服务端文件。两者都会等健康检查通过后再开窗。若后端已在运行，壳仅打开窗口。退出时壳会结束后端子进程。</div>
-
-    <!-- ============ FAQ ============ -->
-    <h2 id="faq">二十一、常见问题排查</h2>
-    <h3>TTS Test 失败</h3>
-    <ul>
-      <li><code>No matching voice found</code>（Kokoro）：声音字段需用完整 id（如 <code>en-US-Heart</code>），且模型需已部署（先点"Deploy locally"）。</li>
-      <li>其他连接错误：检查该配置的 Base URL 是否正确、模型是否已部署。Kokoro 为本地引擎，无需任何 Key。</li>
-    </ul>
-    <h3>LLM Test 失败</h3>
-    <ul>
-      <li><strong>连接不上（empty response / cannot connect）</strong>：本地 Ollama 未启动，或监听地址与配置不一致（默认 <code>11434</code>，不是 <code>8080</code>）。启动 Ollama 后把对应配置拖到第一位（默认）。</li>
-      <li><code>401 invalid key</code>：API Key 错误或未填。确认该配置自带正确的 Key（点击配置，Key 字段应已载入）。</li>
-      <li><strong>切换模型 Key 不跟随</strong>：旧版本有此 bug（点击 gemma 仍用 deepseek 的 Key）。当前版本已修复——每个配置自带 Key，切换时表单的 URL/模型/Key 一起更新；保存（Confirm）会把 Key 绑定进该配置。</li>
-    </ul>
-    <h3>转写/导入失败</h3>
-    <ul>
-      <li>源码运行版确认已安装 <strong>ffmpeg</strong>（且被应用找到）；URL 导入还需 <strong>yt-dlp</strong>。打包版两者已内置/随包。</li>
-      <li>Whisper 模型未部署：到设置 → STT 点"Deploy locally"。</li>
-      <li><strong>URL 导入的内容很少或不像正文</strong>：Readability 把页面判为"非文章"时会回退用原始 HTML，某些特殊页面（动态渲染、需要登录、正文极短）清洗效果有限，属预期行为。</li>
-    </ul>
-    <h3>阅读页相关问题</h3>
-    <ul>
-      <li><strong>正文不能编辑？</strong>——设计如此：文章是<strong>只读</strong>的，避免误改；需要摘录时选中文本用工具条的 <strong>Copy / Ask AI / Read</strong>。</li>
-      <li><strong>选中文字没有浮出工具条？</strong>——确认选中了至少 2 个字符，且不是在输入框里；单击单词不弹工具条（那是查词典）。</li>
-      <li><strong>AI 回复显示为"原始符号"（如 **、#）？</strong>——当前版本 AI 回复按 Markdown 渲染；若看到原始符号，说明模型返回的文本本身不标准，属个别模型行为。</li>
-    </ul>
-    <h3>词典不显示</h3>
-    <ul>
-      <li>确认 <code>.mdx</code> 放在资料库的 <code>dictionaries/</code> 目录；新增后无需重启，下次查询即生效。</li>
-      <li>装了多本词典时，可在 <strong>设置 → 词典</strong> 指定用哪本解读（或 Auto 自动选第一个能查到的）。</li>
-      <li>若查不到，面板会提示放入 .mdx 的路径，并可自动走 LLM 兜底。</li>
-    </ul>
-    <h3>打包版相关</h3>
-    <ul>
-      <li><strong>打开一片黑 / 无任何界面</strong>：早期旧包（v0.1.0 之前）有该问题（dist 路径 + undici 版本，均已修复）。请确认用的是最新 dmg；若仍黑屏，终端执行 <code>lsof -ti tcp:8787</code> 查看是否有残留进程占用端口，退出重开应用。</li>
-      <li><strong>首次打开提示"无法验证开发者"</strong>：未签名测试版所致，右键 →「打开」或执行 <code>xattr -dr com.apple.quarantine /Applications/Lingutribe.app</code>。</li>
-    </ul>
-
-    <!-- ============ 未实现 ============ -->
-    <h2 id="notimpl">二十二、未实现功能说明</h2>
-    <div class="warn"><b>单词训练（托福 / 雅思 / 考研词表导入与刷题）</b>：经代码核查，<strong>此功能在当前代码库中尚未实现</strong>。不存在词表导入、单词标注切换、AI 文章/对话生成训练等逻辑。</div>
-    <ul>
-      <li>目前仅有<strong>手动生词本</strong>（第十三章）：可手动添加/删除、COCA 词频标记、从词典一键加入。</li>
-      <li>数据库中存在间隔重复的<strong>骨架字段</strong>（<code>level</code>、<code>reviewedAt</code>），但<strong>尚未构建复习/训练界面与算法</strong>。</li>
-      <li>如需该能力，需在现有生词本基础上扩展：词表导入、按词频/考试标注、基于 LLM 的文章与对话生成、以及复习调度 UI。</li>
+      <li>确认在<strong>设置 → AI 模型</strong>中配置了可用的模型：本机 AI 需先启动 Ollama；在线模型需填写正确的地址、模型名和密钥。</li>
     </ul>
 
     <h2 style="border:none;margin-top:50px;"></h2>
-    <p class="sub">— 文档结束 —<br/>本说明书依据 <code>lingutribe v0.1.2</code> 代码库当前实现生成，覆盖音视频学习（含字幕断句优化）、阅读（只读 + Markdown）、划词工具条、新闻 URL 清洗导入、离线词典（含多词典选择）、笔记（Notes）、Ask AI、语法分析、COCA 词频、生词本，以及 STT/TTS/LLM 三类引擎的配置与分离规则。</p>
+    <p class="sub">— 文档结束 —</p>
   </main>
 </div>
 
