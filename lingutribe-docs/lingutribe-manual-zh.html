@@ -98,6 +98,7 @@
       <a href="#grammar">语法分析</a>
       <a href="#coca">COCA 词频</a>
       <a href="#words">生词本</a>
+      <a href="#notes">笔记（Notes）</a>
     </div>
     <div class="group">
       <div class="gt">设置与引擎</div>
@@ -124,18 +125,18 @@
     </div>
 
     <h1>Lingutribe 使用说明书</h1>
-    <p class="sub">版本 <code>v0.1.0</code>（2026-08-06 更新）· 前端 React+TypeScript(Vite) · 后端 Node/Express（默认端口 8787）· 本地优先、可离线运行 · 已提供 macOS 桌面安装包（dmg）</p>
+    <p class="sub">版本 <code>v0.1.2</code>（2026-08-15 更新）· 前端 React+TypeScript(Vite) · 后端 Node/Express（默认端口 8787）· 本地优先、可离线运行 · 已提供 macOS 桌面安装包（dmg）</p>
 
     <div class="note"><b>阅读提示：</b>本说明覆盖 Lingutribe 的全部已实现功能与操作细节。左侧为分类目录，点击章节可跳转；右侧正文随滚动自动高亮当前章节。文档中的端点路径、配置名、默认值均取自当前代码，可直接对照使用。</div>
 
-    <div class="tip"><b>v0.1.0 更新内容（2026-08-06）：</b>新增<strong>划词工具条</strong>（复制 / Ask AI / 朗读，见第七章）、AI 回复<strong>Markdown 渲染</strong>（标题/列表/表格/代码，见第十章）、新闻 URL 导入的 <strong>Readability 正文清洗</strong>（见第八章）；阅读页改为<strong>只读 + Markdown 展示</strong>（第六章）；播放器隐藏居中标题、折叠区域改用箭头图标；后端完成<strong>模块化重构</strong>（引擎层 / 路由层 / 数据层分离，见第一章架构表）。</div>
+    <div class="tip"><b>v0.1.2 更新内容（2026-08-15）：</b>新增<strong>笔记（Notes）</strong>功能（第十四章）——Apple 备忘录式列表 + Markdown 编辑器，播放器与阅读器内联笔记自动保存；离线词典支持<strong>多词典选择</strong>（设置中指定用哪本解读，第九章）与 <strong>Reveal folder</strong> 一键打开词典目录；字幕<strong>断句优化</strong>（语音段最长 10 秒、短句自动并入下一段开头、9 秒静音切分，第五章 5.4）；STT 引擎<strong>稳定化为纯 Whisper</strong>（echogarden），移除了不稳定的旧引擎；本地 API 增加 CORS 白名单与词典容错；改库路径后无需重启即可生效。</div>
 
     <!-- ============ 概述 ============ -->
     <h2 id="overview">一、产品定位与理念</h2>
     <p>Lingutribe 是一款<strong>本地优先（local-first）</strong>的语言学习工具，定位为"本地语言工作室"。它把<strong>听（音频/视频）、读（文章）、查（词典）、练（AI 对话与语法）、记（生词本与词频）</strong>整合在一个桌面/网页应用里，目标是让你在<strong>不依赖云端账号、数据留在自己机器</strong>的前提下完成外语沉浸学习。</p>
     <ul>
       <li><span class="tag">隐私</span> 词典查询、本地 TTS（Kokoro）、本地 STT（Whisper）全部在本地运行，不联网。</li>
-      <li><span class="tag">可选云端</span> 仅当你主动配置 Fish Audio（云端 TTS）或 DeepSeek / OpenAI 等云端 LLM 时，才会向对应服务商发起请求。</li>
+      <li><span class="tag">可选云端</span> 仅当你主动配置 DeepSeek / OpenAI 等云端 LLM（或云端 TTS）时，才会向对应服务商发起请求。</li>
       <li><span class="tag">本地存储</span> 所有资料、设置、对话记录都保存在你本机的"资料库"目录（默认 <code>~/Documents/LingoLibrary</code>，打包版为 <code>~/Library/Application Support/Lingutribe/library</code>）下的 SQLite 数据库与子文件夹中。</li>
       <li><span class="tag">可选桌面壳</span> 提供 Electron 桌面壳与 macOS 安装包，本质仍是启动本地后端 + 打开浏览器窗口，端口固定 8787。</li>
     </ul>
@@ -148,7 +149,7 @@
       <tr><td>数据库</td><td>better-sqlite3（WAL）</td><td>资源、生词、笔记/对话、设置、聊天消息均存于资料库目录</td></tr>
       <tr><td>语音</td><td>echogarden（Whisper / Kokoro）</td><td>本地语音识别与合成，模型首次使用从 HuggingFace 下载</td></tr>
       <tr><td>网页清洗</td><td>jsdom + @mozilla/readability</td><td>新闻 URL 导入时自动提取正文，去除广告/导航/侧栏/页脚（见第八章）</td></tr>
-      <tr><td>桌面壳</td><td>Electron 33</td><td>开发模式子进程启动后端并打开窗口；已打包为 macOS dmg（v0.1.0 测试版，未签名，见第十九章）</td></tr>
+      <tr><td>桌面壳</td><td>Electron 33</td><td>开发模式子进程启动后端并打开窗口；已打包为 macOS dmg（v0.1.2 测试版，未签名，见第二十章）</td></tr>
     </table>
 
     <!-- ============ 快速开始 ============ -->
@@ -179,7 +180,7 @@ npm run app</code></pre>
 
     <h3>3. 桌面安装包（dmg）</h3>
     <ul>
-      <li>macOS（Apple Silicon）测试版安装包：<code>Lingutribe-0.1.0-arm64.dmg</code>。下载后双击挂载，把 <code>Lingutribe.app</code> 拖入"应用程序"文件夹。</li>
+      <li>macOS（Apple Silicon）测试版安装包：<code>Lingutribe-0.1.2-arm64.dmg</code>。下载后双击挂载，把 <code>Lingutribe.app</code> 拖入"应用程序"文件夹。</li>
       <li><span class="tag gray">注意</span> 当前为<strong>未签名测试版</strong>，首次打开可能被 Gatekeeper 拦截（提示"无法验证开发者"）。解决：右键 <code>Lingutribe.app</code> → 选「打开」，或在终端执行 <code>xattr -dr com.apple.quarantine /Applications/Lingutribe.app</code> 后正常打开。</li>
       <li>打包版<strong>无需安装 Node/ffmpeg/yt-dlp</strong>：ffmpeg 随包携带；模型与资料库自动写入 <code>~/Library/Application Support/Lingutribe/</code>（模型目录 <code>models/</code>、资料库 <code>library/</code>），不会写入只读的应用包。</li>
     </ul>
@@ -201,7 +202,8 @@ npm run app</code></pre>
       <tr><td>资源（音频 / 视频）</td><td><code>/resources/audio</code> · <code>/resources/video</code></td><td>导入/播放/转写音视频</td></tr>
       <tr><td>阅读</td><td><code>/read</code></td><td>导入/朗读文章（只读 + Markdown 展示）</td></tr>
       <tr><td>生词</td><td><code>/words</code></td><td>生词本管理</td></tr>
-      <tr><td>对话</td><td><code>/chat</code></td><td>自由 AI 对话（<code>/notes</code> 已重定向至此）</td></tr>
+      <tr><td>笔记</td><td><code>/notes</code></td><td>笔记列表 + Markdown 编辑器（Apple 备忘录式，见第十四章）</td></tr>
+      <tr><td>对话</td><td><code>/chat</code></td><td>自由 AI 对话</td></tr>
       <tr><td>设置</td><td><code>/settings</code></td><td>引擎 / 外观 / 存储配置</td></tr>
     </table>
     <h3>外观与语言</h3>
@@ -261,6 +263,7 @@ npm run app</code></pre>
       <li><strong>点击单词</strong>：在右侧面板打开词典；若该词有时间戳，点击会<strong>跳转到对应播放位置</strong>。</li>
       <li><strong>划词浮层</strong>：在 Flow 模式选中文本，浮出 <strong>Ask AI / Copy</strong> 按钮（资源页浮层；阅读页另有 <strong>Read</strong> 朗读按钮，见第七章）。</li>
       <li><strong>COCA 词频着色</strong>：单词按词频带染色（见第十二章），高频/低频一目了然。</li>
+      <li><strong>字幕断句优化</strong>（v0.1.2）：字幕分段按三条规则自动生成——① 语音段最长 <strong>10 秒</strong>；② 不足 <strong>4 秒</strong>的短句自动并入相邻字幕段（作为下一段的开头）；③ 静音超过 <strong>9 秒</strong>强制切分，小于该值尝试并入相邻段。长音频的字幕因此更整齐、不碎句。</li>
     </ul>
 
     <h3>5.5 词汇档案（Layout 标签）</h3>
@@ -327,7 +330,13 @@ npm run app</code></pre>
     </ul>
     <h3>9.3 LLM 兜底</h3>
     <div class="tip"><b>查不到时自动用大模型：</b>当本地词典返回 <code>found:false</code>，词典面板会<strong>自动调用大模型</strong>生成简洁双语释义（2 个解读 + 词性 + 2 个例句，控制在 150 词内，词典风格）。提示词默认模板支持 <code>{WORD}</code>/<code>{L}</code>/<code>{N}</code> 占位符，可在设置中覆盖。</div>
-    <h3>9.4 加入生词本</h3>
+    <h3>9.4 词典设置（多词典选择 / 打开目录）</h3>
+    <ul>
+      <li>路径 <strong>设置 → 词典（Dictionary）</strong>：列出已安装的词典，并提供 <strong>Test install</strong>（检测）与 <strong>Reveal folder</strong>（在文件管理器中打开词典目录，一键直达）两个按钮。</li>
+      <li><strong>多词典选择</strong>：装了多个 <code>.mdx</code> 时，可下拉指定<strong>用哪本词典解读单词</strong>；选择 <strong>Auto</strong>（默认）则依次搜索所有词典、取第一个能查到的结果。</li>
+      <li>查询结果卡片会标注来源词典名（<code>— 词典标题</code>），方便确认用的是哪一本。</li>
+    </ul>
+    <h3>9.5 加入生词本</h3>
     <ul>
       <li>词典面板有 <strong>"+ Add to Words"</strong> 按钮，一键把当前词加入生词本（见第十三章）。</li>
     </ul>
@@ -366,7 +375,7 @@ npm run app</code></pre>
     <h2 id="coca">十二、COCA 词频</h2>
     <p>COCA（Corpus of Contemporary American English）词频数据用于评估文章难度与重点词汇。</p>
     <ul>
-      <li>数据来自 <code>data/coca-bands.json</code>（Nation &amp; Crabbe BNC/COCA 约 25k 词表），含每个词的<strong>排名</strong>与<strong>词频带阈值</strong>。</li>
+      <li>数据来自 <code>data/coca-bands.json</code>（Nation &amp; Crabbe BNC/COCA 25k 词表，取前 10k 频段，共 <strong>10,006</strong> 个词头），含每个词的<strong>排名</strong>与<strong>词频带阈值</strong>。</li>
       <li>词频带划分与配色：
         <table>
           <tr><th>词频带</th><th>含义</th><th>颜色</th></tr>
@@ -392,19 +401,37 @@ npm run app</code></pre>
       <li><strong>复习字段</strong>：生词表含 <code>level</code>（0=新词，越高越熟）与 <code>reviewedAt</code>，即<strong>间隔重复（spaced repetition）的数据库骨架已存在</strong>，但目前<strong>尚未构建复习/训练界面与逻辑</strong>（见"未实现功能"）。</li>
     </ul>
 
+    <!-- ============ 笔记 ============ -->
+    <h2 id="notes">十四、笔记（Notes）</h2>
+    <p>v0.1.2 新增。笔记以 <strong>Markdown</strong> 正文存于本地 SQLite（<code>notes</code> 表），界面风格类似 Apple 备忘录：左侧列表 + 右侧编辑器。</p>
+    <h3>14.1 笔记页</h3>
+    <ul>
+      <li>路径 <code>/notes</code>（左侧导航"笔记"）：左侧为<strong>笔记列表</strong>（按创建时间倒序，列表项即笔记标题），右侧为编辑器（顶部<strong>标题 + 删除</strong>按钮，正文为 Markdown 文本框）。</li>
+      <li><strong>新建</strong>：点 <code>+ New</code> 开始新笔记；<strong>保存</strong>：点 <code>Save</code> 写入数据库。</li>
+      <li>列表项悬停可删除该笔记。</li>
+    </ul>
+    <h3>14.2 内联笔记（播放器 / 阅读器）</h3>
+    <ul>
+      <li>音频 / 视频播放器顶部工具栏、以及阅读页顶部"Read aloud"旁的<strong>笔记本图标</strong>，点击后在<strong>内容区下方</strong>展开一个内联笔记编辑区。</li>
+      <li>该笔记<strong>自动关联当前资源</strong>（<code>resourceId</code>）：首次打开自动创建（默认标题为资源名），之后再打开直接载入已有内容。</li>
+      <li><strong>自动保存</strong>：停止输入约 0.6 秒后自动写入数据库，无需手动保存；关闭/切换资源时也会刷新未保存内容。</li>
+      <li>内联笔记会<strong>同步出现在</strong> <code>/notes</code> 列表中——两者读写的是同一份数据。</li>
+    </ul>
+
     <!-- ============ 设置 ============ -->
-    <h2 id="settings">十四、设置总览</h2>
-    <p>路径 <code>/settings</code>，左侧分类：<strong>系统 / STT / TTS / LLM</strong>。界面语言可在此切换中/英，切换后重载应用。</p>
+    <h2 id="settings">十五、设置总览</h2>
+    <p>路径 <code>/settings</code>，左侧分类：<strong>系统 / STT / TTS / 词典 / LLM</strong>。界面语言可在此切换中/英，切换后重载应用。</p>
     <table>
       <tr><th>分类</th><th>可配置项</th></tr>
       <tr><td>系统</td><td>外观（浅/深/跟随）、界面语言、学习语言、母语、资料库路径、磁盘用量</td></tr>
       <tr><td>STT</td><td>Whisper 模型、部署本地、保存、测试、历史</td></tr>
-      <tr><td>TTS</td><td>引擎（Kokoro/Fish/OpenAI）、各引擎参数字段、保存TTS音频、保存/测试、配置列表</td></tr>
+      <tr><td>TTS</td><td>引擎（Kokoro/OpenAI）、各引擎参数字段、保存TTS音频、保存/测试、配置列表</td></tr>
+      <tr><td>词典</td><td>检测安装（Test install）、Reveal folder 打开词典目录、选择当前使用的词典（Auto/指定）</td></tr>
       <tr><td>LLM</td><td>引擎（Ollama/OpenAI）、地址/模型/Key、确认、测试、语法提示词、配置列表</td></tr>
     </table>
 
     <!-- ============ STT ============ -->
-    <h2 id="stt">十五、语音识别 STT</h2>
+    <h2 id="stt">十六、语音识别 STT</h2>
     <ul>
       <li><strong>引擎</strong>：本地 Whisper（通过 echogarden），<strong>无需任何 API Key</strong>，与 LLM/TTS 完全隔离。</li>
       <li><strong>模型</strong>：<code>tiny / base / small / medium / large</code>。选 <code>large</code> 实际映射到 <code>large-v3-turbo</code>。模型越大越准但越慢。</li>
@@ -414,28 +441,21 @@ npm run app</code></pre>
     </ul>
 
     <!-- ============ TTS ============ -->
-    <h2 id="tts">十六、语音合成 TTS</h2>
-    <p>TTS 提供三种引擎，可在设置中切换：</p>
-    <h3>16.1 Kokoro（本地，推荐，免费离线）</h3>
+    <h2 id="tts">十七、语音合成 TTS</h2>
+    <p>TTS 提供两种引擎，可在设置中切换：</p>
+    <h3>17.1 Kokoro（本地，推荐，免费离线）</h3>
     <ul>
       <li>神经网络 onnx 模型，<strong>完全本地</strong>，输出 WAV，<strong>不消耗任何费用或账号</strong>。</li>
       <li>模型：<code>82m-v1.0-quantized</code>（约 80MB，默认）/ <code>82m-v1.0-fp32</code>（约 330MB，更高质量）。</li>
       <li>男声/女声：从 <code>GET /api/tts/voices</code> 按性别+英语筛选（声音需用完整 id，如 <code>en-US-Heart</code>）。</li>
       <li><strong>部署本地</strong>："Deploy locally" 下载 Kokoro 模型+声音，并<strong>自动将其注册为默认 TTS 配置</strong>。</li>
     </ul>
-    <h3>16.2 Fish Audio（云端）</h3>
-    <ul>
-      <li>需 API Key 与 <strong>男声/女声的 reference_id</strong>（Fish 声音用 reference 而非名字）。</li>
-      <li>模型：<code>s2.1-pro-free</code>（免费开发模型，免按字符计费）/ <code>s2.1-pro</code> / <code>s2-pro</code> / <code>s1</code>。</li>
-      <li>Base URL 默认 <code>https://api.fish.audio/v1/tts</code>。</li>
-      <li><span class="tag gray">注意</span> Fish 的 <strong>API credit 余额需大于 0</strong> 才能调用 API（免费模型只免除"按字符计费"，不免除账户余额门控）。余额不足会返回 <code>402 Insufficient API credit</code>——这是 Fish 账户的计费问题，不是应用 bug。此外 Fish 还要求配置有效的 voice reference 才能出声。</li>
-    </ul>
-    <h3>16.3 OpenAI 兼容（通用）</h3>
+    <h3>17.2 OpenAI 兼容（通用）</h3>
     <ul>
       <li>填写 <strong>Base URL + API Key + 模型 + 男声/女声名字</strong>，适配 OpenAI 及多数自托管/开源 TTS（CosyVoice、GPT-SoVITS、XTTS、F5-TTS、Bark 等，均暴露 <code>/v1/audio/speech</code>）。</li>
       <li>输出 WAV。</li>
     </ul>
-    <h3>16.4 TTS 配置列表与默认规则</h3>
+    <h3>17.3 TTS 配置列表与默认规则</h3>
     <ul>
       <li>每个引擎可"保存"为一个<strong>配置项</strong>，带自己的 <strong>Base URL / API Key / 模型 / 男声 / 女声</strong>。</li>
       <li><strong>拖拽排序</strong>：列表项可拖动；<strong>排在第一位 = 默认</strong>（带"Default"徽标）。</li>
@@ -445,7 +465,7 @@ npm run app</code></pre>
     </ul>
 
     <!-- ============ LLM ============ -->
-    <h2 id="llm">十七、大语言模型 LLM</h2>
+    <h2 id="llm">十八、大语言模型 LLM</h2>
     <p>LLM 驱动 Ask AI、语法分析、词典兜底与对话页。提供两种引擎：</p>
     <h3>17.1 Ollama（本地）</h3>
     <ul>
@@ -467,7 +487,7 @@ npm run app</code></pre>
     </ul>
 
     <!-- ============ 引擎分离规则 ============ -->
-    <h2 id="engines-rule">十八、引擎分离与默认规则（重要）</h2>
+    <h2 id="engines-rule">十九、引擎分离与默认规则（重要）</h2>
     <ul>
       <li><strong>三类引擎严格分离</strong>：STT（<code>engines.stt</code>，本地 Whisper，无 Key、无列表）、TTS（<code>ttsHistory</code> + <code>defaultTtsId</code>）、LLM（<code>llmHistory</code> + <code>defaultLlmId</code>）各自独立，互不影响。</li>
       <li><strong>默认 = 列表第一项</strong>：TTS/LLM 的默认配置由列表"第一位"决定（<code>defaultTtsId</code>/<code>defaultLlmId</code> 标记激活项），真实调用经 <code>resolveTts</code>/<code>resolveLlm</code> 取值。</li>
@@ -477,7 +497,7 @@ npm run app</code></pre>
     </ul>
 
     <!-- ============ 启动停止 ============ -->
-    <h2 id="run">十九、启动 / 停止 / 部署</h2>
+    <h2 id="run">二十、启动 / 停止 / 部署</h2>
     <h3>常用命令（源码运行）</h3>
     <pre><code>npm run build     # 构建前端到 dist/
 npm run start     # 启动后端（端口 8787，可用 PORT 覆盖）
@@ -504,13 +524,11 @@ nohup npm run start >/tmp/lingo-server.log 2>&1 &</code></pre>
     <div class="tip"><b>Electron 两种模式：</b>开发模式（<code>npm run app</code>）把 <code>npm run start</code> 作为子进程拉起；打包模式壳直接 import 预编译的服务端文件。两者都会等健康检查通过后再开窗。若后端已在运行，壳仅打开窗口。退出时壳会结束后端子进程。</div>
 
     <!-- ============ FAQ ============ -->
-    <h2 id="faq">二十、常见问题排查</h2>
+    <h2 id="faq">二十一、常见问题排查</h2>
     <h3>TTS Test 失败</h3>
     <ul>
-      <li><code>402 Insufficient API credit</code>（Fish）：你的 Fish <strong>API credit 余额为 0</strong>。免费模型（<code>s2.1-pro-free</code>）只免按字符费，不免除余额门控；需到 fish.audio 充值。或改用本地 Kokoro（默认、免费、离线）。</li>
-      <li><code>400 Reference not found</code>（Fish）：未配置有效的男声/女声 <code>reference_id</code>。Fish 声音用 reference 而非名字，请填写正确的 reference_id。</li>
       <li><code>No matching voice found</code>（Kokoro）：声音字段需用完整 id（如 <code>en-US-Heart</code>），且模型需已部署（先点"Deploy locally"）。</li>
-      <li>其他连接错误：检查该配置的 Base URL 是否正确、模型是否已部署。</li>
+      <li>其他连接错误：检查该配置的 Base URL 是否正确、模型是否已部署。Kokoro 为本地引擎，无需任何 Key。</li>
     </ul>
     <h3>LLM Test 失败</h3>
     <ul>
@@ -533,16 +551,17 @@ nohup npm run start >/tmp/lingo-server.log 2>&1 &</code></pre>
     <h3>词典不显示</h3>
     <ul>
       <li>确认 <code>.mdx</code> 放在资料库的 <code>dictionaries/</code> 目录；新增后无需重启，下次查询即生效。</li>
+      <li>装了多本词典时，可在 <strong>设置 → 词典</strong> 指定用哪本解读（或 Auto 自动选第一个能查到的）。</li>
       <li>若查不到，面板会提示放入 .mdx 的路径，并可自动走 LLM 兜底。</li>
     </ul>
     <h3>打包版相关</h3>
     <ul>
-      <li><strong>打开一片黑 / 无任何界面</strong>：v0.1.0 之前的旧包有该问题（dist 路径 + undici 版本，均已修复）。请确认用的是最新 dmg；若仍黑屏，终端执行 <code>lsof -ti tcp:8787</code> 查看是否有残留进程占用端口，退出重开应用。</li>
+      <li><strong>打开一片黑 / 无任何界面</strong>：早期旧包（v0.1.0 之前）有该问题（dist 路径 + undici 版本，均已修复）。请确认用的是最新 dmg；若仍黑屏，终端执行 <code>lsof -ti tcp:8787</code> 查看是否有残留进程占用端口，退出重开应用。</li>
       <li><strong>首次打开提示"无法验证开发者"</strong>：未签名测试版所致，右键 →「打开」或执行 <code>xattr -dr com.apple.quarantine /Applications/Lingutribe.app</code>。</li>
     </ul>
 
     <!-- ============ 未实现 ============ -->
-    <h2 id="notimpl">二十一、未实现功能说明</h2>
+    <h2 id="notimpl">二十二、未实现功能说明</h2>
     <div class="warn"><b>单词训练（托福 / 雅思 / 考研词表导入与刷题）</b>：经代码核查，<strong>此功能在当前代码库中尚未实现</strong>。不存在词表导入、单词标注切换、AI 文章/对话生成训练等逻辑。</div>
     <ul>
       <li>目前仅有<strong>手动生词本</strong>（第十三章）：可手动添加/删除、COCA 词频标记、从词典一键加入。</li>
@@ -551,7 +570,7 @@ nohup npm run start >/tmp/lingo-server.log 2>&1 &</code></pre>
     </ul>
 
     <h2 style="border:none;margin-top:50px;"></h2>
-    <p class="sub">— 文档结束 —<br/>本说明书依据 <code>lingutribe v0.1.0</code> 代码库当前实现生成，覆盖音视频学习、阅读（只读 + Markdown）、划词工具条、新闻 URL 清洗导入、离线词典、Ask AI、语法分析、COCA 词频、生词本，以及 STT/TTS/LLM 三类引擎的配置与分离规则。</p>
+    <p class="sub">— 文档结束 —<br/>本说明书依据 <code>lingutribe v0.1.2</code> 代码库当前实现生成，覆盖音视频学习（含字幕断句优化）、阅读（只读 + Markdown）、划词工具条、新闻 URL 清洗导入、离线词典（含多词典选择）、笔记（Notes）、Ask AI、语法分析、COCA 词频、生词本，以及 STT/TTS/LLM 三类引擎的配置与分离规则。</p>
   </main>
 </div>
 
