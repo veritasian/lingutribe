@@ -12,7 +12,11 @@ build/
 
 # ── Runtime / generated library data (models ~564MB + COCA PDFs) ──
 # Not source code; regenerated / downloaded at runtime.
-data/
+# EXCEPTION: coca-bands.json (266KB) is committed so the repo works out of
+# the box — the app needs it for word-band highlighting and it has no
+# runtime auto-regeneration.
+data/*
+!data/coca-bands.json
 
 # ── macOS junk ─────────────────────────────────
 .DS_Store
