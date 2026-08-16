@@ -2,7 +2,7 @@
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20arm64-blue)
 ![Version](https://img.shields.io/badge/version-0.1.2-blue)
-![License](https://img.shields.io/badge/license-Proprietary-red)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 **Local-first English learning workstation** — offline speech recognition, text-to-speech,
 offline dictionaries, vocabulary analytics and notes, in one desktop app. Your audio, texts,
@@ -188,5 +188,4 @@ hard-coded host), so the same code runs in dev, in production, and inside the pa
 
 ## License
 
-Proprietary — see [`LICENSE`](LICENSE). The UI repository is **not** open source; no license
-is granted for copying, modifying, or distributing it without written permission.
+Lingutribe is licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE).

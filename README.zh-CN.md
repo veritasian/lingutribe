@@ -2,7 +2,7 @@
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20arm64-blue)
 ![Version](https://img.shields.io/badge/version-0.1.2-blue)
-![License](https://img.shields.io/badge/license-Proprietary-red)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 **本地优先的英语学习工作站** —— 离线语音识别、离线朗读、离线词典、词汇分析与笔记，一个桌面应用搞定。
 你的音频、文本、单词本和笔记始终留在 Mac 上；只有可选的 AI 助教需要联网。
@@ -180,5 +180,4 @@ UI 与引擎只通过 **HTTP 契约**解耦（`fetch('/api/...')`，不写死主
 
 ## 许可证
 
-专有软件 —— 见 [`LICENSE`](LICENSE)。本 UI 仓库**不是开源的**；未经书面许可不得复制、
-修改或分发。
+Lingutribe 采用 **Apache License 2.0** 许可 —— 见 [`LICENSE`](LICENSE)。
