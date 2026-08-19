@@ -47,19 +47,29 @@ export default function VocabProfile({
   const excludeName = metas.find((m) => m.id === excludeId)?.name || "";
   const excludeSet = excludeId ? listSets.get(excludeId) : undefined;
 
-  const { stats, totalTokens, stopTokens, top3kTokens } = useMemo(() => {
+  const { stats, totalTokens, stopTokens, top3kTokens, freq } = useMemo(() => {
     if (!coca || !effectiveWords.length)
-      return { stats: [] as BandStat[], totalTokens: 0, stopTokens: 0, top3kTokens: 0 };
+      return {
+        stats: [] as BandStat[],
+        totalTokens: 0,
+        stopTokens: 0,
+        top3kTokens: 0,
+        freq: new Map<string, number>(),
+      };
     const bandOrder: Exclude<Band, null>[] = ["1k", "3k", "5k", "6k", "above"];
     const map = new Map<Exclude<Band, null>, Set<string>>();
     for (const b of bandOrder) map.set(b, new Set());
     let tot = 0, stop = 0, top3k = 0;
+    const freq = new Map<string, number>();
 
     for (const w of effectiveWords) {
-      // 词表过滤：命中选中词表 → 整体跳过（不计入任何统计）
-      if (excludeId && inList(w.text, coca, excludeSet)) continue;
       const raw = w.text.toLowerCase().replace(/[^a-z']/g, "");
       if (!raw || raw.length < 2) continue;
+      // 词频统计（按 lemma 聚合，词表过滤前：给选中词表的词频分层视图用）
+      const lemmaAll = lemmatizeWord(coca, raw);
+      freq.set(lemmaAll, (freq.get(lemmaAll) || 0) + 1);
+      // 词表过滤：命中选中词表 → 整体跳过（不计入 COCA 统计）
+      if (excludeId && inList(w.text, coca, excludeSet)) continue;
       tot++;
       if (isStopWord(raw)) { stop++; continue; }
       const lemma = lemmatizeWord(coca, raw);
@@ -79,8 +89,29 @@ export default function VocabProfile({
           words: [...map.get(b)!].sort((a, b) => a.localeCompare(b)),
         };
       });
-    return { stats: arr, totalTokens: tot, stopTokens: stop, top3kTokens: top3k };
+    return { stats: arr, totalTokens: tot, stopTokens: stop, top3kTokens: top3k, freq };
   }, [coca, effectiveWords, excludeId, excludeSet]);
+
+  // 选中词表 → 「词频分布」分层：20+ / 10+ / 5+ / 2+ / 1+，层内按字母排列
+  const listTiers = useMemo(() => {
+    if (!excludeId || !excludeSet || !excludeName || !freq.size) return null;
+    const buckets: [string, number][] = [
+      ["20+", 20],
+      ["10+", 10],
+      ["5+", 5],
+      ["2+", 2],
+      ["1+", 1],
+    ];
+    const tiers: { label: string; words: string[] }[] = [];
+    for (const [label, min] of buckets) {
+      const words = [...freq.entries()]
+        .filter(([w, n]) => n >= min && excludeSet.has(w))
+        .map(([w]) => w)
+        .sort((a, b) => a.localeCompare(b));
+      if (words.length) tiers.push({ label, words });
+    }
+    return tiers.length ? { name: excludeName, tiers } : null;
+  }, [excludeId, excludeSet, excludeName, freq]);
 
   const totalUnique = stats.reduce((s, x) => s + x.unique, 0);
   const uniquePct = totalTokens > 0 ? Math.round((totalUnique / totalTokens) * 100) : 0;
@@ -118,6 +149,37 @@ export default function VocabProfile({
               ↳ 已排除「{excludeName}」词表
             </span>
           )}
+        </div>
+      )}
+
+      {/* 选中词表 → 词频分布（20+/10+/5+/2+/1+，层内按字母排列，左对齐） */}
+      {listTiers && (
+        <div className="rounded-lg border p-3 space-y-2.5 bg-muted/20">
+          <div className="text-xs font-medium">
+            「{listTiers.name}」词频分布
+            <span className="text-[10px] text-muted-foreground font-normal ml-2">
+              本篇出现次数分层 · 层内按字母排序
+            </span>
+          </div>
+          {listTiers.tiers.map((t) => (
+            <div key={t.label} className="flex items-start gap-2">
+              <span className="stat-band-title shrink-0" style={{ marginBottom: 0, fontSize: 12 }}>
+                {t.label}
+              </span>
+              <div className="stat-words">
+                {t.words.map((w) => (
+                  <button
+                    key={w}
+                    className="stat-word"
+                    onClick={() => onWordClick?.(w)}
+                    title={`Look up "${w}"`}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
