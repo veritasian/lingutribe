@@ -4,7 +4,7 @@ import VocabProfile from "../components/VocabProfile";
 import WordPanel, { type WordPanelData } from "../components/WordPanel";
 import { useCoca } from "../lib/coca";
 import { renderMarkdown } from "../lib/markdown";
-import { IconPlus, IconVolume, IconPause, IconCopy, IconChat, IconPlay, IconNotes } from "../components/Icon";
+import { IconPlus, IconVolume, IconPause, IconCopy, IconChat, IconPlay, IconChevronLeft, IconChevronRight } from "../components/Icon";
 
 /** Hex → rgba()，用于高亮 mark 背景。 */
 function hexToRgba(hex: string, alpha: number): string {
@@ -61,8 +61,6 @@ export default function Read() {
   // selected text range.
   const [selMenu, setSelMenu] = useState<{ x: number; y: number; text: string } | null>(null);
   const selMenuRef = useRef<HTMLDivElement>(null);
-  // 工具栏高亮调色板（8 色）是否展开
-  const [hlOpen, setHlOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sentIdx, setSentIdx] = useState(-1);
@@ -72,6 +70,20 @@ export default function Read() {
   const [dirty, setDirty] = useState(false);
   // ── 划词高亮（当前文章） ──
   const [hls, setHls] = useState<Highlight[]>([]);
+  // 右栏 Note 列表刷新令牌
+  const [hlRefresh, setHlRefresh] = useState(0);
+  // 左栏资源列表可折叠（同音频/视频页）
+  const [listOpen, setListOpen] = useState(
+    () => localStorage.getItem("lingo-read-list") !== "collapsed"
+  );
+
+  function toggleList() {
+    setListOpen((v) => {
+      const next = !v;
+      localStorage.setItem("lingo-read-list", next ? "open" : "collapsed");
+      return next;
+    });
+  }
 
   async function load() {
     setItems(await api.listResources().then((all) => all.filter((r) => r.type === "read")));
@@ -103,6 +115,7 @@ export default function Read() {
       thread: active.id,
       article: active.transcript || "",
       title: active.name,
+      refreshKey: hlRefresh,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id]);
@@ -183,6 +196,18 @@ export default function Read() {
     try {
       await api.createHighlight({ resourceId: active.id, text, color, note: "" });
       setHls(await api.listHighlights(active.id));
+      // 高亮后自动切到右栏 Note tab 并刷新摘录列表
+      setHlRefresh((n) => n + 1);
+      setPanel({
+        text: "",
+        context: "",
+        isWord: false,
+        defaultTab: "note",
+        thread: active.id,
+        article: active.transcript || "",
+        title: active.name,
+        refreshKey: hlRefresh + 1,
+      });
     } catch {
       /* silent */
     }
@@ -198,12 +223,12 @@ export default function Read() {
       thread: active.id,
       article: active.transcript || "",
       title: active.name,
+      refreshKey: hlRefresh,
     });
   }
 
   function closeSelMenu() {
     setSelMenu(null);
-    setHlOpen(false);
     window.getSelection()?.removeAllRanges();
   }
 
@@ -255,15 +280,17 @@ export default function Read() {
     } catch { /* range errors are non-fatal */ }
   }, [sentIdx, playing]);
 
-  // Click word → open dictionary panel
+  // Click word → open dictionary panel（划词/存在选区时跳过，避免误触查词）
   function onContentClick(e: React.MouseEvent<HTMLDivElement>) {
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
     const word = wordAtClick(e);
     if (word) {
       setPanel({ text: word, context: word, isWord: true, rank: null, band: null });
     }
   }
 
-  // Selection → floating toolbar (Copy / Ask AI / Read).
+  // Selection → floating toolbar (Copy / Ask AI / Highlight / Note / Read).
   function onContentMouseUp() {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
@@ -276,7 +303,7 @@ export default function Read() {
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     // Show the toolbar below the selection, flipped above when there's not
     // enough room at the bottom of the viewport.
-    const W = 220, H = 34;
+    const W = 380, H = 34;
     let x = rect.left;
     if (x + W > window.innerWidth - 8) x = window.innerWidth - W - 8;
     if (x < 8) x = 8;
@@ -417,10 +444,21 @@ export default function Read() {
 
   return (
     <div className="flex h-full">
-      {/* Left list */}
+      {/* Left list — collapsible（同音频/视频页） */}
+      {listOpen && (
       <div className="w-[300px] border-r flex flex-col shrink-0">
         <div className="px-4 py-3 border-b">
-          <h2 className="text-[15px] font-semibold">Read</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-[15px] font-semibold">Read</h2>
+            <button
+              className="toggle-circle-btn"
+              onClick={toggleList}
+              title="Collapse list"
+              aria-label="Collapse list"
+            >
+              <IconChevronLeft size={18} />
+            </button>
+          </div>
           <div className="flex items-center border rounded-md overflow-hidden mt-3 text-xs">
             <button className={`flex-1 px-2 py-1 ${mode === "file" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
               onClick={() => setMode("file")}>Local file</button>
@@ -451,9 +489,20 @@ export default function Read() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Right content */}
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
+        {!listOpen && (
+          <button
+            className="toggle-circle-btn absolute top-3 left-3 z-10"
+            onClick={toggleList}
+            title="Expand list"
+            aria-label="Expand list"
+          >
+            <IconChevronRight size={18} />
+          </button>
+        )}
         {msg && <div className="text-xs px-6 pt-4" style={{ color: msg.startsWith("❌") ? "#ef4444" : "hsl(var(--muted-foreground))" }}>{msg}</div>}
         {!active ? (
           <div className="p-6 text-muted-foreground">Import a text file or URL to get started.</div>
@@ -474,14 +523,6 @@ export default function Read() {
                     <IconVolume size={15} /> Read aloud
                   </button>
                 )}
-                <button
-                  className={`btn btn-secondary inline-flex items-center gap-1 ${panel?.defaultTab === "note" ? "ring-1 ring-primary" : ""}`}
-                  onClick={() => openNote("")}
-                  title="Note"
-                  aria-pressed={panel?.defaultTab === "note"}
-                >
-                  <IconNotes size={15} /> Note
-                </button>
               </div>
             </div>
 
@@ -541,92 +582,71 @@ export default function Read() {
           style={{ left: selMenu.x, top: selMenu.y }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          {hlOpen ? (
-            <>
-              {HIGHLIGHT_COLORS.map((c) => (
-                <button
-                  key={c.key}
-                  className="sel-toolbar-btn"
-                  title={`Highlight ${c.label}`}
-                  aria-label={`Highlight ${c.label}`}
-                  onClick={() => {
-                    const t = selMenu.text;
-                    closeSelMenu();
-                    createHighlight(t, c.key);
-                  }}
-                >
-                  <span className="block h-3.5 w-3.5 rounded-full" style={{ background: c.bg }} />
-                </button>
-              ))}
-              <button className="sel-toolbar-btn" title="Cancel" onClick={() => setHlOpen(false)}>
-                ✕
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="sel-toolbar-btn"
-                title="Copy"
-                onClick={async () => {
-                  const t = selMenu.text;
-                  closeSelMenu();
-                  try { await navigator.clipboard.writeText(t); } catch { /* ignore */ }
-                }}
-              >
-                <IconCopy size={14} /> Copy
-              </button>
-              <button
-                className="sel-toolbar-btn"
-                title="Ask AI about the selected text"
-                onClick={() => {
-                  const t = selMenu.text;
-                  closeSelMenu();
-                  if (active) {
-                    setPanel({
-                      text: t,
-                      context: t,
-                      isWord: false,
-                      defaultTab: "ask",
-                      thread: active.id,
-                      article: active.transcript || "",
-                      title: active.name,
-                    });
-                  }
-                }}
-              >
-                <IconChat size={14} /> Ask AI
-              </button>
-              <button
-                className="sel-toolbar-btn"
-                title="Highlight (8 colors)"
-                onClick={() => setHlOpen(true)}
-              >
-                Highlight
-              </button>
-              <button
-                className="sel-toolbar-btn"
-                title="Add to notes"
-                onClick={() => {
-                  const t = selMenu.text;
-                  closeSelMenu();
-                  openNote(t);
-                }}
-              >
-                <IconNotes size={14} /> Note
-              </button>
-              <button
-                className="sel-toolbar-btn"
-                title="Read the selected text aloud"
-                onClick={() => {
-                  const t = selMenu.text;
-                  closeSelMenu();
-                  speakText(t);
-                }}
-              >
-                <IconPlay size={14} /> Read
-              </button>
-            </>
-          )}
+          <button
+            className="sel-toolbar-btn"
+            title="Copy"
+            onClick={async () => {
+              const t = selMenu.text;
+              closeSelMenu();
+              try { await navigator.clipboard.writeText(t); } catch { /* ignore */ }
+            }}
+          >
+            <IconCopy size={14} /> Copy
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Ask AI about the selected text"
+            onClick={() => {
+              const t = selMenu.text;
+              closeSelMenu();
+              if (active) {
+                setPanel({
+                  text: t,
+                  context: t,
+                  isWord: false,
+                  defaultTab: "ask",
+                  thread: active.id,
+                  article: active.transcript || "",
+                  title: active.name,
+                });
+              }
+            }}
+          >
+            <IconChat size={14} /> Ask AI
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Highlight"
+            onClick={() => {
+              const t = selMenu.text;
+              closeSelMenu();
+              createHighlight(t, "green");
+            }}
+          >
+            Highlight
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Add to notes"
+            onClick={() => {
+              const t = selMenu.text;
+              closeSelMenu();
+              openNote(t);
+            }}
+          >
+            Note
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            title="Read the selected text aloud"
+            onClick={() => {
+              const t = selMenu.text;
+              closeSelMenu();
+              speakText(t);
+            }}
+          >
+            <IconPlay size={14} /> Read
+          </button>
         </div>
       )}
       <WordPanel data={panel} onClose={() => setPanel(null)} />

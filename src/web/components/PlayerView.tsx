@@ -26,7 +26,6 @@ import {
   IconMic,
   IconAlign,
   IconTrash,
-  IconNotes,
   IconPanelLeft,
   IconChevronDown,
 } from "./Icon";
@@ -115,6 +114,8 @@ export default function PlayerView({
 
   // ── 划词高亮（当前资源） ──
   const [hls, setHls] = useState<Highlight[]>([]);
+  // 右栏 Note 列表刷新令牌：外部增删高亮后自增
+  const [hlRefresh, setHlRefresh] = useState(0);
   useEffect(() => {
     setHls([]);
     api.listHighlights(resource.id).then(setHls).catch(() => {});
@@ -132,6 +133,7 @@ export default function PlayerView({
       thread: resource.id,
       article: transcriptClean,
       title: resource.name,
+      refreshKey: hlRefresh,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resource.id]);
@@ -140,6 +142,18 @@ export default function PlayerView({
     try {
       await api.createHighlight({ resourceId: resource.id, text, color, note: "" });
       setHls(await api.listHighlights(resource.id));
+      // 高亮后自动切到右栏 Note tab 并刷新摘录列表
+      setHlRefresh((n) => n + 1);
+      setPanel({
+        text: "",
+        context: "",
+        isWord: false,
+        defaultTab: "note",
+        thread: resource.id,
+        article: transcriptClean,
+        title: resource.name,
+        refreshKey: hlRefresh + 1,
+      });
     } catch {
       /* silent */
     }
@@ -154,6 +168,7 @@ export default function PlayerView({
       thread: resource.id,
       article: transcriptClean,
       title: resource.name,
+      refreshKey: hlRefresh,
     });
   }
 
@@ -334,15 +349,6 @@ export default function PlayerView({
               aria-pressed={playerTab === "layout"}
             >
               <IconChart size={16} />
-            </button>
-            <button
-              className={`icon-btn ${panel?.defaultTab === "note" ? "ring-1 ring-primary" : ""}`}
-              onClick={() => openNote("")}
-              title="Note"
-              aria-label="Note"
-              aria-pressed={panel?.defaultTab === "note"}
-            >
-              <IconNotes size={16} />
             </button>
             {onTranscribe && (
               <button

@@ -132,8 +132,6 @@ export default function Transcript({
   const [mode, setMode] = useState<"subtitle" | "content">("subtitle");
   // Floating popup anchor (Content mode only).
   const [askRect, setAskRect] = useState<{ x: number; y: number; text: string } | null>(null);
-  // Whether the popup is showing the 8-color highlight palette.
-  const [hlOpen, setHlOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Tokens (with word-timings when available).
@@ -173,12 +171,12 @@ export default function Transcript({
     return buildSegments(words);
   }, [words, segmentsProp]);
 
-  // Paragraphs: Subtitle ≈ 20–30s blocks; Content = 5–10 sentences per block
+  // Paragraphs: Subtitle ≈ 20–30s blocks; Content = 3 sentences per block
   // (no timestamps shown in Content).
   const paragraphs: Segment[] = useMemo(
     () =>
       mode === "content"
-        ? mergeSegmentsIntoParagraphsByCount(deriveSegments, 5, 10)
+        ? mergeSegmentsIntoParagraphsByCount(deriveSegments, 3, 3)
         : mergeSegmentsIntoParagraphs(deriveSegments, 25, 15, 35),
     [deriveSegments, mode]
   );
@@ -225,7 +223,6 @@ export default function Transcript({
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
       setAskRect(null);
-      setHlOpen(false);
       return;
     }
     const text = sel.toString().trim();
@@ -234,20 +231,20 @@ export default function Transcript({
     if (mode === "content") {
       const rect = sel.getRangeAt(0).getBoundingClientRect();
       setAskRect({ x: rect.left, y: rect.bottom + 6, text });
-      setHlOpen(false);
     } else {
       setAskRect(null);
-      setHlOpen(false);
     }
   }
 
   function closePopup() {
     setAskRect(null);
-    setHlOpen(false);
     window.getSelection()?.removeAllRanges();
   }
 
   function clickToken(t: Token) {
+    // 划词（存在选区）时不触发单词单击行为（查词/跳转）
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && containerRef.current?.contains(sel.anchorNode)) return;
     if (t.start != null && onSeek) onSeek(t.start);
     if (!onWordClick) return;
     const clean = t.text.replace(/^[^a-zA-Z0-9']+|[^a-zA-Z0-9']+$/g, "");
@@ -434,98 +431,62 @@ export default function Transcript({
 
       {mode === "subtitle" ? renderSubtitle() : renderContent()}
 
-      {/* Floating selection popup — Content mode only */}
+      {/* Floating selection popup — Content mode only（样式与 Read/news 一致） */}
       {askRect && (
         <div
-          className="ask-popup fixed z-50 flex items-center gap-1"
-          style={{ left: Math.min(askRect.x, window.innerWidth - 320), top: askRect.y }}
+          className="sel-toolbar"
+          style={{ left: Math.min(askRect.x, window.innerWidth - 340), top: askRect.y }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          {hlOpen ? (
-            <>
-              {HIGHLIGHT_COLORS.map((c) => (
-                <button
-                  key={c.key}
-                  className="ask-popup-btn"
-                  title={`Highlight ${c.label}`}
-                  aria-label={`Highlight ${c.label}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const t = askRect.text;
-                    closePopup();
-                    onHighlight?.(t, c.key);
-                  }}
-                >
-                  <span
-                    className="block h-3.5 w-3.5 rounded-full"
-                    style={{ background: c.bg }}
-                  />
-                </button>
-              ))}
-              <button
-                className="ask-popup-btn"
-                title="Cancel"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setHlOpen(false);
-                }}
-              >
-                ✕
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="ask-popup-btn"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const t = askRect.text;
-                  closePopup();
-                  onAskAi?.(t);
-                }}
-              >
-                Ask AI
-              </button>
-              <button
-                className="ask-popup-btn"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setHlOpen(true);
-                }}
-                title="Highlight (8 colors)"
-              >
-                Highlight
-              </button>
-              <button
-                className="ask-popup-btn"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const t = askRect.text;
-                  closePopup();
-                  onNote?.(t);
-                }}
-              >
-                Note
-              </button>
-              <button
-                className="ask-popup-btn"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const t = askRect.text;
-                  closePopup();
-                  navigator.clipboard?.writeText(t);
-                }}
-              >
-                Copy
-              </button>
-            </>
-          )}
+          <button
+            className="sel-toolbar-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const t = askRect.text;
+              closePopup();
+              onAskAi?.(t);
+            }}
+          >
+            Ask AI
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const t = askRect.text;
+              closePopup();
+              onHighlight?.(t, "green");
+            }}
+            title="Highlight"
+          >
+            Highlight
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const t = askRect.text;
+              closePopup();
+              onNote?.(t);
+            }}
+          >
+            Note
+          </button>
+          <button
+            className="sel-toolbar-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const t = askRect.text;
+              closePopup();
+              navigator.clipboard?.writeText(t);
+            }}
+          >
+            Copy
+          </button>
         </div>
       )}
     </div>

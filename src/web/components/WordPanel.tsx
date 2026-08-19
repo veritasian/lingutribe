@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type SavedPrompt, type Highlight, HIGHLIGHT_COLORS } from "../api";
 import { rankOf, useCoca, type Band } from "../lib/coca";
-import { IconVolume, IconCopy, IconTrash, IconNotes } from "./Icon";
+import { IconVolume, IconCopy, IconTrash } from "./Icon";
 import { renderMarkdown } from "../lib/markdown";
 
 export interface WordPanelData {
@@ -25,8 +25,10 @@ export interface WordPanelData {
   thread?: string;
   // Full article text, used as context for the Ask AI tab.
   article?: string;
-  // 资源显示名（用于 Note 页「心得」笔记的默认标题）。
+  // 资源显示名（用于面板头部标题）。
   title?: string;
+  // 刷新令牌：外部新增/删除高亮后自增，Note tab 据此重载摘录列表。
+  refreshKey?: number;
 }
 
 type AskMsg = { id?: string; role: "user" | "assistant"; content: string };
@@ -57,13 +59,9 @@ export default function WordPanel({
   // The dictionary selected in Settings for offline lookups (null = auto).
   const [activeDict, setActiveDict] = useState<string | null>(null);
 
-  // ── Note tab: 划词摘录 + 批注 + 本章心得 ──
+  // ── Note tab: 划词摘录 + 批注（自动保存）──
   const [hls, setHls] = useState<Highlight[]>([]);
-  const [insightId, setInsightId] = useState<string | null>(null);
-  const [insight, setInsight] = useState("");
   const hlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const insightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const insightLoaded = useRef(false);
   const resourceId = data?.thread || "";
 
   // Load the active-dictionary preference once so lookups target it.
@@ -189,61 +187,21 @@ export default function WordPanel({
     });
   }
 
-  // ── Note tab: load 摘录 + 心得 when opened ──
+  // ── Note tab: load 摘录（含批注）when opened ──
   useEffect(() => {
     if (tab !== "note" || !resourceId) return;
     let cancel = false;
-    insightLoaded.current = false;
-    setInsight("");
-    setInsightId(null);
     api
       .listHighlights(resourceId)
       .then((r) => {
         if (!cancel) setHls(r);
       })
       .catch(() => {});
-    // 心得 = 该资源的 Note（无则创建）
-    api
-      .listNotes(resourceId)
-      .then(async (rows) => {
-        if (cancel) return;
-        let n = rows[0];
-        if (!n) {
-          n = await api.createNote({
-            title: data?.title?.trim() || "Untitled",
-            body: "",
-            resourceId,
-          });
-        }
-        if (cancel) return;
-        setInsightId(n.id);
-        setInsight(n.body || "");
-        insightLoaded.current = true;
-      })
-      .catch(() => {});
     return () => {
       cancel = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, resourceId, data?.title]);
-
-  // 心得自动保存（防抖）
-  useEffect(() => {
-    if (tab !== "note" || !insightId || !insightLoaded.current) return;
-    if (insightTimer.current) clearTimeout(insightTimer.current);
-    insightTimer.current = setTimeout(async () => {
-      insightTimer.current = null;
-      try {
-        await api.updateNote(insightId, { title: data?.title?.trim() || "Untitled", body: insight });
-      } catch {
-        /* silent */
-      }
-    }, 500);
-    return () => {
-      if (insightTimer.current) clearTimeout(insightTimer.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [insight, insightId, tab]);
+  }, [tab, resourceId, data?.refreshKey]);
 
   // 摘录批注自动保存（防抖）
   function onHlNote(id: string, note: string) {
@@ -257,21 +215,6 @@ export default function WordPanel({
         /* silent */
       }
     }, 500);
-  }
-
-  async function addHighlight(color: string) {
-    if (!resourceId || !data) return;
-    try {
-      await api.createHighlight({
-        resourceId,
-        text: data.text,
-        color,
-        note: "",
-      });
-      setHls(await api.listHighlights(resourceId));
-    } catch (e: any) {
-      setError(e.message || "highlight failed");
-    }
   }
 
   async function removeHighlight(id: string) {
@@ -575,55 +518,15 @@ export default function WordPanel({
 
         {tab === "note" && (
           <div className="space-y-5">
-            {/* 本章心得 */}
-            <div>
-              <div className="text-[13px] font-medium mb-1.5 flex items-center gap-1.5">
-                <IconNotes size={14} /> 本章心得
-              </div>
-              <textarea
-                className="input w-full"
-                rows={4}
-                placeholder="记录本篇心得…（自动保存）"
-                value={insight}
-                onChange={(e) => setInsight(e.target.value)}
-              />
-            </div>
-
-            {/* 8 色高亮 */}
-            <div>
-              <div className="text-[13px] font-medium mb-1.5">划词高亮</div>
-              {data?.text && !data.isWord ? (
-                <>
-                  <div className="text-[11px] text-muted-foreground mb-2 border-l-2 pl-2 italic line-clamp-2">
-                    “{data.text}”
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {HIGHLIGHT_COLORS.map((c) => (
-                      <button
-                        key={c.key}
-                        className="h-6 w-6 rounded-full border border-black/10 transition-transform hover:scale-110"
-                        style={{ background: c.bg }}
-                        title={`Highlight ${c.label}`}
-                        aria-label={`Highlight ${c.label}`}
-                        onClick={() => addHighlight(c.key)}
-                      />
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs text-muted-foreground">
-                  在正文中划选文字后，选择颜色即可高亮。
-                </div>
-              )}
-            </div>
-
             {/* 摘录批注 */}
             <div>
               <div className="text-[13px] font-medium mb-1.5">
                 摘录批注{hls.length > 0 ? `（${hls.length}）` : ""}
               </div>
               {hls.length === 0 && (
-                <div className="text-xs text-muted-foreground">暂无摘录。</div>
+                <div className="text-xs text-muted-foreground">
+                  在正文中划选文字并点击 Highlight 后，摘录会出现在这里，可写批注。
+                </div>
               )}
               <div className="space-y-2">
                 {hls.map((h) => {
@@ -633,7 +536,7 @@ export default function WordPanel({
                       <div className="flex items-start gap-2">
                         <span
                           className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                          style={{ background: c?.bg || "#eab308" }}
+                          style={{ background: c?.bg || "#22c55e" }}
                         />
                         <p className="flex-1 text-[13px] leading-relaxed min-w-0">{h.text}</p>
                         <button
@@ -648,7 +551,7 @@ export default function WordPanel({
                       <textarea
                         className="input w-full mt-1.5"
                         rows={2}
-                        placeholder="给这段摘录写点批注…"
+                        placeholder="给这段摘录写点批注…（自动保存）"
                         value={h.note}
                         onChange={(e) => onHlNote(h.id, e.target.value)}
                       />
