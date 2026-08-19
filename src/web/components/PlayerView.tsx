@@ -13,14 +13,13 @@ import AudioBar from "./AudioBar";
 import Transcript from "./Transcript";
 import VocabProfile from "./VocabProfile";
 import WordPanel, { type WordPanelData } from "./WordPanel";
-import NoteEditor from "./NoteEditor";
 import {
   useCoca,
   useVisibleBands,
   BAND_META,
   type Band,
 } from "../lib/coca";
-import { type Resource, type WordHit, api, type Analysis } from "../api";
+import { type Resource, type WordHit, api, type Analysis, type Highlight } from "../api";
 import {
   IconList,
   IconChart,
@@ -114,11 +113,49 @@ export default function PlayerView({
   // Right slide-in panel
   const [panel, setPanel] = useState<WordPanelData | null>(null);
 
+  // ── 划词高亮（当前资源） ──
+  const [hls, setHls] = useState<Highlight[]>([]);
+  useEffect(() => {
+    setHls([]);
+    api.listHighlights(resource.id).then(setHls).catch(() => {});
+  }, [resource.id]);
+
   // Switching to another audio/video must start fresh: close the panel so the
   // Ask AI conversation / dictionary never leaks from the previous resource.
+  // 用户要求「内容区展开时默认右栏展开」→ 新资源打开即展开右栏 Note 页。
   useEffect(() => {
-    setPanel(null);
+    setPanel({
+      text: "",
+      context: "",
+      isWord: false,
+      defaultTab: "note",
+      thread: resource.id,
+      article: transcriptClean,
+      title: resource.name,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resource.id]);
+
+  async function createHighlight(text: string, color: string) {
+    try {
+      await api.createHighlight({ resourceId: resource.id, text, color, note: "" });
+      setHls(await api.listHighlights(resource.id));
+    } catch {
+      /* silent */
+    }
+  }
+
+  function openNote(text: string) {
+    setPanel({
+      text,
+      context: text,
+      isWord: false,
+      defaultTab: "note",
+      thread: resource.id,
+      article: transcriptClean,
+      title: resource.name,
+    });
+  }
 
   function onWordClick(d: { text: string; context: string; isWord: boolean; band: Band }) {
     setPanel({
@@ -217,8 +254,6 @@ export default function PlayerView({
   const [playerTab, setPlayerTab] = useState<"transcript" | "layout">("transcript");
   // Video subtitles visibility (toggle to hide captions, show only video).
   const [showSubs, setShowSubs] = useState(true);
-  // Inline note editor (below content), toggled from the header Note button.
-  const [showNote, setShowNote] = useState(false);
 
   // Right slide-in panel width — draggable, persisted.
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -301,11 +336,11 @@ export default function PlayerView({
               <IconChart size={16} />
             </button>
             <button
-              className={`icon-btn ${showNote ? "ring-1 ring-primary" : ""}`}
-              onClick={() => setShowNote((v) => !v)}
+              className={`icon-btn ${panel?.defaultTab === "note" ? "ring-1 ring-primary" : ""}`}
+              onClick={() => openNote("")}
               title="Note"
               aria-label="Note"
-              aria-pressed={showNote}
+              aria-pressed={panel?.defaultTab === "note"}
             >
               <IconNotes size={16} />
             </button>
@@ -462,8 +497,12 @@ export default function PlayerView({
                           defaultTab: "ask",
                           thread: resource.id,
                           article: transcriptClean,
+                          title: resource.name,
                         })
                       }
+                      highlights={hls}
+                      onHighlight={createHighlight}
+                      onNote={openNote}
                       visBands={visBands}
                       onToggleBand={toggleBand}
                     />
@@ -497,8 +536,12 @@ export default function PlayerView({
                       defaultTab: "ask",
                       thread: resource.id,
                       article: transcriptClean,
+                      title: resource.name,
                     })
                   }
+                  highlights={hls}
+                  onHighlight={createHighlight}
+                  onNote={openNote}
                   visBands={visBands}
                   onToggleBand={toggleBand}
                 />
@@ -509,15 +552,7 @@ export default function PlayerView({
           </div>
         )}
 
-        {/* Inline note editor — appears below content when toggled */}
-        {showNote && (
-          <NoteEditor
-            key={resource.id}
-            resourceId={resource.id}
-            autoTitle={resource.name}
-            onClose={() => setShowNote(false)}
-          />
-        )}
+        {/* Inline note editor — replaced by the right-panel Note tab */}
       </div>
 
       {/* Right slide-in panel */}

@@ -3,9 +3,9 @@
 // of truth; this panel just renders the analysis.
 
 import { useEffect, useRef, useState } from "react";
-import { api, type SavedPrompt } from "../api";
+import { api, type SavedPrompt, type Highlight, HIGHLIGHT_COLORS } from "../api";
 import { rankOf, useCoca, type Band } from "../lib/coca";
-import { IconVolume, IconCopy, IconTrash } from "./Icon";
+import { IconVolume, IconCopy, IconTrash, IconNotes } from "./Icon";
 import { renderMarkdown } from "../lib/markdown";
 
 export interface WordPanelData {
@@ -19,12 +19,14 @@ export interface WordPanelData {
   // The COCA rank if known.
   rank?: number | null;
   band?: "1k" | "3k" | "5k" | "6k" | "above" | null;
-  // Which tab to open when this panel is shown (Feature: Ask AI).
-  defaultTab?: "dict" | "grammar" | "ask";
+  // Which tab to open when this panel is shown (Feature: Ask AI / Note).
+  defaultTab?: "dict" | "note" | "ask";
   // Chat thread key for the Ask AI tab (e.g. the article/resource id).
   thread?: string;
   // Full article text, used as context for the Ask AI tab.
   article?: string;
+  // 资源显示名（用于 Note 页「心得」笔记的默认标题）。
+  title?: string;
 }
 
 type AskMsg = { id?: string; role: "user" | "assistant"; content: string };
@@ -50,12 +52,19 @@ export default function WordPanel({
   const [lookup, setLookup] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [tab, setTab] = useState<"dict" | "grammar" | "ask">("dict");
+  const [tab, setTab] = useState<"dict" | "note" | "ask">("dict");
   const [added, setAdded] = useState(false);
   // The dictionary selected in Settings for offline lookups (null = auto).
   const [activeDict, setActiveDict] = useState<string | null>(null);
+
+  // ── Note tab: 划词摘录 + 批注 + 本章心得 ──
+  const [hls, setHls] = useState<Highlight[]>([]);
+  const [insightId, setInsightId] = useState<string | null>(null);
+  const [insight, setInsight] = useState("");
+  const hlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const insightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const insightLoaded = useRef(false);
+  const resourceId = data?.thread || "";
 
   // Load the active-dictionary preference once so lookups target it.
   useEffect(() => {
@@ -105,13 +114,11 @@ export default function WordPanel({
     if (!data) {
       setLookup(null);
       setError(null);
-      setAnalysis(null);
       setLlmDef(null);
       setAdded(false);
       return;
     }
     setAdded(false);
-    setAnalysis(null);
     setLlmDef(null);
     // Switching to a different resource/thread must start a FRESH blank
     // conversation — never show the previous resource's chat here.
@@ -182,17 +189,94 @@ export default function WordPanel({
     });
   }
 
-  async function analyze() {
-    if (!data) return;
-    setAnalyzing(true);
+  // ── Note tab: load 摘录 + 心得 when opened ──
+  useEffect(() => {
+    if (tab !== "note" || !resourceId) return;
+    let cancel = false;
+    insightLoaded.current = false;
+    setInsight("");
+    setInsightId(null);
+    api
+      .listHighlights(resourceId)
+      .then((r) => {
+        if (!cancel) setHls(r);
+      })
+      .catch(() => {});
+    // 心得 = 该资源的 Note（无则创建）
+    api
+      .listNotes(resourceId)
+      .then(async (rows) => {
+        if (cancel) return;
+        let n = rows[0];
+        if (!n) {
+          n = await api.createNote({
+            title: data?.title?.trim() || "Untitled",
+            body: "",
+            resourceId,
+          });
+        }
+        if (cancel) return;
+        setInsightId(n.id);
+        setInsight(n.body || "");
+        insightLoaded.current = true;
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, resourceId, data?.title]);
+
+  // 心得自动保存（防抖）
+  useEffect(() => {
+    if (tab !== "note" || !insightId || !insightLoaded.current) return;
+    if (insightTimer.current) clearTimeout(insightTimer.current);
+    insightTimer.current = setTimeout(async () => {
+      insightTimer.current = null;
+      try {
+        await api.updateNote(insightId, { title: data?.title?.trim() || "Untitled", body: insight });
+      } catch {
+        /* silent */
+      }
+    }, 500);
+    return () => {
+      if (insightTimer.current) clearTimeout(insightTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insight, insightId, tab]);
+
+  // 摘录批注自动保存（防抖）
+  function onHlNote(id: string, note: string) {
+    setHls((prev) => prev.map((h) => (h.id === id ? { ...h, note } : h)));
+    if (hlTimer.current) clearTimeout(hlTimer.current);
+    hlTimer.current = setTimeout(async () => {
+      hlTimer.current = null;
+      try {
+        await api.updateHighlight(id, { note });
+      } catch {
+        /* silent */
+      }
+    }, 500);
+  }
+
+  async function addHighlight(color: string) {
+    if (!resourceId || !data) return;
     try {
-      const r = await api.analyze(data.isWord ? data.context || data.text : data.text);
-      setAnalysis(r.content);
+      await api.createHighlight({
+        resourceId,
+        text: data.text,
+        color,
+        note: "",
+      });
+      setHls(await api.listHighlights(resourceId));
     } catch (e: any) {
-      setAnalysis(`Error: ${e.message}`);
-    } finally {
-      setAnalyzing(false);
+      setError(e.message || "highlight failed");
     }
+  }
+
+  async function removeHighlight(id: string) {
+    await api.deleteHighlight(id);
+    setHls((prev) => prev.filter((h) => h.id !== id));
   }
 
   async function askSend() {
@@ -340,7 +424,7 @@ export default function WordPanel({
       <div className="px-4 py-3 border-b flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <div className="text-base font-semibold truncate flex items-center gap-2">
-            <span>{data.text}</span>
+            <span>{data.text || data.title || "…"}</span>
             {realBand && realBand !== "above" && realRank != null && (
               <span
                 className="text-[10px] px-1.5 py-0.5 rounded"
@@ -365,7 +449,7 @@ export default function WordPanel({
       {/* Tabs (hidden when dictOnly) */}
       {!dictOnly && (
         <div className="flex border-b text-sm">
-          {(["dict", "grammar", "ask"] as const).map((t) => (
+          {(["dict", "note", "ask"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -373,7 +457,7 @@ export default function WordPanel({
                 tab === t ? "border-b-2 border-primary text-foreground" : "text-muted-foreground"
               }`}
             >
-              {t === "dict" ? "Dictionary" : t === "grammar" ? "Grammar" : "Ask AI"}
+              {t === "dict" ? "Dictionary" : t === "note" ? "Note" : "Ask AI"}
             </button>
           ))}
         </div>
@@ -489,21 +573,91 @@ export default function WordPanel({
           </>
         )}
 
-        {tab === "grammar" && (
-          <>
-            <button
-              className="btn btn-secondary w-full"
-              onClick={analyze}
-              disabled={analyzing}
-            >
-              {analyzing ? "Analyzing…" : "Analyze with AI"}
-            </button>
-            {analysis && (
-              <div className="text-[13px] leading-relaxed border-t pt-3">
-                <div className="md" dangerouslySetInnerHTML={{ __html: renderMarkdown(analysis) }} />
+        {tab === "note" && (
+          <div className="space-y-5">
+            {/* 本章心得 */}
+            <div>
+              <div className="text-[13px] font-medium mb-1.5 flex items-center gap-1.5">
+                <IconNotes size={14} /> 本章心得
               </div>
-            )}
-          </>
+              <textarea
+                className="input w-full"
+                rows={4}
+                placeholder="记录本篇心得…（自动保存）"
+                value={insight}
+                onChange={(e) => setInsight(e.target.value)}
+              />
+            </div>
+
+            {/* 8 色高亮 */}
+            <div>
+              <div className="text-[13px] font-medium mb-1.5">划词高亮</div>
+              {data?.text && !data.isWord ? (
+                <>
+                  <div className="text-[11px] text-muted-foreground mb-2 border-l-2 pl-2 italic line-clamp-2">
+                    “{data.text}”
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {HIGHLIGHT_COLORS.map((c) => (
+                      <button
+                        key={c.key}
+                        className="h-6 w-6 rounded-full border border-black/10 transition-transform hover:scale-110"
+                        style={{ background: c.bg }}
+                        title={`Highlight ${c.label}`}
+                        aria-label={`Highlight ${c.label}`}
+                        onClick={() => addHighlight(c.key)}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  在正文中划选文字后，选择颜色即可高亮。
+                </div>
+              )}
+            </div>
+
+            {/* 摘录批注 */}
+            <div>
+              <div className="text-[13px] font-medium mb-1.5">
+                摘录批注{hls.length > 0 ? `（${hls.length}）` : ""}
+              </div>
+              {hls.length === 0 && (
+                <div className="text-xs text-muted-foreground">暂无摘录。</div>
+              )}
+              <div className="space-y-2">
+                {hls.map((h) => {
+                  const c = HIGHLIGHT_COLORS.find((x) => x.key === h.color);
+                  return (
+                    <div key={h.id} className="rounded-lg border p-2.5 bg-muted/40">
+                      <div className="flex items-start gap-2">
+                        <span
+                          className="mt-1 h-3 w-3 shrink-0 rounded-full"
+                          style={{ background: c?.bg || "#eab308" }}
+                        />
+                        <p className="flex-1 text-[13px] leading-relaxed min-w-0">{h.text}</p>
+                        <button
+                          className="ask-msg-btn"
+                          title="Delete highlight"
+                          aria-label="Delete highlight"
+                          onClick={() => removeHighlight(h.id)}
+                        >
+                          <IconTrash size={12} />
+                        </button>
+                      </div>
+                      <textarea
+                        className="input w-full mt-1.5"
+                        rows={2}
+                        placeholder="给这段摘录写点批注…"
+                        value={h.note}
+                        onChange={(e) => onHlNote(h.id, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
 
         {tab === "ask" && (

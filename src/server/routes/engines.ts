@@ -5,6 +5,7 @@ import {
   transcribeFile,
   synthesizeSpeech,
   chatWithLLM,
+  chatWithLLMStream,
   ensureModel,
   ensureKokoro,
   getKokoroVoices,
@@ -68,6 +69,64 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
       const messages = (req.body.messages || []) as ChatMessage[];
       const reply = await chatWithLLM(messages, resolveLlm(settings));
       res.json({ content: reply });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 流式聊天：text/plain 增量返回（打字机效果）。
+  // body.modelId 可选 —— 指定 llmHistory 中某条配置；缺省用默认模型。
+  app.post("/api/llm/chat/stream", async (req, res) => {
+    try {
+      const settings = readSettings();
+      const messages = (req.body.messages || []) as ChatMessage[];
+      const modelId = req.body.modelId ? Number(req.body.modelId) : null;
+      let cfg: any;
+      if (modelId && Array.isArray(settings.llmHistory)) {
+        const h = settings.llmHistory.find((x: any) => x.id === modelId);
+        cfg = h
+          ? {
+              engine: h.engine ?? settings.engines?.llm?.engine,
+              baseUrl: h.baseUrl ?? settings.engines?.llm?.baseUrl,
+              model: h.model ?? settings.engines?.llm?.model,
+              apiKey: h.apiKey ?? undefined,
+            }
+          : resolveLlm(settings);
+      } else {
+        cfg = resolveLlm(settings);
+      }
+      if (!cfg?.baseUrl || !cfg?.model) {
+        return res
+          .status(400)
+          .json({ error: "未配置 LLM：请先在 设置 → LLM 中配置模型（Base URL / Model / Key）。" });
+      }
+      const stream = chatWithLLMStream(messages, cfg);
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-Accel-Buffering", "no");
+      const reader = stream.getReader();
+      const encoder = new TextEncoder();
+      (async () => {
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(encoder.encode(value));
+          }
+        } catch (e: any) {
+          try {
+            res.write(encoder.encode(`\n[error] ${e?.message || "stream failed"}`));
+          } catch {
+            /* socket may be closed */
+          }
+        } finally {
+          try {
+            res.end();
+          } catch {
+            /* ignore */
+          }
+        }
+      })();
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -211,6 +270,13 @@ export function registerEngineRoutes(app: express.Express, ctx: EngineCtx) {
       // Test the on-screen form config when supplied, else the saved default.
       const cfg = req.body?.config ? req.body.config : resolveLlm(settings);
       const reply = await chatWithLLM([{ role: "user", content: "hi" }], cfg);
+      // An empty reply is a real failure (e.g. Unsloth returning the answer in
+      // reasoning_content) — don't report "ok" just because no error was thrown.
+      if (!reply || !reply.trim()) {
+        return res.status(500).json({
+          error: `Model returned an empty response (content was blank). The endpoint is reachable and authenticated, but produced no text. Check the model/endpoint.`,
+        });
+      }
       res.json({ ok: true, engine: cfg.engine, model: cfg.model, preview: reply.slice(0, 80) });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

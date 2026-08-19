@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type Resource } from "../api";
+import { api, type Resource, type Highlight, HIGHLIGHT_COLORS } from "../api";
 import VocabProfile from "../components/VocabProfile";
 import WordPanel, { type WordPanelData } from "../components/WordPanel";
-import NoteEditor from "../components/NoteEditor";
 import { useCoca } from "../lib/coca";
 import { renderMarkdown } from "../lib/markdown";
 import { IconPlus, IconVolume, IconPause, IconCopy, IconChat, IconPlay, IconNotes } from "../components/Icon";
+
+/** Hex → rgba()，用于高亮 mark 背景。 */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 /** Strip HTML tags for TTS. */
 function stripHtml(html: string): string {
@@ -53,15 +61,17 @@ export default function Read() {
   // selected text range.
   const [selMenu, setSelMenu] = useState<{ x: number; y: number; text: string } | null>(null);
   const selMenuRef = useRef<HTMLDivElement>(null);
+  // 工具栏高亮调色板（8 色）是否展开
+  const [hlOpen, setHlOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sentIdx, setSentIdx] = useState(-1);
   const sentencesRef = useRef<string[]>([]);
   const [showAudio, setShowAudio] = useState(false);
-  // Inline note editor (below content), toggled from the header Note button.
-  const [showNote, setShowNote] = useState(false);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [dirty, setDirty] = useState(false);
+  // ── 划词高亮（当前文章） ──
+  const [hls, setHls] = useState<Highlight[]>([]);
 
   async function load() {
     setItems(await api.listResources().then((all) => all.filter((r) => r.type === "read")));
@@ -79,6 +89,123 @@ export default function Read() {
       setDirty(false);
     }
   }, [active?.id]);
+
+  // 载入当前文章的高亮；打开时默认展开右栏 Note 页
+  useEffect(() => {
+    if (!active) return;
+    setHls([]);
+    api.listHighlights(active.id).then(setHls).catch(() => {});
+    setPanel({
+      text: "",
+      context: "",
+      isWord: false,
+      defaultTab: "note",
+      thread: active.id,
+      article: active.transcript || "",
+      title: active.name,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id]);
+
+  // 把已存高亮应用到文章文本节点（mark 包裹，最长匹配优先）
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.querySelectorAll("mark[data-lingo-hl]").forEach((m) => {
+      const p = m.parentNode;
+      if (!p) return;
+      while (m.firstChild) p.insertBefore(m.firstChild, m);
+      p.removeChild(m);
+    });
+    if (!hls.length) return;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    while (walker.nextNode()) {
+      const n = walker.currentNode as Text;
+      if (n.parentElement?.closest("mark[data-lingo-hl], script, style")) continue;
+      nodes.push(n);
+    }
+    const colorMap = new Map(hls.map((h) => [h.text, h.color]));
+    const bgOf = (key: string) => {
+      const c = HIGHLIGHT_COLORS.find((x) => x.key === key);
+      return c ? hexToRgba(c.bg, 0.28) : "rgba(234,179,8,0.28)";
+    };
+    for (const node of nodes) {
+      let rest = node.textContent || "";
+      if (!rest) continue;
+      const pieces: { text: string; color?: string }[] = [];
+      let changed = false;
+      while (rest.length) {
+        let bestIdx = -1;
+        let bestLen = 0;
+        let bestColor: string | null = null;
+        for (const [quote, color] of colorMap.entries()) {
+          if (!quote) continue;
+          const idx = rest.indexOf(quote);
+          if (idx !== -1 && quote.length > bestLen) {
+            bestIdx = idx;
+            bestLen = quote.length;
+            bestColor = color;
+          }
+        }
+        if (bestIdx === -1 || bestLen === 0) {
+          pieces.push({ text: rest });
+          break;
+        }
+        if (bestIdx > 0) pieces.push({ text: rest.slice(0, bestIdx) });
+        pieces.push({ text: rest.slice(bestIdx, bestIdx + bestLen), color: bestColor! });
+        rest = rest.slice(bestIdx + bestLen);
+        changed = true;
+      }
+      if (!changed) continue;
+      const parent = node.parentNode;
+      if (!parent) continue;
+      for (const piece of pieces) {
+        if (piece.color) {
+          const mark = document.createElement("mark");
+          mark.dataset.lingoHl = "1";
+          mark.style.background = bgOf(piece.color);
+          mark.style.borderRadius = "3px";
+          mark.style.padding = "0 1px";
+          mark.style.color = "inherit";
+          mark.textContent = piece.text;
+          parent.insertBefore(mark, node);
+        } else {
+          parent.insertBefore(document.createTextNode(piece.text), node);
+        }
+      }
+      parent.removeChild(node);
+    }
+  }, [hls, active?.id]);
+
+  async function createHighlight(text: string, color: string) {
+    if (!active) return;
+    try {
+      await api.createHighlight({ resourceId: active.id, text, color, note: "" });
+      setHls(await api.listHighlights(active.id));
+    } catch {
+      /* silent */
+    }
+  }
+
+  function openNote(text: string) {
+    if (!active) return;
+    setPanel({
+      text,
+      context: text,
+      isWord: false,
+      defaultTab: "note",
+      thread: active.id,
+      article: active.transcript || "",
+      title: active.name,
+    });
+  }
+
+  function closeSelMenu() {
+    setSelMenu(null);
+    setHlOpen(false);
+    window.getSelection()?.removeAllRanges();
+  }
 
   // Clean up timers when the component unmounts (avoid leaked intervals).
   useEffect(() => () => {
@@ -348,10 +475,10 @@ export default function Read() {
                   </button>
                 )}
                 <button
-                  className={`btn btn-secondary inline-flex items-center gap-1 ${showNote ? "ring-1 ring-primary" : ""}`}
-                  onClick={() => setShowNote((v) => !v)}
+                  className={`btn btn-secondary inline-flex items-center gap-1 ${panel?.defaultTab === "note" ? "ring-1 ring-primary" : ""}`}
+                  onClick={() => openNote("")}
                   title="Note"
-                  aria-pressed={showNote}
+                  aria-pressed={panel?.defaultTab === "note"}
                 >
                   <IconNotes size={15} /> Note
                 </button>
@@ -403,20 +530,10 @@ export default function Read() {
             <div className={`px-6 py-2 border-t shrink-0 ${showAudio ? "" : "hidden"}`}>
               <audio ref={audioRef} controls className="w-full h-8" onEnded={onAudioEnded} />
             </div>
-
-            {/* Inline note editor — appears below content when toggled */}
-            {showNote && active && (
-              <NoteEditor
-                key={active.id}
-                resourceId={active.id}
-                autoTitle={active.name}
-                onClose={() => setShowNote(false)}
-              />
-            )}
           </div>
         )}
       </div>
-      {/* Floating selection toolbar: Copy / Ask AI / Read */}
+      {/* Floating selection toolbar: Copy / Ask AI / Highlight / Note / Read */}
       {selMenu && (
         <div
           ref={selMenuRef}
@@ -424,51 +541,92 @@ export default function Read() {
           style={{ left: selMenu.x, top: selMenu.y }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <button
-            className="sel-toolbar-btn"
-            title="Copy"
-            onClick={async () => {
-              const t = selMenu.text;
-              setSelMenu(null);
-              window.getSelection()?.removeAllRanges();
-              try { await navigator.clipboard.writeText(t); } catch { /* ignore */ }
-            }}
-          >
-            <IconCopy size={14} /> Copy
-          </button>
-          <button
-            className="sel-toolbar-btn"
-            title="Ask AI about the selected text"
-            onClick={() => {
-              const t = selMenu.text;
-              setSelMenu(null);
-              window.getSelection()?.removeAllRanges();
-              if (active) {
-                setPanel({
-                  text: t,
-                  context: t,
-                  isWord: false,
-                  defaultTab: "ask",
-                  thread: active.id,
-                  article: active.transcript || "",
-                });
-              }
-            }}
-          >
-            <IconChat size={14} /> Ask AI
-          </button>
-          <button
-            className="sel-toolbar-btn"
-            title="Read the selected text aloud"
-            onClick={() => {
-              const t = selMenu.text;
-              setSelMenu(null);
-              window.getSelection()?.removeAllRanges();
-              speakText(t);
-            }}
-          >
-            <IconPlay size={14} /> Read
-          </button>
+          {hlOpen ? (
+            <>
+              {HIGHLIGHT_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  className="sel-toolbar-btn"
+                  title={`Highlight ${c.label}`}
+                  aria-label={`Highlight ${c.label}`}
+                  onClick={() => {
+                    const t = selMenu.text;
+                    closeSelMenu();
+                    createHighlight(t, c.key);
+                  }}
+                >
+                  <span className="block h-3.5 w-3.5 rounded-full" style={{ background: c.bg }} />
+                </button>
+              ))}
+              <button className="sel-toolbar-btn" title="Cancel" onClick={() => setHlOpen(false)}>
+                ✕
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="sel-toolbar-btn"
+                title="Copy"
+                onClick={async () => {
+                  const t = selMenu.text;
+                  closeSelMenu();
+                  try { await navigator.clipboard.writeText(t); } catch { /* ignore */ }
+                }}
+              >
+                <IconCopy size={14} /> Copy
+              </button>
+              <button
+                className="sel-toolbar-btn"
+                title="Ask AI about the selected text"
+                onClick={() => {
+                  const t = selMenu.text;
+                  closeSelMenu();
+                  if (active) {
+                    setPanel({
+                      text: t,
+                      context: t,
+                      isWord: false,
+                      defaultTab: "ask",
+                      thread: active.id,
+                      article: active.transcript || "",
+                      title: active.name,
+                    });
+                  }
+                }}
+              >
+                <IconChat size={14} /> Ask AI
+              </button>
+              <button
+                className="sel-toolbar-btn"
+                title="Highlight (8 colors)"
+                onClick={() => setHlOpen(true)}
+              >
+                Highlight
+              </button>
+              <button
+                className="sel-toolbar-btn"
+                title="Add to notes"
+                onClick={() => {
+                  const t = selMenu.text;
+                  closeSelMenu();
+                  openNote(t);
+                }}
+              >
+                <IconNotes size={14} /> Note
+              </button>
+              <button
+                className="sel-toolbar-btn"
+                title="Read the selected text aloud"
+                onClick={() => {
+                  const t = selMenu.text;
+                  closeSelMenu();
+                  speakText(t);
+                }}
+              >
+                <IconPlay size={14} /> Read
+              </button>
+            </>
+          )}
         </div>
       )}
       <WordPanel data={panel} onClose={() => setPanel(null)} />

@@ -19,6 +19,7 @@ import { findFfmpeg } from "./util-ffmpeg.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerWordsRoutes } from "./routes/words.js";
 import { registerNotesRoutes } from "./routes/notes.js";
+import { registerHighlightsRoutes } from "./routes/highlights.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerEngineRoutes } from "./routes/engines.js";
 import { registerDictRoutes } from "./routes/dict.js";
@@ -361,6 +362,7 @@ app.get("/api/coca/test", (req, res) => {
 registerSettingsRoutes(app, { readSettings, writeSettings, dirSize });
 registerWordsRoutes(app, { now });
 registerNotesRoutes(app, { now });
+registerHighlightsRoutes(app, { now });
 registerChatRoutes(app, { now });
 registerEngineRoutes(app, { readSettings, resolveLlm, resolveTts, buildTtsConfig, upload });
 registerDictRoutes(app, { readSettings, resolveLlm });

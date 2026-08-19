@@ -25,6 +25,28 @@ export default function Chat() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 模型选择器：列出 Settings → LLM 保存的历史配置
+  const [llmEntries, setLlmEntries] = useState<
+    { id: number; model: string; engine: string; baseUrl: string }[]
+  >([]);
+  const [modelId, setModelId] = useState<number | null>(null);
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => {
+        setLlmEntries(
+          (s.llmHistory || []).map((h) => ({
+            id: h.id,
+            model: h.model,
+            engine: h.engine,
+            baseUrl: h.baseUrl,
+          }))
+        );
+        setModelId(s.defaultLlmId ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   async function loadConvos() {
     const list = await api.listNotes();
@@ -84,7 +106,8 @@ export default function Chat() {
     if (!text || busy) return;
     const userMsg: Msg = { role: "user", content: text };
     const next = [...msgs, userMsg];
-    setMsgs(next);
+    // 占位：assistant 气泡随流式增量实时更新（打字机）
+    setMsgs([...next, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
     setError(null);
@@ -103,14 +126,16 @@ export default function Chat() {
         { role: "system", content: sys },
         ...next.map((m) => ({ role: m.role, content: m.content })),
       ];
-      const r = await api.chat(payload);
-      const assistantMsg: Msg = { role: "assistant", content: r.content };
-      const finalMsgs = [...next, assistantMsg];
+      const finalText = await api.chatStream(payload, (t) => {
+        setMsgs([...next, { role: "assistant", content: t }]);
+      }, modelId);
+      const finalMsgs: Msg[] = [...next, { role: "assistant", content: finalText }];
       setMsgs(finalMsgs);
       await persist(finalMsgs);
     } catch (e: any) {
       setError(e.message || "Chat failed");
-      // keep the user's message; don't persist a failed turn
+      // keep the user's message; drop the empty assistant placeholder
+      setMsgs(next);
     } finally {
       setBusy(false);
     }
@@ -198,6 +223,28 @@ export default function Chat() {
           </div>
         ) : (
           <>
+            {/* Model selector bar */}
+            <div className="shrink-0 border-b px-4 py-2 flex items-center gap-2 bg-muted/30">
+              <span className="text-[11px] text-muted-foreground">Model</span>
+              <select
+                className="select"
+                style={{ width: "auto", maxWidth: 260 }}
+                value={modelId ?? ""}
+                onChange={(e) => setModelId(e.target.value ? Number(e.target.value) : null)}
+                title="选择本地 LLM 配置（Settings → LLM）"
+              >
+                <option value="">默认模型</option>
+                {llmEntries.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.model} · {h.engine}
+                  </option>
+                ))}
+              </select>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                本地 LLM · 流式输出
+              </span>
+            </div>
+
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
               <div className="mx-auto max-w-3xl w-full px-4 py-6 space-y-4">

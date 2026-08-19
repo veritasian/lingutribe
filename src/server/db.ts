@@ -132,6 +132,16 @@ function migrate(d: Database.Database) {
       createdAt INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_chat_thread ON chat_messages(thread, createdAt);
+
+    CREATE TABLE IF NOT EXISTS highlights (
+      id TEXT PRIMARY KEY,
+      resourceId TEXT NOT NULL,
+      text TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT 'yellow',
+      note TEXT NOT NULL DEFAULT '',
+      createdAt INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_highlights_resource ON highlights(resourceId, createdAt);
   `);
 
   // Backfill: add the words column to databases created before this migration.

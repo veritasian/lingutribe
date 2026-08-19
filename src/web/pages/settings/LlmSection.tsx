@@ -31,6 +31,7 @@ export default function LlmSection({
 }) {
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmTestOk, setLlmTestOk] = useState<boolean | null>(null);
+  const [llmError, setLlmError] = useState<string | null>(null);
   const [dragLlmIdx, setDragLlmIdx] = useState<number | null>(null);
   const [overLlmIdx, setOverLlmIdx] = useState<number | null>(null);
   // Saved-prompt manager (named prompt history)
@@ -71,13 +72,17 @@ export default function LlmSection({
   async function testLlm() {
     setLlmTesting(true);
     setLlmTestOk(null);
+    setLlmError(null);
     try {
       // Test the config currently shown in the form (what the user sees),
       // not the saved default — so "what you see is what is tested".
       await api.testLlm(e.llm);
       setLlmTestOk(true);
-    } catch {
+    } catch (err: any) {
+      // Surface the real backend error instead of a bare "✗ Failed" so the
+      // user can tell WHY it failed (wrong URL, server down, model missing…).
       setLlmTestOk(false);
+      setLlmError(err?.message || String(err) || "Test failed");
     } finally {
       setLlmTesting(false);
     }
@@ -198,7 +203,14 @@ export default function LlmSection({
             {llmTesting ? "Testing…" : "Test"}
           </button>
           {llmTestOk === true && <span className="text-xs text-green-500 font-medium">✓ Working</span>}
-          {llmTestOk === false && <span className="text-xs text-red-500 font-medium">✗ Failed</span>}
+          {llmTestOk === false && (
+            <span className="text-xs text-red-500 font-medium">✗ Failed</span>
+          )}
+          {llmTestOk === false && llmError && (
+            <p className="text-xs text-red-400/90 break-words max-w-full">
+              {llmError}
+            </p>
+          )}
           {savedCat === "llm" && (
             <span className="text-xs text-primary self-center">
               Saved ✓ (added to history)

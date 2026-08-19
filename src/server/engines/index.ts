@@ -14,5 +14,5 @@ export {
   getKokoroVoices,
   type KokoroVoice,
 } from "./tts.js";
-export { chatWithLLM, type ChatMessage } from "./llm.js";
+export { chatWithLLM, chatWithLLMStream, type ChatMessage } from "./llm.js";
 export { ensureModel } from "./models.js";

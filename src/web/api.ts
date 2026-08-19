@@ -59,6 +59,26 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
 }
+/** 原文划词高亮（8 色）+ 摘录批注。 */
+export interface Highlight {
+  id: string;
+  resourceId: string;
+  text: string;
+  color: string;
+  note: string;
+  createdAt: number;
+}
+export const HIGHLIGHT_COLORS = [
+  { key: "red", bg: "#ef4444", label: "红" },
+  { key: "orange", bg: "#f97316", label: "橙" },
+  { key: "yellow", bg: "#eab308", label: "黄" },
+  { key: "green", bg: "#22c55e", label: "绿" },
+  { key: "blue", bg: "#3b82f6", label: "蓝" },
+  { key: "indigo", bg: "#6366f1", label: "靛" },
+  { key: "purple", bg: "#a855f7", label: "紫" },
+  { key: "pink", bg: "#ec4899", label: "粉" },
+] as const;
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]["key"];
 export interface SavedPrompt {
   id: string;
   name: string;
@@ -228,6 +248,14 @@ export const api = {
   createNote: (n: Partial<Note>) => req<Note>("/api/notes", { method: "POST", body: JSON.stringify(n) }),
   updateNote: (id: string, n: Partial<Note>) => req(`/api/notes/${id}`, { method: "PUT", body: JSON.stringify(n) }),
   deleteNote: (id: string) => req(`/api/notes/${id}`, { method: "DELETE" }),
+  // highlights — 划词高亮 + 摘录批注
+  listHighlights: (resourceId?: string) =>
+    req<Highlight[]>(resourceId ? `/api/highlights?resourceId=${encodeURIComponent(resourceId)}` : "/api/highlights"),
+  createHighlight: (h: Partial<Highlight>) =>
+    req<Highlight>("/api/highlights", { method: "POST", body: JSON.stringify(h) }),
+  updateHighlight: (id: string, h: Partial<Highlight>) =>
+    req(`/api/highlights/${id}`, { method: "PUT", body: JSON.stringify(h) }),
+  deleteHighlight: (id: string) => req(`/api/highlights/${id}`, { method: "DELETE" }),
   // engines
   transcribe: async (file: File, language?: string) => {
     const fd = new FormData();
@@ -241,6 +269,34 @@ export const api = {
     req<{ url?: string; dataUrl?: string }>("/api/tts/synthesize", { method: "POST", body: JSON.stringify({ text, ...opts }) }),
   chat: (messages: any[]) =>
     req<{ content: string }>("/api/llm/chat", { method: "POST", body: JSON.stringify({ messages }) }),
+  /** 流式聊天（打字机）：onDelta 每收到一段增量即回调累计文本。modelId 可选指定 llmHistory 配置。 */
+  chatStream: async (
+    messages: any[],
+    onDelta: (text: string) => void,
+    modelId?: number | null
+  ): Promise<string> => {
+    const res = await fetch("/api/llm/chat/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, modelId: modelId ?? undefined }),
+    });
+    if (!res.ok || !res.body) {
+      const t = await res.text().catch(() => "");
+      throw new Error(t || `HTTP ${res.status}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let acc = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      acc += decoder.decode(value, { stream: true });
+      onDelta(acc);
+    }
+    // 服务端流式错误以 "[error] " 前缀写入文本流
+    if (acc.startsWith("[error] ")) throw new Error(acc.slice(8).trim() || "stream error");
+    return acc;
+  },
   ensureModel: (model: string, engine?: string) =>
     req("/api/models/ensure", { method: "POST", body: JSON.stringify({ model, engine }) }),
   sttOptions: () => req<{ engines: { id: string; label: string; models: string[] }[]; defaultEngine: string }>("/api/engines/stt/options"),

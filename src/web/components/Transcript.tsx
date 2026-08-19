@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { type WordHit } from "../api";
+import { type WordHit, type Highlight, HIGHLIGHT_COLORS } from "../api";
 import { BAND_META, rankOf, useCoca, useVisibleBands, type Band } from "../lib/coca";
 import {
   buildSegments,
   formatSrtTime,
   mergeSegmentsIntoParagraphs,
+  mergeSegmentsIntoParagraphsByCount,
   type Segment,
 } from "../lib/segments";
 
@@ -28,6 +29,60 @@ function scrollRowToCenter(scroller: HTMLElement, row: HTMLElement) {
   scroller.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// 把一段纯文本按已存高亮逐条包成 <mark>（最长匹配优先，支持跨段重叠）。
+function renderHighlighted(text: string, highlights: Highlight[]): React.ReactNode {
+  if (!text) return null;
+  if (!highlights.length) return text;
+  const colorMap = new Map(highlights.map((h) => [h.text, h.color]));
+  const bgOf = (key: string) => {
+    const c = HIGHLIGHT_COLORS.find((x) => x.key === key);
+    return c ? hexToRgba(c.bg, 0.28) : "rgba(234,179,8,0.28)";
+  };
+  const pieces: { text: string; color?: string }[] = [];
+  let rest = text;
+  while (rest.length) {
+    let bestIdx = -1;
+    let bestLen = 0;
+    let bestColor: string | null = null;
+    for (const [quote, color] of colorMap.entries()) {
+      if (!quote) continue;
+      const idx = rest.indexOf(quote);
+      if (idx !== -1 && quote.length > bestLen) {
+        bestIdx = idx;
+        bestLen = quote.length;
+        bestColor = color;
+      }
+    }
+    if (bestIdx === -1 || bestLen === 0) {
+      pieces.push({ text: rest });
+      break;
+    }
+    if (bestIdx > 0) pieces.push({ text: rest.slice(0, bestIdx) });
+    pieces.push({ text: rest.slice(bestIdx, bestIdx + bestLen), color: bestColor! });
+    rest = rest.slice(bestIdx + bestLen);
+  }
+  return pieces.map((p, i) =>
+    p.color ? (
+      <mark
+        key={i}
+        style={{ background: bgOf(p.color), color: "inherit", borderRadius: 3, padding: "0 1px" }}
+      >
+        {p.text}
+      </mark>
+    ) : (
+      <Fragment key={i}>{p.text}</Fragment>
+    )
+  );
+}
+
 export default function Transcript({
   words,
   transcript,
@@ -40,6 +95,10 @@ export default function Transcript({
   onAskAi,
   visBands: visBandsProp,
   onToggleBand: onToggleBandProp,
+  // 划词高亮 + 摘录批注（Content 模式）
+  highlights = [],
+  onHighlight,
+  onNote,
 }: {
   words: WordHit[] | null;
   transcript: string;
@@ -52,8 +111,14 @@ export default function Transcript({
   /** Click on a subtitle row. */
   onSeekSegment?: (s: Segment) => void;
   onWordClick?: (data: { text: string; context: string; isWord: boolean; band: Band }) => void;
-  // Feature: floating "Ask AI" / "Copy" popup on text selection (Content mode).
+  // Floating selection popup (Content mode): Ask / Highlight / Note / Copy.
   onAskAi?: (text: string) => void;
+  /** 已存划词高亮（用于 Content 渲染着色） */
+  highlights?: Highlight[];
+  /** 保存一个划词高亮：onHighlight(text, colorKey) */
+  onHighlight?: (text: string, color: string) => void;
+  /** 打开右栏 Note，预填该划词：onNote(text) */
+  onNote?: (text: string) => void;
   visBands?: Set<Exclude<Band, null>>;
   onToggleBand?: (b: Exclude<Band, null>, on: boolean) => void;
 }) {
@@ -63,10 +128,12 @@ export default function Transcript({
   const toggleBand = onToggleBandProp ?? toggleBandLocal;
 
   // View mode: "subtitle" = timestamped paragraphs, click-a-word dictionary only;
-  // "content" = readable paragraphs, select text → Ask/Copy popup.
+  // "content" = readable paragraphs, select text → Ask/Highlight/Note/Copy popup.
   const [mode, setMode] = useState<"subtitle" | "content">("subtitle");
-  // Floating "Ask / Copy" popover anchor (Content mode only).
+  // Floating popup anchor (Content mode only).
   const [askRect, setAskRect] = useState<{ x: number; y: number; text: string } | null>(null);
+  // Whether the popup is showing the 8-color highlight palette.
+  const [hlOpen, setHlOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Tokens (with word-timings when available).
@@ -106,28 +173,17 @@ export default function Transcript({
     return buildSegments(words);
   }, [words, segmentsProp]);
 
-  // Paragraphs (~20–30s) for both Subtitle and Content display.
+  // Paragraphs: Subtitle ≈ 20–30s blocks; Content = 5–10 sentences per block
+  // (no timestamps shown in Content).
   const paragraphs: Segment[] = useMemo(
-    () => mergeSegmentsIntoParagraphs(deriveSegments, 25, 15, 35),
-    [deriveSegments]
+    () =>
+      mode === "content"
+        ? mergeSegmentsIntoParagraphsByCount(deriveSegments, 5, 10)
+        : mergeSegmentsIntoParagraphs(deriveSegments, 25, 15, 35),
+    [deriveSegments, mode]
   );
 
-  // Auto-derive active PARAGRAPH (Content view) from the playing word index.
-  const activeParaIdx = useMemo(() => {
-    if (activeIdx >= 0) {
-      const f = paragraphs.findIndex(
-        (p) => activeIdx >= p.wordStartIdx && activeIdx <= p.wordEndIdx
-      );
-      if (f >= 0) return f;
-    }
-    if (activeSegIdxProp != null && activeSegIdxProp >= 0 && paragraphs[activeSegIdxProp]) {
-      return activeSegIdxProp;
-    }
-    return -1;
-  }, [activeIdx, activeSegIdxProp, paragraphs]);
-
   // Auto-derive active SENTENCE (Subtitle view) from the playing word index.
-  // Subtitle mode keeps the original per-sentence rows, so we track those.
   const activeSentIdx = useMemo(() => {
     if (activeIdx >= 0) {
       const f = deriveSegments.findIndex(
@@ -164,22 +220,31 @@ export default function Transcript({
 
   // Capture user text selection. In Subtitle mode selection is ignored (no
   // menu) — only word-click dictionary works. In Content mode it opens the
-  // floating Ask / Copy popup.
+  // floating Ask / Highlight / Note / Copy popup.
   function onMouseUp() {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
       setAskRect(null);
+      setHlOpen(false);
       return;
     }
     const text = sel.toString().trim();
     if (!text || text.length < 2) return;
     if (!containerRef.current?.contains(sel.anchorNode)) return;
-    if (mode === "content" && onAskAi) {
+    if (mode === "content") {
       const rect = sel.getRangeAt(0).getBoundingClientRect();
       setAskRect({ x: rect.left, y: rect.bottom + 6, text });
+      setHlOpen(false);
     } else {
       setAskRect(null);
+      setHlOpen(false);
     }
+  }
+
+  function closePopup() {
+    setAskRect(null);
+    setHlOpen(false);
+    window.getSelection()?.removeAllRanges();
   }
 
   function clickToken(t: Token) {
@@ -203,13 +268,7 @@ export default function Transcript({
 
   // Plain-text render (Content view): no per-word click, no COCA colouring —
   // just the literal text, so it reads as prose and you can select freely to
-  // ask. The dictionary-hyperlink behaviour is Subtitle-only.
-  function renderPlain(t: Token, i: number) {
-    return <span key={i}>{t.text}</span>;
-  }
-
-  // Render a single token. Hidden-by-filter words are still shown — just in
-  // default text colour (white/normal), no COCA band colouring.
+  // ask / highlight / note.
   function renderToken(t: Token, i: number) {
     if (t.text.trim() === "") return <span key={i}>{t.text}</span>;
     const visible = bandVisible(t.text);
@@ -327,25 +386,22 @@ export default function Transcript({
     );
   }
 
+  // Content view: no timestamps, 5–10 sentences per paragraph, highlights
+  // applied, free text selection.
   function renderContent() {
     return (
       <div ref={containerRef} className="subtitle-list select-text content-body" onMouseUp={onMouseUp}>
         {paragraphs.length === 0
-          ? untimedGroups.map((grp, pi) => {
-              const start = grp.find((x) => x.t.start != null)?.t.start;
-              return (
-                <div key={pi} data-para-i={pi} className="content-para">
-                  {start != null && <span className="content-time">{formatSrtTime(start)}</span>}
-                  <span className="content-text">
-                    {grp.map((x) => renderPlain(x.t, x.i))}
-                  </span>
-                </div>
-              );
-            })
+          ? untimedGroups.map((grp, pi) => (
+              <div key={pi} data-para-i={pi} className="content-para">
+                <span className="content-text">
+                  {renderHighlighted(grp.map((x) => x.t.text).join(" "), highlights)}
+                </span>
+              </div>
+            ))
           : paragraphs.map((p, pi) => (
               <div key={p.index} data-para-i={pi} className="content-para">
-                <span className="content-time">{formatSrtTime(p.startTime)}</span>
-                  <span className="content-text">{p.text}</span>
+                <span className="content-text">{renderHighlighted(p.text, highlights)}</span>
               </div>
             ))}
       </div>
@@ -378,37 +434,98 @@ export default function Transcript({
 
       {mode === "subtitle" ? renderSubtitle() : renderContent()}
 
-      {/* Floating "Ask / Copy" popup — Content mode only */}
+      {/* Floating selection popup — Content mode only */}
       {askRect && (
         <div
           className="ask-popup fixed z-50 flex items-center gap-1"
-          style={{ left: askRect.x, top: askRect.y }}
+          style={{ left: Math.min(askRect.x, window.innerWidth - 320), top: askRect.y }}
+          onMouseDown={(e) => e.preventDefault()}
         >
-          <button
-            className="ask-popup-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const t = askRect.text;
-              setAskRect(null);
-              window.getSelection()?.removeAllRanges();
-              onAskAi?.(t);
-            }}
-          >
-            Ask AI
-          </button>
-          <button
-            className="ask-popup-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              navigator.clipboard?.writeText(askRect.text);
-              setAskRect(null);
-              window.getSelection()?.removeAllRanges();
-            }}
-          >
-            Copy
-          </button>
+          {hlOpen ? (
+            <>
+              {HIGHLIGHT_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  className="ask-popup-btn"
+                  title={`Highlight ${c.label}`}
+                  aria-label={`Highlight ${c.label}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const t = askRect.text;
+                    closePopup();
+                    onHighlight?.(t, c.key);
+                  }}
+                >
+                  <span
+                    className="block h-3.5 w-3.5 rounded-full"
+                    style={{ background: c.bg }}
+                  />
+                </button>
+              ))}
+              <button
+                className="ask-popup-btn"
+                title="Cancel"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setHlOpen(false);
+                }}
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="ask-popup-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const t = askRect.text;
+                  closePopup();
+                  onAskAi?.(t);
+                }}
+              >
+                Ask AI
+              </button>
+              <button
+                className="ask-popup-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setHlOpen(true);
+                }}
+                title="Highlight (8 colors)"
+              >
+                Highlight
+              </button>
+              <button
+                className="ask-popup-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const t = askRect.text;
+                  closePopup();
+                  onNote?.(t);
+                }}
+              >
+                Note
+              </button>
+              <button
+                className="ask-popup-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const t = askRect.text;
+                  closePopup();
+                  navigator.clipboard?.writeText(t);
+                }}
+              >
+                Copy
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -138,6 +138,53 @@ export function mergeSegmentsIntoParagraphs(
   return out;
 }
 
+/**
+ * Merge sentence-level segments into reader-friendly paragraphs by SENTENCE
+ * COUNT (5–10 per paragraph), ignoring timestamps. Used by the Transcript's
+ * "Content" view: no timestamps shown, paragraphs switch every 5–10 sentences.
+ */
+export function mergeSegmentsIntoParagraphsByCount(
+  segs: Segment[],
+  minSentences = 5,
+  maxSentences = 10
+): Segment[] {
+  if (!segs.length) return [];
+  const out: Segment[] = [];
+  let cur: Segment[] = [];
+
+  const flush = () => {
+    if (!cur.length) return;
+    const first = cur[0];
+    const last = cur[cur.length - 1];
+    out.push({
+      index: out.length,
+      number: out.length + 1,
+      text: cur.map((s) => s.text).join(" "),
+      startTime: first.startTime,
+      endTime: last.endTime,
+      wordStartIdx: first.wordStartIdx,
+      wordEndIdx: last.wordEndIdx,
+    });
+    cur = [];
+  };
+
+  for (const s of segs) {
+    if (!cur.length) {
+      cur = [s];
+      continue;
+    }
+    // 已积累 ≥ min 句且加上本句会超过 max 句 → 另起一段
+    if (cur.length >= minSentences && cur.length + 1 > maxSentences) {
+      flush();
+      cur = [s];
+      continue;
+    }
+    cur.push(s);
+  }
+  flush();
+  return out;
+}
+
 /** "00:12" for < 1h, "01:23:45" otherwise. Subtitle standard. */
 export function formatSrtTime(t: number): string {
   if (!isFinite(t) || t < 0) return "00:00";
