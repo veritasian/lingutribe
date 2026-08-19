@@ -6,6 +6,7 @@
   "main": "electron/main.cjs",
   "license": "Apache-2.0",
   "description": "Local-first English learning workstation — offline Whisper STT (echogarden), Kokoro TTS, offline MDict dictionaries with word-band analysis, notes, and an optional LLM tutor. Unified Express + React + Electron repo.",
+  "author": "Andy",
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx watch src/server/index.ts",
