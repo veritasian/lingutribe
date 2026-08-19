@@ -62,6 +62,10 @@ async function startPackagedServer() {
   process.env.LINGO_MODELS_DIR = path.join(userData, "models");
   process.env.LINGO_LIBRARY_DIR = path.join(userData, "library");
 
+  // COCA word-band data ships inside the bundle at Resources/app/data; the
+  // server probes __dirname-relative layouts otherwise and would miss it.
+  process.env.LINGO_DATA_DIR = path.join(process.resourcesPath, "app", "data");
+
   // Point the server at the bundled ffmpeg (extraResource) when present.
   const bundledFfmpeg = path.join(process.resourcesPath, "ffmpeg", "ffmpeg");
   if (fs.existsSync(bundledFfmpeg)) {

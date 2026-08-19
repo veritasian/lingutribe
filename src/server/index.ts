@@ -44,6 +44,18 @@ const TOOL_MODELS_ROOT = process.env.LINGO_MODELS_DIR
   : path.resolve(__dirname, "..", "..", "data", "models");
 fs.mkdirSync(TOOL_MODELS_ROOT, { recursive: true });
 
+// COCA word-band data: in dev it lives at <repo>/data/coca-bands.json; in the
+// packaged app electron-builder copies it to Resources/app/data (the bundle's
+// dist-server is one level deeper, so resolving "../../data" would land one
+// level too high at Resources/data and miss it). The packaged shell sets
+// LINGO_DATA_DIR to Resources/app/data; otherwise probe both layouts and pick
+// whichever actually contains the file.
+const TOOL_DATA_ROOT = process.env.LINGO_DATA_DIR
+  ? path.resolve(process.env.LINGO_DATA_DIR)
+  : [path.resolve(__dirname, "..", "data"), path.resolve(__dirname, "..", "..", "data")]
+      .find((dir) => fs.existsSync(path.join(dir, "coca-bands.json")))
+      ?? path.resolve(__dirname, "..", "..", "data");
+
 // Route Node's built-in fetch (undici) through an HTTP proxy when one is
 // configured (HTTP(S)_PROXY). The built-in fetch ignores those env vars, so
 // real-site requests (URL import, RSS) time out with "fetch failed" while the
@@ -307,8 +319,7 @@ let _cocaCache: any = null;
 app.get("/api/coca/bands", (_req, res) => {
   if (_cocaCache) return res.json(_cocaCache);
   try {
-    // data/coca-bands.json lives two levels up from src/server.
-    const fp = path.resolve(__dirname, "..", "..", "data", "coca-bands.json");
+    const fp = path.join(TOOL_DATA_ROOT, "coca-bands.json");
     const raw = fs.readFileSync(fp, "utf-8");
     _cocaCache = JSON.parse(raw);
     res.json(_cocaCache);
@@ -325,7 +336,7 @@ app.get("/api/coca/bands", (_req, res) => {
 // client-side lemmatizer (contractions, suffix stripping) runs in the web UI.
 app.get("/api/coca/test", (req, res) => {
   try {
-    const fp = path.resolve(__dirname, "..", "..", "data", "coca-bands.json");
+    const fp = path.join(TOOL_DATA_ROOT, "coca-bands.json");
     const data = JSON.parse(fs.readFileSync(fp, "utf-8"));
     const ranks: Record<string, number> = data.ranks || {};
     const thresholds: Record<string, number> = data.band_thresholds || {};
