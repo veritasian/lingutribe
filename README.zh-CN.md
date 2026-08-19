@@ -19,7 +19,8 @@
 | 单词不知道怎么读 | 本地 Kokoro TTS 朗读任意句子；完全离线 |
 | 生词 | 离线 MDict 词典（放入 `.mdx`/`.mdd` 即用），可接 LLM 兜底解释 |
 | 哪些词值得背 | COCA 词频带（1k–6k+）随读随标 |
-| 边学边记 | Apple Notes 式笔记，播放器/阅读器内联编辑器，自动保存 |
+| 盯住目标词 | 导入词表（四级/六级/考研/雅思/托福…），看这些词在每篇文章里的词频分布 |
+| 边学边记 | 笔记、划词高亮、Markdown 导出；播放器/阅读器内联编辑器，自动保存 |
 | 没人可问 | AI 助教（Ollama 或任意 OpenAI 兼容端点） |
 | 工具太多 | 音频 · 视频 · 阅读 · 词典 · 单词 · 笔记 · 对话，一处搞定 |
 
@@ -66,10 +67,14 @@ xattr -dr com.apple.quarantine /Applications/Lingutribe.app
   发音音频从 `.mdd` 里读取。
 - **COCA 词频带** —— 每个词标注 BNC/COCA 词频段（Nation & Crabbe 头词表，1 万词），
   阅读/观看时高亮。
-- **笔记** —— Apple Notes 风格列表 + 编辑器，Markdown 正文，自动保存；播放器与阅读器内
-  联笔记与资源绑定。
-- **AI 助教** —— Ask-AI 面板 + 按资源分线程的对话历史；Ollama 或任意 OpenAI 兼容端点；
-  语法分析、词典兜底。
+- **笔记 / 高亮 / 导出** —— Apple Notes 风格列表 + 编辑器，Markdown 正文，自动保存；可在
+  转写文本和视频里划词高亮；勾选任意笔记/高亮一键导出为单个 Markdown 文件（本地下载，
+  不上传）。
+- **自定义词表** —— 在「设置 → 词表」导入自己的词表（四级/六级/考研/雅思/托福…）；阅读器
+  的 **Layout** 选项卡会展示所选词表中、出现在本文的词汇，按出现次数分层
+  （20+ / 10+ / 5+ / 2+ / 1+），COCA 频段统计仍按全文计算。
+- **AI 助教** —— Ask-AI 面板 + 按资源分线程的对话历史，流式回复；Ollama 或任意 OpenAI
+  兼容端点；语法分析、词典兜底。
 - **数据 100% 本地** —— SQLite（`lingo.db`）+ 文件库；不上传任何东西。
 
 ---
@@ -121,6 +126,12 @@ flowchart LR
 内置 `data/coca-bands.json`（10,006 个词头，Nation & Crabbe BNC/COCA），把词标成
 `1k` / `3k` / `5k` / `6k` / `above` 频段，随文高亮并按文章统计。
 
+### 自定义词表
+
+在「设置 → 词表」导入纯文本词表（每行一个词，或 `词头 TAB 释义…`；音标和注释会自动
+剥离，也支持 GBK 编码文件）。阅读时在 **Layout** 选项卡里选中某词表，即可看到该表中
+出现在本文的词汇，按出现次数分层（20+ / 10+ / 5+ / 2+ / 1+），COCA 频段统计仍按全文计算。
+
 ---
 
 ## 模型自动安装
@@ -138,6 +149,9 @@ flowchart LR
 | 设置 | `GET /api/settings`, `PUT /api/settings`, `GET /api/disk` |
 | 资源 | `GET/POST /api/resources`, `GET /api/resources/:id/analysis`, `POST /api/resources/:id/transcribe`, `POST /api/resources/:id/align` |
 | 单词 | `GET/POST /api/words`, `PUT/DELETE /api/words/:id` |
+| 高亮 | `GET/POST /api/highlights`, `PUT/DELETE /api/highlights/:id` |
+| 词表 | `GET /api/wordlists`, `GET /api/wordlists/:id/words`, `POST /api/wordlists/import`, `PUT/DELETE /api/wordlists/:id` |
+| COCA 词频 | `GET /api/coca/bands`, `GET /api/coca/test` |
 | 笔记 | `GET/POST /api/notes`（支持 `?resourceId=` 过滤）, `PUT/DELETE /api/notes/:id` |
 | 词典 | `GET /api/dict/list`, `GET /api/dict/lookup?word=&dict=`, `GET /api/dict/audio?ref=`, `POST /api/dict/llm` |
 | 对话 | `GET/POST /api/chat`（按线程）, `DELETE /api/chat/:id` |
@@ -157,7 +171,7 @@ lingutribe/
 │   ├── server/                 # Express 引擎（:8787）
 │   │   ├── index.ts            # 入口：启动 Express、注册路由、CORS 防护
 │   │   ├── engines/            # stt.ts（Whisper/echogarden）· tts.ts（Kokoro）· llm.ts · models.ts
-│   │   ├── routes/             # resources, words, notes, chat, dict, engines, import, settings
+│   │   ├── routes/             # resources, words, notes, highlights, wordlists, chat, dict, engines, import, settings
 │   │   ├── db.ts               # SQLite + 资料库路径
 │   │   └── analysis.ts         # 媒体分析（时长、波形峰值、分段）
 │   ├── web/                    # React UI（Vite 根目录）

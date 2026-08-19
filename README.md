@@ -20,7 +20,8 @@ word lists and notes stay on your Mac; only the optional AI tutor needs the netw
 | Can't read a word aloud | Local Kokoro TTS reads any sentence; fully offline |
 | Unknown word | Offline MDict dictionary (drop in `.mdx`/`.mdd` files) with an LLM fallback |
 | Which words matter | COCA word bands highlight every word's frequency (1k–6k+) as you read |
-| Capture thoughts while learning | Apple-Notes-style notes, inline editor in the player and reader, auto-saved |
+| Track your target words | Import word lists (CET-4/6, 考研, IELTS…) and see those words' frequency distribution in every article |
+| Capture thoughts while learning | Apple-Notes-style notes, highlights, Markdown export; inline editor in the player and reader, auto-saved |
 | No one to ask / correct | An AI tutor (Ollama or any OpenAI-compatible endpoint) |
 | Too many tools | Audio · Video · Read · Dictionary · Words · Notes · Chat in one place |
 
@@ -69,10 +70,15 @@ xattr -dr com.apple.quarantine /Applications/Lingutribe.app
   dictionary interprets a word when several are installed; pronunciation audio from the `.mdd`.
 - **COCA word bands** — every word is tagged with its BNC/COCA frequency band (Nation & Crabbe
   headword list, 10k) and highlighted while you read or watch.
-- **Notes** — Apple-Notes-style list + editor, Markdown body, auto-saved; open an inline note
-  editor directly in the audio/video player and the reader, linked to the resource.
-- **AI tutor** — Ask-AI panel and per-resource chat history; Ollama or any OpenAI-compatible
-  endpoint; grammar analysis and LLM dictionary fallback.
+- **Notes, highlights & export** — Apple-Notes-style list + editor, Markdown body, auto-saved;
+  highlight passages in transcripts and videos; select any notes/highlights and export them to
+  a single Markdown file (local download, nothing leaves your Mac).
+- **Custom word lists** — import your own lists (CET-4/CET-6, 考研, IELTS, TOEFL…) in
+  Settings → Word lists; the reader's **Layout** tab then shows which words from the selected
+  list appear in the article, tiered by how often they show up (20+/10+/5+/2+/1+), while the
+  COCA band stats stay computed over the full text.
+- **AI tutor** — Ask-AI panel and per-resource chat history, streaming replies; Ollama or any
+  OpenAI-compatible endpoint; grammar analysis and LLM dictionary fallback.
 - **100% local data** — SQLite (`lingo.db`) plus a flat-file library; nothing is uploaded.
 
 ---
@@ -128,6 +134,14 @@ Drop `.mdx` (and companion `.mdd`) files into the dictionaries folder:
 A bundled `data/coca-bands.json` (10,006 headwords, Nation & Crabbe BNC/COCA) tags words with
 frequency bands — `1k`, `3k`, `5k`, `6k`, `above` — highlighted inline and analyzed per article.
 
+### Word lists (自定义词表)
+
+Import plain-text word lists in **Settings → Word lists** (one word per line, or
+`headword TAB …` — phonetics and annotations are stripped automatically; GBK files are
+handled too). In the reader, the **Layout** tab shows the selected list's words that appear
+in the current article, tiered by appearance count (20+ / 10+ / 5+ / 2+ / 1+), while the
+COCA band stats remain computed over the full text.
+
 ---
 
 ## Models install automatically
@@ -146,6 +160,9 @@ download on first use, then stay cached for fully offline use. Pre-deploy them f
 | Settings | `GET /api/settings`, `PUT /api/settings`, `GET /api/disk` |
 | Resources | `GET/POST /api/resources`, `GET /api/resources/:id/analysis`, `POST /api/resources/:id/transcribe`, `POST /api/resources/:id/align` |
 | Words | `GET/POST /api/words`, `PUT/DELETE /api/words/:id` |
+| Highlights | `GET/POST /api/highlights`, `PUT/DELETE /api/highlights/:id` |
+| Word lists | `GET /api/wordlists`, `GET /api/wordlists/:id/words`, `POST /api/wordlists/import`, `PUT/DELETE /api/wordlists/:id` |
+| COCA bands | `GET /api/coca/bands`, `GET /api/coca/test` |
 | Notes | `GET/POST /api/notes` (`?resourceId=` filter), `PUT/DELETE /api/notes/:id` |
 | Dictionary | `GET /api/dict/list`, `GET /api/dict/lookup?word=&dict=`, `GET /api/dict/audio?ref=`, `POST /api/dict/llm` |
 | Chat | `GET/POST /api/chat` (per-thread history), `DELETE /api/chat/:id` |
@@ -165,7 +182,7 @@ lingutribe/
 │   ├── server/                 # Express engine (runs on :8787)
 │   │   ├── index.ts            # entry: boots Express, registers routes, CORS guard
 │   │   ├── engines/            # stt.ts (Whisper/echogarden) · tts.ts (Kokoro) · llm.ts · models.ts
-│   │   ├── routes/             # resources, words, notes, chat, dict, engines, import, settings
+│   │   ├── routes/             # resources, words, notes, highlights, wordlists, chat, dict, engines, import, settings
 │   │   ├── db.ts               # SQLite + library paths
 │   │   └── analysis.ts         # media analysis (duration, waveform peaks, segments)
 │   ├── web/                    # React UI (Vite root)
