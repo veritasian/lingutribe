@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { type WordHit } from "../api";
 import {
   bandOf,
@@ -8,6 +8,7 @@ import {
   type Band,
   type CocaData,
 } from "../lib/coca";
+import { useWordLists, inList } from "../lib/lists";
 
 interface BandStat { band: Exclude<Band, null>; label: string; unique: number; words: string[] }
 
@@ -34,6 +35,18 @@ export default function VocabProfile({
     return txt.split(/\s+/).filter(Boolean).map((text) => ({ text, start: 0, end: 0 }));
   }, [words, transcript]);
 
+  // ── 自定义词表过滤：选中某词表后，统计/分组排除该表内词（只展示非该表内容）──
+  const { metas, words: listSets } = useWordLists();
+  const [excludeId, setExcludeId] = useState<string>(
+    () => localStorage.getItem("lingo-wordlist-filter") || ""
+  );
+  function setExclude(id: string) {
+    setExcludeId(id);
+    localStorage.setItem("lingo-wordlist-filter", id);
+  }
+  const excludeName = metas.find((m) => m.id === excludeId)?.name || "";
+  const excludeSet = excludeId ? listSets.get(excludeId) : undefined;
+
   const { stats, totalTokens, stopTokens, top3kTokens } = useMemo(() => {
     if (!coca || !effectiveWords.length)
       return { stats: [] as BandStat[], totalTokens: 0, stopTokens: 0, top3kTokens: 0 };
@@ -43,6 +56,8 @@ export default function VocabProfile({
     let tot = 0, stop = 0, top3k = 0;
 
     for (const w of effectiveWords) {
+      // 词表过滤：命中选中词表 → 整体跳过（不计入任何统计）
+      if (excludeId && inList(w.text, coca, excludeSet)) continue;
       const raw = w.text.toLowerCase().replace(/[^a-z']/g, "");
       if (!raw || raw.length < 2) continue;
       tot++;
@@ -65,7 +80,7 @@ export default function VocabProfile({
         };
       });
     return { stats: arr, totalTokens: tot, stopTokens: stop, top3kTokens: top3k };
-  }, [coca, effectiveWords]);
+  }, [coca, effectiveWords, excludeId, excludeSet]);
 
   const totalUnique = stats.reduce((s, x) => s + x.unique, 0);
   const uniquePct = totalTokens > 0 ? Math.round((totalUnique / totalTokens) * 100) : 0;
@@ -80,6 +95,32 @@ export default function VocabProfile({
 
   return (
     <div className="space-y-4">
+      {/* 自定义词表过滤：默认全部（COCA），选中后只展示非该表内容 */}
+      {metas.length > 0 && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Word list filter</span>
+          <select
+            className="select"
+            style={{ width: "auto", maxWidth: 220 }}
+            value={excludeId}
+            onChange={(e) => setExclude(e.target.value)}
+            title="排除选中词表内的单词（只展示非该表内容）"
+          >
+            <option value="">All (COCA)</option>
+            {metas.map((m) => (
+              <option key={m.id} value={m.id}>
+                排除 {m.name}（{m.count}）
+              </option>
+            ))}
+          </select>
+          {excludeName && (
+            <span className="text-[10px] text-primary/80">
+              ↳ 已排除「{excludeName}」词表
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="text-xs text-muted-foreground space-y-1">
         <div className="flex flex-wrap gap-x-4 gap-y-0.5">

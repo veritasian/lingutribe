@@ -102,6 +102,15 @@ export interface Settings {
   defaultLlmId?: number;
   // Which offline MDict dictionary to use for lookups. null => auto (first match).
   activeDictionary?: string | null;
+  // 自定义单词表元数据（词表本体存 library/wordlists/*.txt）
+  customLists?: { id: string; name: string; file: string; count: number }[];
+}
+/** 自定义单词表元数据。 */
+export interface WordListMeta {
+  id: string;
+  name: string;
+  file: string;
+  count: number;
 }
 export interface DiskUsage {
   libraryPath: string;
@@ -338,6 +347,29 @@ export const api = {
     req<{ ok: boolean; dir: string; count: number; titles: string[]; error?: string }>(
       "/api/dict/test"
     ),
+  // 自定义单词表（四级/六级/考研/雅思…）
+  listWordLists: () => req<WordListMeta[]>("/api/wordlists"),
+  wordListWords: (id: string) =>
+    req<{ id: string; name: string; words: string[] }>(`/api/wordlists/${id}/words`),
+  importWordList: (name: string, content: string) =>
+    req<WordListMeta>("/api/wordlists/import", {
+      method: "POST",
+      body: JSON.stringify({ name, content }),
+    }),
+  importWordListFile: async (name: string, file: File) => {
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("file", file);
+    const res = await fetch("/api/wordlists/import", { method: "POST", body: fd });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(t || `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+  renameWordList: (id: string, name: string) =>
+    req<WordListMeta>(`/api/wordlists/${id}`, { method: "PUT", body: JSON.stringify({ name }) }),
+  deleteWordList: (id: string) => req(`/api/wordlists/${id}`, { method: "DELETE" }),
   // Reveal a folder in the OS file manager (desktop app).
   revealFolder: (dir: string) =>
     req<{ ok: boolean; dir: string; method: string; error?: string }>("/api/system/reveal", {

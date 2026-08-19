@@ -20,6 +20,7 @@ import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerWordsRoutes } from "./routes/words.js";
 import { registerNotesRoutes } from "./routes/notes.js";
 import { registerHighlightsRoutes } from "./routes/highlights.js";
+import { registerWordListsRoutes } from "./routes/wordlists.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerEngineRoutes } from "./routes/engines.js";
 import { registerDictRoutes } from "./routes/dict.js";
@@ -190,6 +191,8 @@ const DEFAULT_SETTINGS = {
   // Which offline MDict dictionary to use for word lookups. null => auto
   // (first dictionary that contains the word).
   activeDictionary: null as string | null,
+  // 自定义单词表元数据（四级/六级/考研/雅思…），词表本体存 library/wordlists/*.txt
+  customLists: [] as { id: string; name: string; file: string; count: number }[],
 };
 
 function readSettings() {
@@ -363,6 +366,7 @@ registerSettingsRoutes(app, { readSettings, writeSettings, dirSize });
 registerWordsRoutes(app, { now });
 registerNotesRoutes(app, { now });
 registerHighlightsRoutes(app, { now });
+registerWordListsRoutes(app, { readSettings, writeSettings, now });
 registerChatRoutes(app, { now });
 registerEngineRoutes(app, { readSettings, resolveLlm, resolveTts, buildTtsConfig, upload });
 registerDictRoutes(app, { readSettings, resolveLlm });
