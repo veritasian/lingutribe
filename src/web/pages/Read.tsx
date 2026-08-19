@@ -72,6 +72,14 @@ export default function Read() {
   const [hls, setHls] = useState<Highlight[]>([]);
   // 右栏 Note 列表刷新令牌
   const [hlRefresh, setHlRefresh] = useState(0);
+  // 右栏面板宽度（可拖拽，与音频/视频页共享偏好）
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    const w = Number(localStorage.getItem("lingo-panel-w"));
+    return w && w >= 280 && w <= 640 ? w : 360;
+  });
+  useEffect(() => {
+    localStorage.setItem("lingo-panel-w", String(panelWidth));
+  }, [panelWidth]);
   // 左栏资源列表可折叠（同音频/视频页）
   const [listOpen, setListOpen] = useState(
     () => localStorage.getItem("lingo-read-list") !== "collapsed"
@@ -649,7 +657,12 @@ export default function Read() {
           </button>
         </div>
       )}
-      <WordPanel data={panel} onClose={() => setPanel(null)} />
+      <WordPanel
+        data={panel}
+        onClose={() => setPanel(null)}
+        width={panelWidth}
+        onWidthChange={setPanelWidth}
+      />
     </div>
   );
 }
