@@ -8,7 +8,7 @@ import {
   type Band,
   type CocaData,
 } from "../lib/coca";
-import { useWordLists, inList } from "../lib/lists";
+import { useWordLists } from "../lib/lists";
 
 interface BandStat { band: Exclude<Band, null>; label: string; unique: number; words: string[] }
 
@@ -35,7 +35,8 @@ export default function VocabProfile({
     return txt.split(/\s+/).filter(Boolean).map((text) => ({ text, start: 0, end: 0 }));
   }, [words, transcript]);
 
-  // ── 自定义词表过滤：选中某词表后，统计/分组排除该表内词（只展示非该表内容）──
+  // ── 自定义词表视图：选中某词表后，在全文 COCA 统计之上展示该表词汇的
+  //    词频分布（20+/10+/5+/2+/1+，按在本文出现次数分层）──
   const { metas, words: listSets } = useWordLists();
   const [excludeId, setExcludeId] = useState<string>(
     () => localStorage.getItem("lingo-wordlist-filter") || ""
@@ -47,6 +48,7 @@ export default function VocabProfile({
   const excludeName = metas.find((m) => m.id === excludeId)?.name || "";
   const excludeSet = excludeId ? listSets.get(excludeId) : undefined;
 
+  // COCA 统计基于全文（不再排除所选词表内的词）
   const { stats, totalTokens, stopTokens, top3kTokens, freq } = useMemo(() => {
     if (!coca || !effectiveWords.length)
       return {
@@ -65,11 +67,9 @@ export default function VocabProfile({
     for (const w of effectiveWords) {
       const raw = w.text.toLowerCase().replace(/[^a-z']/g, "");
       if (!raw || raw.length < 2) continue;
-      // 词频统计（按 lemma 聚合，词表过滤前：给选中词表的词频分层视图用）
+      // 词频统计（按 lemma 聚合，全文范围：给选中词表的词频分层视图用）
       const lemmaAll = lemmatizeWord(coca, raw);
       freq.set(lemmaAll, (freq.get(lemmaAll) || 0) + 1);
-      // 词表过滤：命中选中词表 → 整体跳过（不计入 COCA 统计）
-      if (excludeId && inList(w.text, coca, excludeSet)) continue;
       tot++;
       if (isStopWord(raw)) { stop++; continue; }
       const lemma = lemmatizeWord(coca, raw);
@@ -90,7 +90,7 @@ export default function VocabProfile({
         };
       });
     return { stats: arr, totalTokens: tot, stopTokens: stop, top3kTokens: top3k, freq };
-  }, [coca, effectiveWords, excludeId, excludeSet]);
+  }, [coca, effectiveWords]);
 
   // 选中词表 → 「词频分布」分层：20+ / 10+ / 5+ / 2+ / 1+，层内按字母排列
   const listTiers = useMemo(() => {
@@ -135,18 +135,18 @@ export default function VocabProfile({
             style={{ width: "auto", maxWidth: 220 }}
             value={excludeId}
             onChange={(e) => setExclude(e.target.value)}
-            title="排除选中词表内的单词（只展示非该表内容）"
+            title="选中词表后，展示该表词汇在本文的词频分布（COCA 统计保持全文范围）"
           >
             <option value="">All (COCA)</option>
             {metas.map((m) => (
               <option key={m.id} value={m.id}>
-                排除 {m.name}（{m.count}）
+                {m.name} 词表（{m.count}）
               </option>
             ))}
           </select>
           {excludeName && (
             <span className="text-[10px] text-primary/80">
-              ↳ 已排除「{excludeName}」词表
+              ↳ 查看「{excludeName}」在本文的词频分布
             </span>
           )}
         </div>
@@ -154,7 +154,7 @@ export default function VocabProfile({
 
       {/* 选中词表 → 词频分布（20+/10+/5+/2+/1+，层内按字母排列，左对齐） */}
       {listTiers && (
-        <div className="rounded-lg border p-3 space-y-2.5 bg-muted/20">
+        <div className="rounded-lg border p-3 space-y-2.5 bg-muted/20 mb-6">
           <div className="text-xs font-medium">
             「{listTiers.name}」词频分布
             <span className="text-[10px] text-muted-foreground font-normal ml-2">
