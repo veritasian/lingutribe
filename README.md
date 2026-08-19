@@ -1,7 +1,7 @@
 # Lingutribe
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20arm64-blue)
-![Version](https://img.shields.io/badge/version-0.1.2-blue)
+![Version](https://img.shields.io/badge/version-0.1.3-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 **Local-first English learning workstation** — offline speech recognition, text-to-speech,
@@ -45,7 +45,7 @@ Open **http://localhost:5173** in dev, or **http://localhost:8787** in productio
 ### Build the desktop app (.dmg)
 
 ```bash
-npm run dist:mac     # → dist-electron/Lingutribe-0.1.2-arm64.dmg
+npm run dist:mac     # → dist-electron/Lingutribe-0.1.3-arm64.dmg
 ```
 
 Requires Xcode Command Line Tools. The build is **unsigned**; on a clean Mac, Gatekeeper

@@ -1,7 +1,7 @@
 # Lingutribe
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20arm64-blue)
-![Version](https://img.shields.io/badge/version-0.1.2-blue)
+![Version](https://img.shields.io/badge/version-0.1.3-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 **本地优先的英语学习工作站** —— 离线语音识别、离线朗读、离线词典、词汇分析与笔记，一个桌面应用搞定。
@@ -44,7 +44,7 @@ npm run app
 ### 打包桌面应用（.dmg）
 
 ```bash
-npm run dist:mac     # → dist-electron/Lingutribe-0.1.2-arm64.dmg
+npm run dist:mac     # → dist-electron/Lingutribe-0.1.3-arm64.dmg
 ```
 
 需要 Xcode Command Line Tools。当前构建**未签名**；新 Mac 上 Gatekeeper 会拦首次打开，执行一次：

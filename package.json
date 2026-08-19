@@ -1,10 +1,10 @@
 {
   "name": "lingutribe",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "description": "Local-first English learning workstation — offline Whisper STT (echogarden), Kokoro TTS, offline MDict dictionaries with word-band analysis, notes, and an optional LLM tutor. Unified Express + React + Electron repo.",
   "scripts": {
     "dev": "vite",
